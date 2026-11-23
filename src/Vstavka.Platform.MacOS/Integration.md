@@ -12,7 +12,7 @@ The adapter prefers file URLs, then PNG or TIFF, then URL and plain text. Finder
 
 ## Hotkey, panel and paste
 
-The default shortcut is `Shift+Meta+V` (⌘⇧V). The other suggestions are `Ctrl+Meta+V` and `Alt+Meta+V`. The adapter registers usable `HotkeyGesture` combinations through Carbon. Ctrl is Control, Alt is Option, Shift is Shift, and Meta is Command. Letters A–Z and digits 0–9 use physical ANSI US keyboard positions. F1–F20 and Space are supported. F21–F24 are unsupported. A replacement is registered before releasing the current shortcut.
+The default shortcut is `Shift+Meta+V` (⇧⌘V). The other suggestions are `Ctrl+Meta+V` and `Alt+Meta+V`. The adapter registers usable `HotkeyGesture` combinations through Carbon. Ctrl is Control, Alt is Option, Shift is Shift, and Meta is Command. Letters A–Z and digits 0–9 use physical ANSI US keyboard positions. F1–F20 and Space are supported. F21–F24 are unsupported. A replacement is registered before releasing the current shortcut.
 
 The panel uses the status window level and `canJoinAllSpaces | fullScreenAuxiliary` so a single window can join the active Space, including a full-screen Space. Activation and keyboard focus still depend on the system and the packaged app's activation policy.
 

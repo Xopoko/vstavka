@@ -1,8 +1,12 @@
 # Manual acceptance checklist
 
-Use a separate Windows profile and sample data, never your own clipboard history.
-For every result, note the app version, how it was installed (local preview or
-Microsoft Store) and the Windows version.
+Use a separate user account and sample data, never your own clipboard history.
+For every result, note the app version or commit, how it was installed and the
+system version.
+
+## Microsoft Store app (Windows)
+
+Note whether you tested the local build or the Microsoft Store version.
 
 1. **First run.** Close the welcome window and confirm that history is not
    running. Open Vstavka again, choose a language and enable history. Copy text,
@@ -41,3 +45,33 @@ Microsoft Store) and the Windows version.
    version, check that history, pins, collections and settings, including the
    chosen shortcut, are kept. For a new package, record its hash and the results
    of install, update, uninstall and the Windows App Certification Kit.
+
+## Cross-platform app
+
+Test on Windows, macOS and Ubuntu. On Linux, note whether the session is
+Wayland or X11.
+
+1. **First-run guide.** Start with an empty data folder. Go through the four
+   steps with the keyboard and with the mouse, go back from each step, and quit
+   in the middle: the next start resumes at the same step. Record a new
+   shortcut, then start recording again and cancel it with **Esc**. The logo,
+   the panel preview and the shortcut keys animate; with reduced motion turned
+   on in the system, everything appears at once.
+2. **Permissions.** On macOS, start without clipboard access and Accessibility,
+   grant each in System Settings and check that the guide notices without a
+   restart. Without Accessibility, pasting must copy the item and say so. On
+   Ubuntu with Wayland, let the guide install the GNOME helper, sign out and
+   back in, and check that the guide resumes and the shortcut works.
+3. **Panel.** The panel opens at the bottom of the active screen; on macOS it
+   also appears over full-screen apps. Check search, filters, pins, quick
+   paste with **Ctrl+1 … 9** (**⌘1 … 9** on macOS), **Shift+Enter**, delete
+   (**Delete**, or **⌫** on macOS), **Esc** and the tray or menu bar icon.
+4. **Pasting.** Paste text, an image and files into a text editor, a browser
+   and a terminal. Note every app where automatic paste does not work.
+5. **Privacy.** Pause saving, then copy from an excluded app and from a password
+   manager (KeePassXC on Linux, 1Password on macOS). None of it may appear.
+   Restart and check that history is kept. Without a key store (no GNOME
+   Keyring, or the Keychain request denied), Settings must say that history is
+   kept in memory only.
+6. **Start at login.** Turn it on in Settings, sign out and back in, then turn
+   it off and check again.
