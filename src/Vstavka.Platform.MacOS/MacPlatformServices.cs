@@ -19,13 +19,15 @@ public sealed class MacPlatformServices : IPlatformServices
         var poll = new ClipboardPoll(board, RunningApps.GetSource);
         Clipboard = new MacClipboardMonitor(poll);
         ClipboardWriter = new MacClipboardWriter(board, poll);
-        Hotkey = new MacGlobalHotkey((gesture, callback) => CarbonHotkey.TryRegister(gesture, callback, out _, out _));
+        Hotkey = new MacGlobalHotkey(CarbonHotkey.TryRegister);
     }
 
     public string Name => "macOS";
     public string DataDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "Application Support", "Vstavka");
-    public string DefaultGesture => MacHotkeyGesture.Default;
-    public IReadOnlyList<string> SupportedGestures => MacHotkeyGesture.Supported;
+    public string DefaultGesture => MacGlobalHotkey.DefaultGesture;
+    public IReadOnlyList<string> SupportedGestures => MacGlobalHotkey.SupportedGestures;
+    public IReadOnlyList<PlatformPermission> Permissions => MacPermissions.System.GetPermissions();
+    public IStartupRegistration Startup => MacStartupRegistration.System;
     public IClipboardMonitor Clipboard { get; }
     public IClipboardWriter ClipboardWriter { get; }
     public IGlobalHotkey Hotkey { get; }
@@ -38,7 +40,7 @@ public sealed class MacPlatformServices : IPlatformServices
         get
         {
             var capabilities = PlatformCapabilities.GlobalHotkey | PlatformCapabilities.SourceIcons | PlatformCapabilities.PanelPlacement;
-            if (ClipboardCapturePolicy.CanReadInBackground(GetPasteboardAccess()))
+            if (MacPermissions.System.CanReadClipboard)
                 capabilities |= PlatformCapabilities.WatchClipboard;
             if (Paste.Permission == PermissionState.Granted)
                 capabilities |= PlatformCapabilities.AutoPaste;
@@ -52,33 +54,11 @@ public sealed class MacPlatformServices : IPlatformServices
     {
         get
         {
-            var notices = new List<PlatformNotice>();
-            var access = GetPasteboardAccess();
-            if (access == PasteboardAccess.AlwaysDeny)
-                notices.Add(new("pasteboard-access-denied", "macOS denied clipboard access. Set Vstavka to Always Allow in System Settings to capture clipboard history.", OpenPasteboardSettings));
-            else if (!ClipboardCapturePolicy.CanReadInBackground(access))
-                notices.Add(new("pasteboard-access-approval", "Clipboard history needs Always Allow for Vstavka in System Settings. Background capture waits for approval.", NativePasteboard.RequestAccess));
-            if (Paste.Permission == PermissionState.Missing)
-                notices.Add(new("accessibility-permission", "Allow Vstavka in Accessibility to paste into other apps. You can still paste manually.", Paste.RequestPermission));
+            var notices = MacPermissions.System.GetNotices();
             if (HistoryProtector is null)
                 notices.Add(new("keychain-unavailable", "The history key is unavailable in macOS Keychain. History is kept in memory."));
             return notices;
         }
-    }
-
-    private PasteboardAccess GetPasteboardAccess()
-    {
-        using var pool = new AutoreleasePool();
-        return board.Access;
-    }
-
-    private static void OpenPasteboardSettings()
-    {
-        using var pool = new AutoreleasePool();
-        var workspace = ObjC.Get(ObjC.Class("NSWorkspace"), "sharedWorkspace");
-        var url = ObjC.Get(ObjC.Class("NSURL"), "URLWithString:",
-            ObjC.String("x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Pasteboard"));
-        ObjC.Bool(workspace, ObjC.Sel("openURL:"), url);
     }
 
     private static IHistoryProtector? CreateHistoryProtector()

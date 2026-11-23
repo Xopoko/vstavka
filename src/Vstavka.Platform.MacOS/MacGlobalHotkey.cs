@@ -1,31 +1,14 @@
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
+using Vstavka.Core;
 
 namespace Vstavka.Platform.MacOS;
 
-internal readonly record struct MacHotkeyGesture(uint Modifiers)
+internal sealed class MacGlobalHotkey(Func<uint, uint, Action, IDisposable?> register) : IGlobalHotkey
 {
-    private const uint Command = 1 << 8;
-    private const uint Shift = 1 << 9;
-    private const uint Option = 1 << 11;
-    private const uint Control = 1 << 12;
+    internal const string DefaultGesture = "Shift+Meta+V";
+    internal static IReadOnlyList<string> SupportedGestures { get; } = Array.AsReadOnly([DefaultGesture, "Ctrl+Meta+V", "Alt+Meta+V"]);
 
-    internal const uint KeyCodeV = 9; // Carbon kVK_ANSI_V, the physical key position.
-    internal const string Default = "Cmd+Shift+V";
-    private static readonly Dictionary<string, MacHotkeyGesture> Gestures = new(StringComparer.OrdinalIgnoreCase)
-    {
-        [Default] = new(Command | Shift),
-        ["Ctrl+Cmd+V"] = new(Command | Control),
-        ["Option+Cmd+V"] = new(Command | Option)
-    };
-
-    internal static IReadOnlyList<string> Supported { get; } = Array.AsReadOnly(Gestures.Keys.ToArray());
-
-    internal static bool TryParse(string gesture, out MacHotkeyGesture result) => Gestures.TryGetValue(gesture.Trim(), out result);
-}
-
-internal sealed class MacGlobalHotkey(Func<MacHotkeyGesture, Action, IDisposable?> register) : IGlobalHotkey
-{
     private Binding? current;
     private bool disposed;
 
@@ -34,7 +17,7 @@ internal sealed class MacGlobalHotkey(Func<MacHotkeyGesture, Action, IDisposable
     public bool TryRegister(string gesture)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        if (!MacHotkeyGesture.TryParse(gesture, out var selection))
+        if (!HotkeyGesture.TryParse(gesture, out var selection) || !CarbonHotkey.TryGetKeyCode(selection.Key, out var keyCode))
             return false;
         var context = SynchronizationContext.Current;
         if (current is { } existing && existing.Gesture == selection)
@@ -44,7 +27,7 @@ internal sealed class MacGlobalHotkey(Func<MacHotkeyGesture, Action, IDisposable
         }
 
         var binding = new Binding(selection, context);
-        var registration = register(selection, () => Dispatch(binding));
+        var registration = register(keyCode, CarbonHotkey.GetModifiers(selection.Modifiers), () => Dispatch(binding));
         if (registration is null)
             return false;
         binding.Registration = registration;
@@ -78,9 +61,9 @@ internal sealed class MacGlobalHotkey(Func<MacHotkeyGesture, Action, IDisposable
         Pressed = null;
     }
 
-    private sealed class Binding(MacHotkeyGesture gesture, SynchronizationContext? context)
+    private sealed class Binding(HotkeyGesture gesture, SynchronizationContext? context)
     {
-        internal MacHotkeyGesture Gesture { get; } = gesture;
+        internal HotkeyGesture Gesture { get; } = gesture;
         internal SynchronizationContext? Context { get; set; } = context;
         internal IDisposable? Registration { get; set; }
     }
@@ -97,29 +80,65 @@ internal sealed partial class CarbonHotkey : IDisposable
     private const uint Exclusive = 1;
     private const int EventNotHandled = -9874;
 
+    private const uint CmdKey = 1 << 8;
+    private const uint ShiftKey = 1 << 9;
+    private const uint OptionKey = 1 << 11;
+    private const uint ControlKey = 1 << 12;
+
+    internal const ushort KeyCodeV = 0x09;
+
+    // HIToolbox kVK codes. ANSI letters and digits identify physical US keyboard positions.
+    private static readonly Dictionary<string, uint> KeyCodes = new(StringComparer.Ordinal)
+    {
+        ["A"] = 0x00, ["B"] = 0x0B, ["C"] = 0x08, ["D"] = 0x02, ["E"] = 0x0E,
+        ["F"] = 0x03, ["G"] = 0x05, ["H"] = 0x04, ["I"] = 0x22, ["J"] = 0x26,
+        ["K"] = 0x28, ["L"] = 0x25, ["M"] = 0x2E, ["N"] = 0x2D, ["O"] = 0x1F,
+        ["P"] = 0x23, ["Q"] = 0x0C, ["R"] = 0x0F, ["S"] = 0x01, ["T"] = 0x11,
+        ["U"] = 0x20, ["V"] = KeyCodeV, ["W"] = 0x0D, ["X"] = 0x07, ["Y"] = 0x10, ["Z"] = 0x06,
+        ["0"] = 0x1D, ["1"] = 0x12, ["2"] = 0x13, ["3"] = 0x14, ["4"] = 0x15,
+        ["5"] = 0x17, ["6"] = 0x16, ["7"] = 0x1A, ["8"] = 0x1C, ["9"] = 0x19,
+        ["F1"] = 0x7A, ["F2"] = 0x78, ["F3"] = 0x63, ["F4"] = 0x76, ["F5"] = 0x60,
+        ["F6"] = 0x61, ["F7"] = 0x62, ["F8"] = 0x64, ["F9"] = 0x65, ["F10"] = 0x6D,
+        ["F11"] = 0x67, ["F12"] = 0x6F, ["F13"] = 0x69, ["F14"] = 0x6B, ["F15"] = 0x71,
+        ["F16"] = 0x6A, ["F17"] = 0x40, ["F18"] = 0x4F, ["F19"] = 0x50, ["F20"] = 0x5A,
+        ["Space"] = 0x31,
+    };
+
     private static readonly ConcurrentDictionary<uint, Action> Handlers = new();
     private static int nextId;
 
     private readonly uint id;
     private nint handler;
     private nint registration;
-    internal int? UnregisterStatus { get; private set; }
-
     private CarbonHotkey(uint id) => this.id = id;
 
-    internal static unsafe CarbonHotkey? TryRegister(MacHotkeyGesture gesture, Action pressed, out string operation, out int status)
+    internal static bool TryGetKeyCode(string key, out uint code) => KeyCodes.TryGetValue(key, out code);
+
+    internal static uint GetModifiers(HotkeyModifiers modifiers)
+    {
+        uint flags = 0;
+        if (modifiers.HasFlag(HotkeyModifiers.Ctrl))
+            flags |= ControlKey;
+        if (modifiers.HasFlag(HotkeyModifiers.Alt))
+            flags |= OptionKey;
+        if (modifiers.HasFlag(HotkeyModifiers.Shift))
+            flags |= ShiftKey;
+        if (modifiers.HasFlag(HotkeyModifiers.Meta))
+            flags |= CmdKey;
+        return flags;
+    }
+
+    internal static unsafe CarbonHotkey? TryRegister(uint keyCode, uint modifiers, Action pressed)
     {
         var id = unchecked((uint)Interlocked.Increment(ref nextId));
         var binding = new CarbonHotkey(id);
         var target = GetApplicationEventTarget();
         var type = new EventType(KeyboardEventClass, HotkeyPressed);
-        operation = "InstallEventHandler";
-        status = InstallEventHandler(target, &HandleEvent, 1, &type, (nint)id, out binding.handler);
+        var status = InstallEventHandler(target, &HandleEvent, 1, &type, (nint)id, out binding.handler);
         if (status != 0)
             return null;
 
-        operation = "RegisterEventHotKey";
-        status = RegisterEventHotKey(MacHotkeyGesture.KeyCodeV, gesture.Modifiers, new HotkeyId(Signature, id), target, Exclusive,
+        status = RegisterEventHotKey(keyCode, modifiers, new HotkeyId(Signature, id), target, Exclusive,
             out binding.registration);
         if (status != 0)
         {
@@ -134,7 +153,7 @@ internal sealed partial class CarbonHotkey : IDisposable
     {
         Handlers.TryRemove(id, out _);
         if (registration != 0)
-            UnregisterStatus = UnregisterEventHotKey(Interlocked.Exchange(ref registration, 0));
+            UnregisterEventHotKey(Interlocked.Exchange(ref registration, 0));
         if (handler != 0)
             RemoveEventHandler(Interlocked.Exchange(ref handler, 0));
     }

@@ -8,15 +8,15 @@ internal sealed class NativePasteboard : IPasteboard
 
     public long ChangeCount => ObjC.Get(Board, "changeCount");
 
-    public PasteboardAccess Access
+    public PasteboardAccess Access => GetAccess();
+
+    internal static PasteboardAccess GetAccess()
     {
-        get
-        {
-            var board = Board;
-            return ObjC.Responds(board, "accessBehavior")
-                ? (PasteboardAccess)(long)ObjC.Get(board, "accessBehavior")
-                : PasteboardAccess.Legacy;
-        }
+        using var pool = new AutoreleasePool();
+        var board = Board;
+        return ObjC.Responds(board, "accessBehavior")
+            ? (PasteboardAccess)(long)ObjC.Get(board, "accessBehavior")
+            : PasteboardAccess.Legacy;
     }
 
     public IReadOnlyList<string> ReadTypeNames()

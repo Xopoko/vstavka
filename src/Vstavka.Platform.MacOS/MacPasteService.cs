@@ -9,7 +9,7 @@ internal sealed class MacPasteService : IPasteService, IDisposable
     private int targetGeneration;
     private bool disposed;
 
-    public PermissionState Permission => Accessibility.IsTrusted() ? PermissionState.Granted : PermissionState.Missing;
+    public PermissionState Permission => MacPermissions.System.AccessibilityState;
 
     public void CaptureTarget()
     {
@@ -79,7 +79,7 @@ internal sealed class MacPasteService : IPasteService, IDisposable
     public void RequestPermission()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        Accessibility.Prompt();
+        MacPermissions.System.RequestAccessibility();
     }
 
     public void Dispose()
@@ -125,8 +125,8 @@ internal static partial class Accessibility
 
     internal static bool PostPaste()
     {
-        var down = CGEventCreateKeyboardEvent(0, (ushort)MacHotkeyGesture.KeyCodeV, 1);
-        var up = CGEventCreateKeyboardEvent(0, (ushort)MacHotkeyGesture.KeyCodeV, 0);
+        var down = CGEventCreateKeyboardEvent(0, CarbonHotkey.KeyCodeV, 1);
+        var up = CGEventCreateKeyboardEvent(0, CarbonHotkey.KeyCodeV, 0);
         try
         {
             if (down == 0 || up == 0)

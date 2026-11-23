@@ -97,12 +97,114 @@ Run("Representations follow priority and PNG limits", () =>
         !ClipboardCapturePolicy.IsSourceIconPng(new byte[45]), "PNG signature, pixel dimensions and byte limits are enforced.");
 });
 
-Run("Hotkey parsing, failed replacement and synchronization context", () =>
+Run("Permissions refresh and route only user requests", () =>
 {
-    uint[] modifiers = [0x300, 0x1100, 0x900];
-    Check(MacHotkeyGesture.Supported.Select((name, i) => MacHotkeyGesture.TryParse(name, out var gesture) && gesture.Modifiers == modifiers[i]).All(x => x)
-        && MacHotkeyGesture.TryParse(" cmd+shift+v ", out _)
-        && !MacHotkeyGesture.TryParse("Ctrl+Shift+V", out _), "Only supported gestures map to the expected Carbon flags.");
+    const string clipboardSettings = "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Pasteboard";
+    const string accessibilitySettings = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility";
+    var board = new FakePasteboard();
+    var trusted = false;
+    var actions = new List<string>();
+    var permissions = new MacPermissions(() => board.Access, () => trusted,
+        () => actions.Add("clipboard read"), () => actions.Add("accessibility prompt"), actions.Add);
+
+    foreach (var access in new[] { PasteboardAccess.Legacy, PasteboardAccess.AlwaysAllow })
+    {
+        board.Access = access;
+        var rows = permissions.GetPermissions();
+        Check(rows[0] == new PlatformPermission("clipboard-access", PermissionRequirement.Required, PermissionState.Granted) &&
+            permissions.CanReadClipboard && permissions.GetNotices().All(notice => !notice.Code.StartsWith("pasteboard-", StringComparison.Ordinal)),
+            $"{access} grants clipboard access and clears clipboard notices.");
+        Check(rows[1] is { Code: "accessibility", Requirement: PermissionRequirement.Optional, State: PermissionState.Missing, Request: not null },
+            "Accessibility is optional and reports missing until the system trusts the process.");
+    }
+    Check(actions.Count == 0, "Reading rows and notices has no permission side effects.");
+
+    foreach (var access in new[] { PasteboardAccess.Default, PasteboardAccess.Ask, PasteboardAccess.AlwaysDeny })
+    {
+        board.Access = access;
+        var row = permissions.GetPermissions()[0];
+        var notice = permissions.GetNotices()[0];
+        var denied = access == PasteboardAccess.AlwaysDeny;
+        Check(row is { Code: "clipboard-access", Requirement: PermissionRequirement.Required, State: PermissionState.Missing, Request: not null } &&
+            !permissions.CanReadClipboard && notice.Code == (denied ? "pasteboard-access-denied" : "pasteboard-access-approval") &&
+            notice.Resolve == row.Request, $"{access} requires clipboard access and exposes the same request in its notice.");
+        row.Request!();
+        Check(actions.Count == 1 && actions[0] == (denied ? clipboardSettings : "clipboard read"), $"{access} routes one action.");
+        actions.Clear();
+    }
+    var request = permissions.GetPermissions()[1].Request!;
+    request();
+    permissions.GetNotices().Single(notice => notice.Code == "accessibility-permission").Resolve!();
+    Check(actions.SequenceEqual(["accessibility prompt", accessibilitySettings]),
+        "The first Accessibility request prompts and the next one opens Accessibility settings.");
+    trusted = true;
+    request();
+    Check(permissions.GetPermissions()[1] == new PlatformPermission("accessibility", PermissionRequirement.Optional, PermissionState.Granted) &&
+        permissions.GetNotices().All(notice => notice.Code != "accessibility-permission") && actions.Count == 2,
+        "Granting trust clears the notice and makes a stale request harmless.");
+});
+
+Run("Start at login reflects system status and errors", () =>
+{
+    nint service = 0;
+    var status = MacLoginItemStatus.NotRegistered;
+    var accepted = true;
+    var attempts = new List<bool>();
+    var startup = new MacStartupRegistration(() => service,
+        type => type == 42 ? status : throw new InvalidOperationException("No service class."),
+        (type, enabled) =>
+        {
+            Check(type == 42, "Mutations require a service class.");
+            attempts.Add(enabled);
+            if (accepted)
+                status = enabled ? MacLoginItemStatus.RequiresApproval : MacLoginItemStatus.NotRegistered;
+            return accepted;
+        });
+
+    Check(!startup.IsSupported && startup.Status is null && !startup.IsEnabled && !startup.TrySetEnabled(true) && attempts.Count == 0,
+        "An unavailable service supports neither status nor mutations.");
+    service = 42;
+    Check(startup.IsSupported && !startup.IsEnabled && startup.TrySetEnabled(true) &&
+        startup.Status == MacLoginItemStatus.RequiresApproval && !startup.IsEnabled,
+        "Successful registration can require approval before it is enabled.");
+    status = MacLoginItemStatus.Enabled;
+    accepted = false;
+    Check(startup.IsEnabled && !startup.TrySetEnabled(false) && startup.IsEnabled, "Unregister failure leaves the service enabled.");
+    accepted = true;
+    status = MacLoginItemStatus.RequiresApproval;
+    Check(startup.TrySetEnabled(false) && startup.Status == MacLoginItemStatus.NotRegistered && !startup.IsEnabled &&
+        attempts.SequenceEqual([true, false, false]), "A service pending approval can still be unregistered.");
+    accepted = false;
+    status = MacLoginItemStatus.NotFound;
+    Check(!startup.TrySetEnabled(true) && !startup.IsEnabled, "A register error is returned to the caller.");
+});
+
+Run("Hotkey mapping, failed replacement and synchronization context", () =>
+{
+    Check(MacGlobalHotkey.DefaultGesture == "Shift+Meta+V" &&
+        MacGlobalHotkey.SupportedGestures.SequenceEqual(["Shift+Meta+V", "Ctrl+Meta+V", "Alt+Meta+V"]),
+        "The default and suggestions use the shared gesture syntax.");
+    (string Gesture, uint Key, uint Modifiers)[] examples =
+    [
+        ("Shift+Meta+V", 0x09, 0x0300), ("Ctrl+Meta+V", 0x09, 0x1100), ("Option+Cmd+V", 0x09, 0x0900),
+        ("Ctrl+Shift+A", 0x00, 0x1200), ("Alt+Z", 0x06, 0x0800), ("Meta+0", 0x1D, 0x0100),
+        ("Ctrl+9", 0x19, 0x1000), ("Ctrl+Alt+Shift+Meta+F1", 0x7A, 0x1B00), ("Alt+F20", 0x5A, 0x0800),
+        ("Ctrl+Space", 0x31, 0x1000),
+    ];
+    var calls = 0;
+    using (var hotkey = new MacGlobalHotkey((key, modifiers, callback) =>
+    {
+        var expected = examples[calls++];
+        Check((key, modifiers) == (expected.Key, expected.Modifiers), $"Carbon mapping for {expected.Gesture}.");
+        return new FakeRegistration(callback);
+    }))
+    {
+        foreach (var (gesture, _, _) in examples)
+            Check(hotkey.TryRegister(gesture), $"{gesture} reaches native registration.");
+        foreach (var gesture in new[] { "V", "Shift+V", "Ctrl+Escape", "Ctrl+F21", "Meta+F22", "Alt+F23", "Ctrl+F24" })
+            Check(!hotkey.TryRegister(gesture), $"{gesture} is unusable or unsupported.");
+        Check(calls == examples.Length, "Unsupported gestures never reach native registration.");
+    }
 
     var registrations = new List<FakeRegistration>();
     var context = new QueuedContext();
@@ -110,9 +212,9 @@ Run("Hotkey parsing, failed replacement and synchronization context", () =>
     SynchronizationContext.SetSynchronizationContext(context);
     try
     {
-        using var hotkey = new MacGlobalHotkey((gesture, callback) =>
+        using var hotkey = new MacGlobalHotkey((_, modifiers, callback) =>
         {
-            if (gesture.Modifiers == modifiers[1])
+            if (modifiers == 0x1100)
                 return null;
             var registration = new FakeRegistration(callback);
             registrations.Add(registration);
@@ -120,7 +222,7 @@ Run("Hotkey parsing, failed replacement and synchronization context", () =>
         });
         var pressed = 0;
         hotkey.Pressed += () => pressed++;
-        Check(hotkey.TryRegister(MacHotkeyGesture.Default) && hotkey.TryRegister(MacHotkeyGesture.Default) &&
+        Check(hotkey.TryRegister(MacGlobalHotkey.DefaultGesture) && hotkey.TryRegister(" cmd+shift+v ") &&
             !hotkey.TryRegister("Ctrl+Cmd+V") && registrations.Count == 1 && !registrations[0].Disposed,
             "An unavailable replacement keeps the current native registration.");
         registrations[0].Callback();
