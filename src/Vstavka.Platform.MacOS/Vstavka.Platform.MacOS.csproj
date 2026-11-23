@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Vstavka.Core/Vstavka.Core.csproj" />
+    <ProjectReference Include="../Vstavka.Platform/Vstavka.Platform.csproj" />
+    <InternalsVisibleTo Include="Vstavka.Platform.MacOS.Tests" />
+    <InternalsVisibleTo Include="Vstavka.Platform.MacOS.Probe" />
+  </ItemGroup>
+</Project>
