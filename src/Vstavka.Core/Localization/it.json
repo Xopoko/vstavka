@@ -150,5 +150,14 @@
   "CollectionOrange": "Arancione",
   "CollectionRose": "Rosa",
   "CollectionViolet": "Viola",
-  "CollectionSlate": "Grigio ardesia"
+  "CollectionSlate": "Grigio ardesia",
+  "PlatformUnavailable": "L’integrazione con gli appunti non è disponibile in questa build.",
+  "AccessibilityPermission": "Consenti l’accesso alle funzioni di accessibilità per incollare automaticamente.",
+  "GrantAccess": "Consenti accesso",
+  "ManualPaste": "Copiato. Incolla il contenuto nell’app di destinazione.",
+  "GnomeExtensionMissing": "Installa l’estensione Vstavka per GNOME per monitorare gli appunti.",
+  "PasteboardAccess": "Consenti a Vstavka di leggere gli appunti per salvare i nuovi elementi copiati.",
+  "PasteboardAccessDenied": "macOS impedisce a Vstavka di leggere gli appunti. Consenti l’accesso in Privacy e sicurezza.",
+  "KeychainUnavailable": "La cronologia rimane in memoria perché il portachiavi di sistema non è disponibile.",
+  "OpenSettings": "Apri impostazioni"
 }

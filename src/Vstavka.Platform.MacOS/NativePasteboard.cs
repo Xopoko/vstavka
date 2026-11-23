@@ -55,6 +55,13 @@ internal sealed class NativePasteboard : IPasteboard
     public string? ReadString(string type) =>
         ObjC.ReadString(ObjC.Get(Board, "stringForType:", ObjC.String(type)), HistoryStore.MaxTextLength);
 
+    internal static void RequestAccess()
+    {
+        using var pool = new AutoreleasePool();
+        // One user-initiated read triggers the access alert and adds Vstavka to Clipboard settings.
+        ObjC.Get(Board, "stringForType:", ObjC.String(ClipboardCapturePolicy.Text));
+    }
+
     public byte[]? ReadPng() =>
         ObjC.ReadData(ObjC.Get(Board, "dataForType:", ObjC.String(ClipboardCapturePolicy.Png)), HistoryStore.MaxImageBytes);
 

@@ -150,5 +150,14 @@
   "CollectionOrange": "Laranja",
   "CollectionRose": "Rosa",
   "CollectionViolet": "Violeta",
-  "CollectionSlate": "Cinza-ardósia"
+  "CollectionSlate": "Cinza-ardósia",
+  "PlatformUnavailable": "A integração com a área de transferência não está disponível nesta versão.",
+  "AccessibilityPermission": "Permita o acesso aos recursos de acessibilidade para colar automaticamente.",
+  "GrantAccess": "Permitir acesso",
+  "ManualPaste": "Copiado. Cole no aplicativo de destino.",
+  "GnomeExtensionMissing": "Instale a extensão Vstavka para GNOME para monitorar a área de transferência.",
+  "PasteboardAccess": "Permita que o Vstavka leia a área de transferência para salvar os itens recém-copiados.",
+  "PasteboardAccessDenied": "O macOS impede que o Vstavka leia a área de transferência. Permita o acesso em Privacidade e Segurança.",
+  "KeychainUnavailable": "O histórico fica na memória porque as chaves do sistema não estão disponíveis.",
+  "OpenSettings": "Abrir ajustes"
 }

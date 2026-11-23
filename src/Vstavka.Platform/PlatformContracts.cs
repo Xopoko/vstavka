@@ -28,7 +28,9 @@ public enum PermissionState { NotNeeded, Granted, Missing }
 /// <summary>Something the user should know or do, such as granting a permission or installing a helper.</summary>
 /// <param name="Code">Stable identifier, for example <c>accessibility-permission</c> or <c>gnome-extension-missing</c>.</param>
 /// <param name="Message">Plain-language explanation in English; the UI localizes known codes.</param>
-public sealed record PlatformNotice(string Code, string Message);
+/// <param name="Resolve">When set, the UI shows a button that calls this action. The user's click
+/// consents to the action, such as requesting a permission or opening settings.</param>
+public sealed record PlatformNotice(string Code, string Message, Action? Resolve = null);
 
 /// <summary>Watches the system clipboard and reports new entries.</summary>
 /// <remarks>

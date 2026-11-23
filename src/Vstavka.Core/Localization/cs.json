@@ -150,5 +150,14 @@
   "CollectionOrange": "Oranžová",
   "CollectionRose": "Růžová",
   "CollectionViolet": "Fialová",
-  "CollectionSlate": "Břidlicová"
+  "CollectionSlate": "Břidlicová",
+  "PlatformUnavailable": "Integrace schránky v tomto sestavení není dostupná.",
+  "AccessibilityPermission": "Pro automatické vkládání povolte přístup ke zpřístupnění.",
+  "GrantAccess": "Povolit přístup",
+  "ManualPaste": "Zkopírováno. Vložte obsah v cílové aplikaci.",
+  "GnomeExtensionMissing": "Pro sledování schránky nainstalujte rozšíření Vstavka pro GNOME.",
+  "PasteboardAccess": "Povolte aplikaci Vstavka číst schránku, aby mohla ukládat nově zkopírovaný obsah.",
+  "PasteboardAccessDenied": "macOS brání aplikaci Vstavka ve čtení schránky. Povolte přístup v nastavení Soukromí a zabezpečení.",
+  "KeychainUnavailable": "Historie se uchovává v paměti, protože systémová klíčenka není dostupná.",
+  "OpenSettings": "Otevřít nastavení"
 }

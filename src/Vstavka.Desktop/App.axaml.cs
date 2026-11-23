@@ -6,6 +6,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
+using Vstavka.Core;
 using Vstavka.Core.Localization;
 
 namespace Vstavka.Desktop;
@@ -25,7 +26,9 @@ public sealed partial class App : Application
 
         desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
         var args = desktop.Args ?? [];
-        var platform = PlatformFactory.Create(args);
+        DesktopHistory? history = null;
+        var defaultSettings = new AppSettings();
+        var platform = PlatformFactory.Create(args, () => history?.Store.Settings ?? defaultSettings);
         var instance = TryLock(platform.DataDirectory);
         if (instance is null)
         {
@@ -34,7 +37,7 @@ public sealed partial class App : Application
             return;
         }
 
-        var history = new DesktopHistory(platform);
+        history = new DesktopHistory(platform);
         if (PlatformFactory.IsDemo(args))
             DemoSamples.Seed(history.Store);
         Strings.SetLanguage(history.Store.Settings.Language);

@@ -150,5 +150,14 @@
   "CollectionOrange": "Orange",
   "CollectionRose": "Rose",
   "CollectionViolet": "Violet",
-  "CollectionSlate": "Slate"
+  "CollectionSlate": "Slate",
+  "PlatformUnavailable": "Clipboard integration is unavailable in this build.",
+  "AccessibilityPermission": "Allow accessibility access to paste automatically.",
+  "GrantAccess": "Grant access",
+  "ManualPaste": "Copied. Paste it in the destination app.",
+  "GnomeExtensionMissing": "Install the Vstavka GNOME extension to watch the clipboard.",
+  "PasteboardAccess": "Allow Vstavka to read the clipboard so it can save new copies.",
+  "PasteboardAccessDenied": "macOS blocks Vstavka from reading the clipboard. Allow it in Privacy & Security.",
+  "KeychainUnavailable": "History is kept in memory because the system keychain is unavailable.",
+  "OpenSettings": "Open settings"
 }

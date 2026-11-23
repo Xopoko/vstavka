@@ -150,5 +150,14 @@
   "CollectionOrange": "কমলা",
   "CollectionRose": "গোলাপি",
   "CollectionViolet": "বেগুনি",
-  "CollectionSlate": "নীলচে ধূসর"
+  "CollectionSlate": "নীলচে ধূসর",
+  "PlatformUnavailable": "এই বিল্ডে ক্লিপবোর্ড ইন্টিগ্রেশন উপলভ্য নয়।",
+  "AccessibilityPermission": "স্বয়ংক্রিয়ভাবে পেস্ট করতে অ্যাক্সেসিবিলিটির অনুমতি দিন।",
+  "GrantAccess": "অনুমতি দিন",
+  "ManualPaste": "কপি হয়েছে। গন্তব্য অ্যাপে পেস্ট করুন।",
+  "GnomeExtensionMissing": "ক্লিপবোর্ড পর্যবেক্ষণ করতে Vstavka GNOME এক্সটেনশন ইনস্টল করুন।",
+  "PasteboardAccess": "নতুন কপি সংরক্ষণ করতে Vstavka-কে ক্লিপবোর্ড পড়ার অনুমতি দিন।",
+  "PasteboardAccessDenied": "macOS Vstavka-কে ক্লিপবোর্ড পড়তে দিচ্ছে না। গোপনীয়তা ও নিরাপত্তা সেটিংসে অনুমতি দিন।",
+  "KeychainUnavailable": "সিস্টেমের কীচেইন উপলভ্য না থাকায় ইতিহাস মেমরিতে রাখা হচ্ছে।",
+  "OpenSettings": "সেটিংস খুলুন"
 }

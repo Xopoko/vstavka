@@ -150,5 +150,14 @@
   "CollectionOrange": "橘色",
   "CollectionRose": "玫瑰粉",
   "CollectionViolet": "紫色",
-  "CollectionSlate": "石板灰"
+  "CollectionSlate": "石板灰",
+  "PlatformUnavailable": "此版本無法使用剪貼簿整合。",
+  "AccessibilityPermission": "請允許輔助使用權限以自動貼上。",
+  "GrantAccess": "授予權限",
+  "ManualPaste": "已複製。請在目標應用程式中貼上。",
+  "GnomeExtensionMissing": "請安裝 Vstavka GNOME 擴充套件以監看剪貼簿。",
+  "PasteboardAccess": "允許 Vstavka 讀取剪貼簿，以便儲存新拷貝的內容。",
+  "PasteboardAccessDenied": "macOS 阻止 Vstavka 讀取剪貼簿。請在「隱私權與安全性」中允許取用。",
+  "KeychainUnavailable": "系統鑰匙圈無法使用，記錄只會保留在記憶體中。",
+  "OpenSettings": "打開設定"
 }

@@ -3,6 +3,7 @@
 __pycache__/
 artifacts/
 .vs/
+.claude/worktrees/
 *.user
 *.pfx
 *.cer

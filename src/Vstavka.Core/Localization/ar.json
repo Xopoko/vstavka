@@ -150,5 +150,14 @@
   "CollectionOrange": "برتقالي",
   "CollectionRose": "وردي",
   "CollectionViolet": "بنفسجي",
-  "CollectionSlate": "رمادي مزرق"
+  "CollectionSlate": "رمادي مزرق",
+  "PlatformUnavailable": "تكامل الحافظة غير متاح في هذا الإصدار.",
+  "AccessibilityPermission": "اسمح بالوصول إلى ميزات تسهيلات الاستخدام للصق التلقائي.",
+  "GrantAccess": "منح الوصول",
+  "ManualPaste": "تم النسخ. الصق المحتوى في التطبيق المطلوب.",
+  "GnomeExtensionMissing": "ثبّت إضافة Vstavka لبيئة GNOME لمراقبة الحافظة.",
+  "PasteboardAccess": "اسمح لـ Vstavka بقراءة الحافظة لحفظ المواد المنسوخة حديثًا.",
+  "PasteboardAccessDenied": "يمنع macOS تطبيق Vstavka من قراءة الحافظة. اسمح له بذلك في «الخصوصية والأمن».",
+  "KeychainUnavailable": "يُحفظ السجل في الذاكرة لأن سلسلة مفاتيح النظام غير متاحة.",
+  "OpenSettings": "فتح الإعدادات"
 }

@@ -1,14 +1,21 @@
 using Vstavka.Core;
 using Vstavka.Platform;
+using Vstavka.Platform.MacOS;
+using Vstavka.Platform.Windows;
 
 namespace Vstavka.Desktop;
 
 internal static class PlatformFactory
 {
-    public static IPlatformServices Create(string[] args)
+    public static IPlatformServices Create(string[] args, Func<AppSettings>? settings = null)
     {
-        var demo = new DemoPlatformServices();
-        return IsDemo(args) ? demo : new AdapterUnavailable(demo);
+        if (IsDemo(args))
+            return new DemoPlatformServices();
+        if (OperatingSystem.IsWindows())
+            return new WindowsPlatformServices(settings);
+        if (OperatingSystem.IsMacOS())
+            return new MacPlatformServices();
+        return new AdapterUnavailable(new DemoPlatformServices());
     }
 
     public static bool IsDemo(string[] args) => args.Contains("--demo", StringComparer.Ordinal);

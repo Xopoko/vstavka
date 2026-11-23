@@ -150,5 +150,14 @@
   "CollectionOrange": "Orange",
   "CollectionRose": "Rose",
   "CollectionViolet": "Violet",
-  "CollectionSlate": "Gris ardoise"
+  "CollectionSlate": "Gris ardoise",
+  "PlatformUnavailable": "L’intégration au presse-papiers est indisponible dans cette version.",
+  "AccessibilityPermission": "Autorisez l’accès aux fonctions d’accessibilité pour coller automatiquement.",
+  "GrantAccess": "Autoriser l’accès",
+  "ManualPaste": "Copié. Collez le contenu dans l’application de destination.",
+  "GnomeExtensionMissing": "Installez l’extension Vstavka pour GNOME afin de surveiller le presse-papiers.",
+  "PasteboardAccess": "Autorisez Vstavka à lire le presse-papiers pour enregistrer les nouveaux éléments copiés.",
+  "PasteboardAccessDenied": "macOS empêche Vstavka de lire le presse-papiers. Autorisez l’accès dans « Confidentialité et sécurité ».",
+  "KeychainUnavailable": "L’historique reste en mémoire, car le trousseau système est indisponible.",
+  "OpenSettings": "Ouvrir les réglages"
 }

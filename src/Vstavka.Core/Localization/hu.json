@@ -150,5 +150,14 @@
   "CollectionOrange": "Narancs",
   "CollectionRose": "Rózsaszín",
   "CollectionViolet": "Ibolya",
-  "CollectionSlate": "Palaszürke"
+  "CollectionSlate": "Palaszürke",
+  "PlatformUnavailable": "Ebben a verzióban nem érhető el a vágólap-integráció.",
+  "AccessibilityPermission": "Az automatikus beillesztéshez engedélyezd a kisegítő lehetőségekhez való hozzáférést.",
+  "GrantAccess": "Hozzáférés engedélyezése",
+  "ManualPaste": "Másolva. Illeszd be a célalkalmazásban.",
+  "GnomeExtensionMissing": "A vágólap figyeléséhez telepítsd a Vstavka GNOME-bővítményt.",
+  "PasteboardAccess": "Engedélyezd a Vstavka számára a vágólap olvasását az újonnan másolt elemek mentéséhez.",
+  "PasteboardAccessDenied": "A macOS nem engedi, hogy a Vstavka olvassa a vágólapot. Engedélyezd az Adatvédelem és biztonság beállításainál.",
+  "KeychainUnavailable": "Az előzmények a memóriában maradnak, mert a rendszer kulcskarikája nem érhető el.",
+  "OpenSettings": "Beállítások megnyitása"
 }

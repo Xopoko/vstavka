@@ -150,5 +150,14 @@
   "CollectionOrange": "Naranja",
   "CollectionRose": "Rosa",
   "CollectionViolet": "Violeta",
-  "CollectionSlate": "Gris pizarra"
+  "CollectionSlate": "Gris pizarra",
+  "PlatformUnavailable": "La integración con el portapapeles no está disponible en esta compilación.",
+  "AccessibilityPermission": "Permite el acceso a las funciones de accesibilidad para pegar automáticamente.",
+  "GrantAccess": "Permitir acceso",
+  "ManualPaste": "Copiado. Pega el contenido en la aplicación de destino.",
+  "GnomeExtensionMissing": "Instala la extensión Vstavka para GNOME para supervisar el portapapeles.",
+  "PasteboardAccess": "Permite que Vstavka lea el portapapeles para guardar los elementos recién copiados.",
+  "PasteboardAccessDenied": "macOS impide que Vstavka lea el portapapeles. Permite el acceso en Privacidad y seguridad.",
+  "KeychainUnavailable": "El historial se conserva en memoria porque el llavero del sistema no está disponible.",
+  "OpenSettings": "Abrir ajustes"
 }

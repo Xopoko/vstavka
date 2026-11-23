@@ -73,7 +73,7 @@ Run("Keyboard selection, Enter fallback, quick paste, and Escape", () =>
         Press(panel, Key.Enter, PhysicalKey.Enter);
         Check(ReferenceEquals(demo.LastWritten, expected) && demo.PasteRequests == 1 && !panel.IsVisible,
             "Enter writes and hides before requesting paste from the demo service.");
-        Check(feedback == DesktopStrings.Get("ManualPaste"), "Failed automatic paste provides manual paste feedback.");
+        Check(feedback == Strings.Get("ManualPaste"), "Failed automatic paste provides manual paste feedback.");
         panel.Open(positionOnScreen: false);
         Flush(panel);
         Press(panel, Key.D1, PhysicalKey.Digit1, RawInputModifiers.Control);
@@ -149,7 +149,12 @@ Run("RTL mirrors layout and navigation, and grants the requested permission", ()
     foreach (var language in new[] { "ar", "fa", "ur" })
     {
         Strings.SetLanguage(language);
-        using var demo = new NoticeDemo();
+        var requests = 0;
+        using var demo = new NoticeDemo
+        {
+            Notices = [new("accessibility-permission", "Accessibility permission is missing.", () => requests++),
+                new("hidden", "Second notice.")]
+        };
         var panel = OpenPanel(demo, CreateHistory(demo, seed: true));
         try
         {
@@ -161,14 +166,51 @@ Run("RTL mirrors layout and navigation, and grants the requested permission", ()
             Press(panel, Key.Left, PhysicalKey.ArrowLeft);
             Check(cards.SelectedIndex == 1, "Left advances through the RTL list.");
             var status = Find<TextBlock>(panel, "PlatformStatus");
-            Check(status.Text == DesktopStrings.Get("Permission"), "The first known platform notice is localized.");
-            var grant = panel.GetVisualDescendants().OfType<Button>().Single(button => button.Classes.Contains("permission"));
+            Check(status.Text == Strings.Get("AccessibilityPermission"), "The first known platform notice is localized.");
+            var grant = NoticeButtons(panel).Single();
+            Check(Equals(grant.Content, Strings.Get("GrantAccess")), "The grant button is localized.");
             Click(panel, grant);
-            Check(demo.PermissionRequests == 1, "The footer button delegates the permission request.");
+            Check(requests == 1, "The footer button invokes the notice action once.");
         }
         finally { panel.Close(); }
     }
     Strings.SetLanguage("en");
+});
+
+Run("Clipboard settings action refreshes the footer, and reopening shows new notices", () =>
+{
+    using var demo = new NoticeDemo();
+    var requests = 0;
+    demo.Notices = [new("pasteboard-access-denied", "Denied.", () =>
+    {
+        requests++;
+        demo.Notices = [new("keychain-unavailable", "No Keychain.")];
+    })];
+    var panel = OpenPanel(demo, CreateHistory(demo, seed: true));
+    try
+    {
+        Check(Find<TextBlock>(panel, "PlatformStatus").Text == Strings.Get("PasteboardAccessDenied"),
+            "A denied clipboard notice is localized.");
+        var settings = NoticeButtons(panel).Single();
+        Check(Equals(settings.Content, Strings.Get("OpenSettings")), "The denied notice offers Open settings.");
+        Click(panel, settings);
+        Check(requests == 1, "The settings button invokes the notice action once.");
+
+        var frame = new DispatcherFrame();
+        DispatcherTimer.RunOnce(() => frame.Continue = false, TimeSpan.FromMilliseconds(500));
+        Dispatcher.UIThread.PushFrame(frame);
+        Flush(panel);
+        Check(Find<TextBlock>(panel, "PlatformStatus").Text == Strings.Get("KeychainUnavailable") && !NoticeButtons(panel).Any(),
+            "The pending refresh shows the new informational notice without a button.");
+
+        panel.Dismiss();
+        demo.Notices = [new("other", "Adapter-specific message.")];
+        panel.Open(positionOnScreen: false);
+        Flush(panel);
+        Check(Find<TextBlock>(panel, "PlatformStatus").Text == "Adapter-specific message." && !NoticeButtons(panel).Any(),
+            "Reopening picks up the unknown notice and shows its own message without a button.");
+    }
+    finally { panel.Close(); }
 });
 
 if (args.Length == 2)
@@ -181,7 +223,7 @@ if (args.Length == 2)
         Render("dark", ThemeVariant.Dark, "en", seed: true);
         Render("rtl", ThemeVariant.Light, "ar", seed: true);
         Render("empty", ThemeVariant.Light, "en", seed: false);
-        using var withNotice = new NoticeDemo();
+        using var withNotice = new NoticeDemo { Notices = [new("pasteboard-access-denied", "Denied.", () => { })] };
         Render("notice", ThemeVariant.Light, "en", seed: true, withNotice);
 
         void Render(string name, ThemeVariant variant, string language, bool seed, IPlatformServices? services = null)
@@ -257,6 +299,9 @@ static T Find<T>(Visual root, string name) where T : Control =>
 static Button ButtonNamed(Window root, string name) =>
     root.GetVisualDescendants().OfType<Button>().Single(button => AutomationProperties.GetName(button) == name);
 
+static IEnumerable<Button> NoticeButtons(Window root) =>
+    root.GetVisualDescendants().OfType<Button>().Where(button => button.Classes.Contains("permission"));
+
 static bool HasLabel(Window root, string key) =>
     root.GetVisualDescendants().OfType<TextBlock>().Any(label => label.IsVisible && label.Text == Strings.Get(key));
 
@@ -288,8 +333,7 @@ sealed class NoticeDemo : IPlatformServices, IPasteService
 
     public string Name => _demo.Name;
     public PlatformCapabilities Capabilities => _demo.Capabilities;
-    public IReadOnlyList<PlatformNotice> Notices { get; } =
-        [new("accessibility-permission", "Accessibility permission is missing."), new("hidden", "Second notice.")];
+    public IReadOnlyList<PlatformNotice> Notices { get; set; } = [];
     public string DataDirectory => _demo.DataDirectory;
     public string DefaultGesture => _demo.DefaultGesture;
     public IReadOnlyList<string> SupportedGestures => _demo.SupportedGestures;
@@ -300,9 +344,8 @@ sealed class NoticeDemo : IPlatformServices, IPasteService
     public IPanelWindow PanelWindow => _demo.PanelWindow;
     public IHistoryProtector? HistoryProtector => _demo.HistoryProtector;
     public PermissionState Permission => PermissionState.Missing;
-    public int PermissionRequests { get; private set; }
     public void CaptureTarget() => _demo.CaptureTarget();
     public Task<bool> PasteAsync() => _demo.PasteAsync();
-    public void RequestPermission() => PermissionRequests++;
+    public void RequestPermission() => throw new InvalidOperationException("The footer must call the notice action.");
     public void Dispose() => _demo.Dispose();
 }

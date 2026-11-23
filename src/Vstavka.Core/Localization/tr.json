@@ -150,5 +150,14 @@
   "CollectionOrange": "Turuncu",
   "CollectionRose": "Pembe",
   "CollectionViolet": "Mor",
-  "CollectionSlate": "Arduvaz grisi"
+  "CollectionSlate": "Arduvaz grisi",
+  "PlatformUnavailable": "Bu derlemede pano entegrasyonu kullanılamıyor.",
+  "AccessibilityPermission": "Otomatik yapıştırmak için erişilebilirlik izni verin.",
+  "GrantAccess": "Erişim izni ver",
+  "ManualPaste": "Kopyalandı. Hedef uygulamaya yapıştırın.",
+  "GnomeExtensionMissing": "Panoyu izlemek için Vstavka GNOME uzantısını yükleyin.",
+  "PasteboardAccess": "Yeni kopyalanan öğeleri kaydedebilmesi için Vstavka’nın panoyu okumasına izin verin.",
+  "PasteboardAccessDenied": "macOS, Vstavka’nın panoyu okumasını engelliyor. Gizlilik ve Güvenlik bölümünden izin verin.",
+  "KeychainUnavailable": "Sistem anahtar zinciri kullanılamadığı için geçmiş bellekte tutuluyor.",
+  "OpenSettings": "Ayarları aç"
 }

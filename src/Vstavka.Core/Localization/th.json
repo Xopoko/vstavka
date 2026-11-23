@@ -150,5 +150,14 @@
   "CollectionOrange": "สีส้ม",
   "CollectionRose": "สีชมพู",
   "CollectionViolet": "สีม่วง",
-  "CollectionSlate": "สีเทาอมฟ้า"
+  "CollectionSlate": "สีเทาอมฟ้า",
+  "PlatformUnavailable": "บิลด์นี้ไม่รองรับการเชื่อมต่อกับคลิปบอร์ด",
+  "AccessibilityPermission": "อนุญาตการเข้าถึงคุณสมบัติการช่วยการเข้าถึงเพื่อวางโดยอัตโนมัติ",
+  "GrantAccess": "อนุญาตการเข้าถึง",
+  "ManualPaste": "คัดลอกแล้ว วางในแอปปลายทาง",
+  "GnomeExtensionMissing": "ติดตั้งส่วนขยาย Vstavka สำหรับ GNOME เพื่อตรวจสอบคลิปบอร์ด",
+  "PasteboardAccess": "อนุญาตให้ Vstavka อ่านคลิปบอร์ดเพื่อบันทึกรายการที่เพิ่งคัดลอก",
+  "PasteboardAccessDenied": "macOS ไม่อนุญาตให้ Vstavka อ่านคลิปบอร์ด โปรดอนุญาตในส่วนความเป็นส่วนตัวและความปลอดภัย",
+  "KeychainUnavailable": "ประวัติจะเก็บไว้ในหน่วยความจำเนื่องจากพวงกุญแจของระบบไม่พร้อมใช้งาน",
+  "OpenSettings": "เปิดการตั้งค่า"
 }

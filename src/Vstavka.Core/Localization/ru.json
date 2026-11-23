@@ -150,5 +150,14 @@
   "CollectionOrange": "Оранжевый",
   "CollectionRose": "Розовый",
   "CollectionViolet": "Фиолетовый",
-  "CollectionSlate": "Серо-синий"
+  "CollectionSlate": "Серо-синий",
+  "PlatformUnavailable": "Интеграция с буфером обмена недоступна в этой сборке.",
+  "AccessibilityPermission": "Для автоматической вставки разрешите Vstavka в разделе «Универсальный доступ».",
+  "GrantAccess": "Разрешить доступ",
+  "ManualPaste": "Скопировано. Вставьте в нужном приложении.",
+  "GnomeExtensionMissing": "Установите расширение Vstavka для GNOME, чтобы отслеживать буфер обмена.",
+  "PasteboardAccess": "Разрешите Vstavka читать буфер обмена, чтобы сохранять новые скопированные данные.",
+  "PasteboardAccessDenied": "macOS блокирует доступ Vstavka к буферу обмена. Разрешите доступ в разделе «Конфиденциальность и безопасность».",
+  "KeychainUnavailable": "История хранится в памяти, потому что системная связка ключей недоступна.",
+  "OpenSettings": "Открыть настройки"
 }

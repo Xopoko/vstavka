@@ -150,5 +150,14 @@
   "CollectionOrange": "Jingga",
   "CollectionRose": "Merah muda",
   "CollectionViolet": "Ungu",
-  "CollectionSlate": "Abu-abu kebiruan"
+  "CollectionSlate": "Abu-abu kebiruan",
+  "PlatformUnavailable": "Integrasi papan klip tidak tersedia di versi ini.",
+  "AccessibilityPermission": "Izinkan aksesibilitas untuk menempel secara otomatis.",
+  "GrantAccess": "Berikan akses",
+  "ManualPaste": "Disalin. Tempel di aplikasi tujuan.",
+  "GnomeExtensionMissing": "Pasang ekstensi Vstavka GNOME untuk memantau papan klip.",
+  "PasteboardAccess": "Izinkan Vstavka membaca papan klip agar dapat menyimpan item yang baru disalin.",
+  "PasteboardAccessDenied": "macOS memblokir akses Vstavka ke papan klip. Izinkan akses di Privasi & Keamanan.",
+  "KeychainUnavailable": "Riwayat disimpan di memori karena rantai kunci sistem tidak tersedia.",
+  "OpenSettings": "Buka pengaturan"
 }

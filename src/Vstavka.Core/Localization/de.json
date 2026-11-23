@@ -150,5 +150,14 @@
   "CollectionOrange": "Orange",
   "CollectionRose": "Rosa",
   "CollectionViolet": "Violett",
-  "CollectionSlate": "Schiefergrau"
+  "CollectionSlate": "Schiefergrau",
+  "PlatformUnavailable": "Die Zwischenablage-Integration ist in diesem Build nicht verfügbar.",
+  "AccessibilityPermission": "Erlaube den Zugriff auf Bedienungshilfen zum automatischen Einfügen.",
+  "GrantAccess": "Zugriff erlauben",
+  "ManualPaste": "Kopiert. Füge den Inhalt in der Ziel-App ein.",
+  "GnomeExtensionMissing": "Installiere die Vstavka-GNOME-Erweiterung zur Überwachung der Zwischenablage.",
+  "PasteboardAccess": "Erlaube Vstavka den Zugriff auf die Zwischenablage, um neu kopierte Inhalte zu speichern.",
+  "PasteboardAccessDenied": "macOS blockiert den Zugriff von Vstavka auf die Zwischenablage. Erlaube ihn unter „Datenschutz & Sicherheit“.",
+  "KeychainUnavailable": "Der Verlauf bleibt im Arbeitsspeicher, weil der Systemschlüsselbund nicht verfügbar ist.",
+  "OpenSettings": "Einstellungen öffnen"
 }

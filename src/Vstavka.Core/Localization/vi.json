@@ -150,5 +150,14 @@
   "CollectionOrange": "Cam",
   "CollectionRose": "Hồng",
   "CollectionViolet": "Tím",
-  "CollectionSlate": "Xám xanh"
+  "CollectionSlate": "Xám xanh",
+  "PlatformUnavailable": "Bản dựng này không hỗ trợ tích hợp bảng tạm.",
+  "AccessibilityPermission": "Cho phép truy cập tính năng trợ năng để tự động dán.",
+  "GrantAccess": "Cho phép truy cập",
+  "ManualPaste": "Đã sao chép. Hãy dán vào ứng dụng đích.",
+  "GnomeExtensionMissing": "Cài đặt tiện ích Vstavka cho GNOME để theo dõi bảng tạm.",
+  "PasteboardAccess": "Cho phép Vstavka đọc bảng tạm để lưu các mục mới sao chép.",
+  "PasteboardAccessDenied": "macOS chặn Vstavka đọc bảng tạm. Hãy cấp quyền trong Quyền riêng tư & Bảo mật.",
+  "KeychainUnavailable": "Lịch sử chỉ được giữ trong bộ nhớ vì chuỗi khóa hệ thống không khả dụng.",
+  "OpenSettings": "Mở cài đặt"
 }

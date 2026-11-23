@@ -8,7 +8,6 @@ namespace Vstavka.Desktop;
 internal sealed class DesktopHistory
 {
     private readonly IPlatformServices _platform;
-    private readonly bool _persistent;
     private readonly DispatcherTimer _saveTimer;
     private Task _pendingSave = Task.CompletedTask;
 
@@ -21,14 +20,9 @@ internal sealed class DesktopHistory
     public DesktopHistory(IPlatformServices platform)
     {
         _platform = platform;
-        var protector = platform.HistoryProtector;
-        _persistent = protector is not null;
-        Store = new HistoryStore(platform.DataDirectory, protector ?? new MemoryOnlyProtector());
-        if (_persistent)
-        {
-            Store.Load();
-            Warning = Store.LoadWarning;
-        }
+        Store = new HistoryStore(platform.DataDirectory, platform.HistoryProtector);
+        Store.Load();
+        Warning = Store.LoadWarning;
 
         _saveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
         _saveTimer.Tick += (_, _) =>
@@ -60,7 +54,7 @@ internal sealed class DesktopHistory
     public void HistoryChanged()
     {
         Changed?.Invoke();
-        if (!_persistent || Store.SavingBlocked)
+        if (!Store.IsPersistent || Store.SavingBlocked)
             return;
         _saveTimer.Stop();
         _saveTimer.Start();
@@ -122,11 +116,5 @@ internal sealed class DesktopHistory
                 Changed?.Invoke();
             });
         }
-    }
-
-    private sealed class MemoryOnlyProtector : IHistoryProtector
-    {
-        public byte[] Protect(byte[] clearBytes) => throw new InvalidOperationException();
-        public byte[] Unprotect(byte[] protectedBytes) => throw new InvalidOperationException();
     }
 }

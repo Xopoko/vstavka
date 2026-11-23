@@ -150,5 +150,14 @@
   "CollectionOrange": "Pomarańczowy",
   "CollectionRose": "Różowy",
   "CollectionViolet": "Fioletowy",
-  "CollectionSlate": "Łupkowy"
+  "CollectionSlate": "Łupkowy",
+  "PlatformUnavailable": "Integracja ze schowkiem jest niedostępna w tej kompilacji.",
+  "AccessibilityPermission": "Zezwól na dostęp do funkcji dostępności, aby wklejać automatycznie.",
+  "GrantAccess": "Zezwól na dostęp",
+  "ManualPaste": "Skopiowano. Wklej zawartość w aplikacji docelowej.",
+  "GnomeExtensionMissing": "Zainstaluj rozszerzenie Vstavka dla GNOME, aby monitorować schowek.",
+  "PasteboardAccess": "Zezwól aplikacji Vstavka na odczyt schowka, aby mogła zapisywać nowo skopiowane elementy.",
+  "PasteboardAccessDenied": "macOS blokuje aplikacji Vstavka odczyt schowka. Zezwól na to w sekcji „Prywatność i ochrona”.",
+  "KeychainUnavailable": "Historia jest przechowywana w pamięci, ponieważ pęk kluczy systemu jest niedostępny.",
+  "OpenSettings": "Otwórz ustawienia"
 }

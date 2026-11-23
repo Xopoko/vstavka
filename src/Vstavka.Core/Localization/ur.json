@@ -150,5 +150,14 @@
   "CollectionOrange": "نارنجی",
   "CollectionRose": "گلابی",
   "CollectionViolet": "بنفشی",
-  "CollectionSlate": "نیلگوں سرمئی"
+  "CollectionSlate": "نیلگوں سرمئی",
+  "PlatformUnavailable": "اس بلڈ میں کلپ بورڈ کا انضمام دستیاب نہیں ہے۔",
+  "AccessibilityPermission": "خودکار پیسٹ کے لیے رسائی پذیری کی اجازت دیں۔",
+  "GrantAccess": "رسائی دیں",
+  "ManualPaste": "کاپی ہو گیا۔ اسے مطلوبہ ایپ میں پیسٹ کریں۔",
+  "GnomeExtensionMissing": "کلپ بورڈ کی نگرانی کے لیے Vstavka کی GNOME ایکسٹینشن انسٹال کریں۔",
+  "PasteboardAccess": "Vstavka کو کلپ بورڈ پڑھنے کی اجازت دیں تاکہ یہ نئی کاپی کی گئی چیزیں محفوظ کر سکے۔",
+  "PasteboardAccessDenied": "macOS، Vstavka کو کلپ بورڈ پڑھنے سے روکتا ہے۔ رازداری اور سیکیورٹی میں اس کی اجازت دیں۔",
+  "KeychainUnavailable": "سسٹم کی کلیدی زنجیر دستیاب نہیں، اس لیے تاریخچہ میموری میں رکھا جاتا ہے۔",
+  "OpenSettings": "ترتیبات کھولیں"
 }

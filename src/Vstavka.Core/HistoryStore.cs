@@ -6,7 +6,7 @@ using Vstavka.Core.Localization;
 namespace Vstavka.Core;
 
 /// <summary>
-/// A local, current-Windows-user-encrypted history. Mutate models on their owning UI thread,
+/// Local clipboard history with optional encrypted storage. Mutate models on their owning UI thread,
 /// then call SaveAsync. ImageBytes are immutable after capture and may be shared with save snapshots.
 /// </summary>
 public sealed class HistoryStore
@@ -24,7 +24,7 @@ public sealed class HistoryStore
     private const int MaxSourceNameLength = 1024;
     private readonly string _directory;
     private readonly string _filePath;
-    private readonly IHistoryProtector _protector;
+    private readonly IHistoryProtector? _protector;
     private readonly List<ClipItem> _items = [];
     private readonly List<ClipCollection> _collections = [];
     private readonly Dictionary<string, byte[]> _sourceIcons = new(StringComparer.OrdinalIgnoreCase);
@@ -35,10 +35,10 @@ public sealed class HistoryStore
     /// <summary>Protects history with Windows DPAPI, as earlier releases did.</summary>
     public HistoryStore(string directory) : this(directory, new WindowsHistoryProtector()) { }
 
-    public HistoryStore(string directory, IHistoryProtector protector)
+    /// <summary>Keeps history in memory when <paramref name="protector"/> is null.</summary>
+    public HistoryStore(string directory, IHistoryProtector? protector)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(directory);
-        ArgumentNullException.ThrowIfNull(protector);
         _protector = protector;
         _directory = Path.GetFullPath(directory);
         _filePath = Path.Combine(_directory, "history.vstavka");
@@ -47,6 +47,7 @@ public sealed class HistoryStore
     }
 
     public IReadOnlyList<ClipItem> Items => _readOnlyItems;
+    public bool IsPersistent => _protector is not null;
     public IReadOnlyList<ClipCollection> Collections { get; }
     public AppSettings Settings { get; set; } = new();
     public string? LoadWarning { get; private set; }
@@ -66,6 +67,12 @@ public sealed class HistoryStore
         Settings = new AppSettings();
         LoadWarning = null;
         SavingBlocked = false;
+        if (_protector is not { } protector)
+        {
+            LastRejectionReason = null;
+            return;
+        }
+
         byte[]? plaintext = null;
         try
         {
@@ -76,7 +83,7 @@ public sealed class HistoryStore
                     throw new InvalidDataException("History exceeds its storage limit.");
                 var ciphertext = new byte[(int)length];
                 stream.ReadExactly(ciphertext);
-                plaintext = _protector.Unprotect(ciphertext);
+                plaintext = protector.Unprotect(ciphertext);
             }
             var document = JsonSerializer.Deserialize<HistoryDocument>(plaintext) ?? throw new InvalidDataException("History is empty.");
             if (document.Version != 1)
@@ -154,6 +161,9 @@ public sealed class HistoryStore
     /// </summary>
     public Task SaveAsync()
     {
+        if (_protector is not { } protector)
+            return Task.CompletedTask;
+
         var snapshot = CaptureSnapshot();
         lock (_saveQueueLock)
         {
@@ -162,7 +172,7 @@ public sealed class HistoryStore
             {
                 try { await predecessor.ConfigureAwait(false); }
                 catch { /* A failed earlier save must not prevent a later valid save. */ }
-                WriteSnapshot(snapshot);
+                WriteSnapshot(snapshot, protector);
             });
             return _pendingWrite;
         }
@@ -186,7 +196,7 @@ public sealed class HistoryStore
         };
     }
 
-    private void WriteSnapshot(HistoryDocument snapshot)
+    private void WriteSnapshot(HistoryDocument snapshot, IHistoryProtector protector)
     {
         if (snapshot.Items.ToHashSet(ClipItem.ContentComparer).Count != snapshot.Items.Count)
             throw new InvalidDataException("Clipboard history contains duplicate content. The saved history has not been changed.");
@@ -197,7 +207,7 @@ public sealed class HistoryStore
         {
             if (clearBytes.LongLength > MaxStorageFileBytes - 4096)
                 throw new IOException("Clipboard history exceeds its storage limit. Remove some entries and try again.");
-            protectedBytes = _protector.Protect(clearBytes);
+            protectedBytes = protector.Protect(clearBytes);
         }
         finally
         {

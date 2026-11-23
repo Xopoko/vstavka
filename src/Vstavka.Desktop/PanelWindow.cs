@@ -447,12 +447,18 @@ internal sealed class PanelWindow : Window
     private void UpdateStatus()
     {
         var notice = _platform.Notices.FirstOrDefault();
-        var missingPermission = _platform.Paste.Permission == PermissionState.Missing;
-        var warning = notice is not null || missingPermission || _history.Warning is not null || _history.Paused;
-        var text = notice is not null ? DesktopStrings.Notice(notice)
-            : _history.Warning ?? (_history.Paused ? Strings.Get("Paused")
-                : missingPermission ? DesktopStrings.Get("Permission")
-                : Strings.Get(_platform is DemoPlatformServices ? "DemoStatus" : "LocalHistory"));
+        var warning = notice is not null || _history.Warning is not null || _history.Paused;
+        var text = notice?.Code switch
+        {
+            "adapter-not-wired" => Strings.Get("PlatformUnavailable"),
+            "accessibility-permission" => Strings.Get("AccessibilityPermission"),
+            "pasteboard-access-approval" => Strings.Get("PasteboardAccess"),
+            "pasteboard-access-denied" => Strings.Get("PasteboardAccessDenied"),
+            "keychain-unavailable" => Strings.Get("KeychainUnavailable"),
+            "gnome-extension-missing" => Strings.Get("GnomeExtensionMissing"),
+            _ => notice?.Message ?? _history.Warning ?? Strings.Get(_history.Paused ? "Paused"
+                : _platform is DemoPlatformServices ? "DemoStatus" : "LocalHistory")
+        };
         var label = PanelVisuals.Label(text, 12, "MutedBrush");
         label.Name = "PlatformStatus";
         ToolTip.SetTip(label, text);
@@ -460,11 +466,24 @@ internal sealed class PanelWindow : Window
         _status.HorizontalAlignment = warning ? HorizontalAlignment.Stretch : HorizontalAlignment.Right;
         AddColumn(_status, PanelVisuals.Dot(warning ? "WarningBrush" : "SuccessBrush"), 0);
         AddColumn(_status, label, 1);
-        if (missingPermission)
+        if (notice?.Resolve is { } resolve)
         {
-            var grant = new Button { Content = DesktopStrings.Get("Grant"), Classes = { "panel-button", "permission" }, VerticalAlignment = VerticalAlignment.Center };
-            grant.Click += (_, _) => _platform.Paste.RequestPermission();
-            AddColumn(_status, grant, 2);
+            var action = new Button
+            {
+                Content = Strings.Get(notice.Code == "pasteboard-access-denied" ? "OpenSettings" : "GrantAccess"),
+                Classes = { "panel-button", "permission" },
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            action.Click += (_, _) =>
+            {
+                resolve();
+                DispatcherTimer.RunOnce(() =>
+                {
+                    if (IsOpen)
+                        UpdateStatus();
+                }, TimeSpan.FromMilliseconds(400));
+            };
+            AddColumn(_status, action, 2);
         }
     }
 
@@ -558,7 +577,7 @@ internal sealed class PanelWindow : Window
             if (TryWrite(item, plain: false))
             {
                 Dismiss();
-                Feedback?.Invoke(DesktopStrings.Get("ManualPaste"));
+                Feedback?.Invoke(Strings.Get("ManualPaste"));
             }
         }));
         menu.Items.Add(new Separator());
@@ -614,7 +633,7 @@ internal sealed class PanelWindow : Window
         {
             await DismissAsync();
             if (!await _platform.Paste.PasteAsync())
-                Feedback?.Invoke(DesktopStrings.Get("ManualPaste"));
+                Feedback?.Invoke(Strings.Get("ManualPaste"));
         }
         finally
         {

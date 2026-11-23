@@ -10,6 +10,32 @@ IHistoryProtector protector = OperatingSystem.IsWindows() ? new WindowsHistoryPr
 
 try
 {
+    Run("Memory-only history saves without touching disk and reload clears state", () =>
+    {
+        var directory = Path.Combine(testRoot, "memory-only");
+        var path = Path.Combine(directory, "history.vstavka");
+        var store = new HistoryStore(directory, null);
+        store.Load();
+        Check(!store.IsPersistent && !Directory.Exists(directory), "Loading leaves an absent history directory alone.");
+
+        store.Add(Text("synthetic memory-only entry"));
+        store.CreateCollection("Memory collection", "CollectionBlue");
+        store.Settings.Volume = 0.25;
+        store.Save();
+        store.SaveAsync().GetAwaiter().GetResult();
+        Check(store.Items.Count == 1 && !Directory.Exists(directory) && !File.Exists(path),
+            "Both save methods keep the live entry in memory without creating the directory or file.");
+
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(path, "existing history");
+        store.Load();
+        store.Save();
+        Check(store.Items.Count == 0 && store.Collections.Count == 0 && store.Settings.Volume == new AppSettings().Volume,
+            "Loading clears the live models and resets settings.");
+        Check(store.LoadWarning is null && !store.SavingBlocked && File.ReadAllText(path) == "existing history" &&
+            Directory.GetFiles(directory).Length == 1, "An existing history file stays untouched.");
+    });
+
     Run("Defaults and content classification", () =>
     {
         var settings = new AppSettings();

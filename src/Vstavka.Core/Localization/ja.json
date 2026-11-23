@@ -150,5 +150,14 @@
   "CollectionOrange": "オレンジ",
   "CollectionRose": "ピンク",
   "CollectionViolet": "紫",
-  "CollectionSlate": "青みがかった灰色"
+  "CollectionSlate": "青みがかった灰色",
+  "PlatformUnavailable": "このビルドではクリップボード連携を利用できません。",
+  "AccessibilityPermission": "自動で貼り付けるにはアクセシビリティへのアクセスを許可してください。",
+  "GrantAccess": "アクセスを許可",
+  "ManualPaste": "コピーしました。対象のアプリに貼り付けてください。",
+  "GnomeExtensionMissing": "クリップボードを監視するには Vstavka GNOME 拡張機能をインストールしてください。",
+  "PasteboardAccess": "コピーした内容を保存できるように、Vstavka にクリップボードの読み取りを許可してください。",
+  "PasteboardAccessDenied": "macOS が Vstavka によるクリップボードの読み取りをブロックしています。「プライバシーとセキュリティ」で許可してください。",
+  "KeychainUnavailable": "システムキーチェーンを利用できないため、履歴はメモリ内に保持されます。",
+  "OpenSettings": "設定を開く"
 }

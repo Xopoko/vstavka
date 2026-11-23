@@ -150,5 +150,14 @@
   "CollectionOrange": "نارنجی",
   "CollectionRose": "صورتی",
   "CollectionViolet": "بنفش",
-  "CollectionSlate": "خاکستری مایل به آبی"
+  "CollectionSlate": "خاکستری مایل به آبی",
+  "PlatformUnavailable": "یکپارچگی با کلیپ‌بورد در این نسخه در دسترس نیست.",
+  "AccessibilityPermission": "برای چسباندن خودکار، اجازهٔ دسترسی به امکانات دسترس‌پذیری را بدهید.",
+  "GrantAccess": "دادن دسترسی",
+  "ManualPaste": "کپی شد. آن را در برنامهٔ مقصد بچسبانید.",
+  "GnomeExtensionMissing": "برای پایش کلیپ‌بورد، افزونهٔ Vstavka برای GNOME را نصب کنید.",
+  "PasteboardAccess": "به Vstavka اجازه دهید کلیپ‌بورد را بخواند تا موارد تازه کپی‌شده را ذخیره کند.",
+  "PasteboardAccessDenied": "macOS مانع خواندن کلیپ‌بورد توسط Vstavka می‌شود. در «حریم خصوصی و امنیت» اجازهٔ دسترسی بدهید.",
+  "KeychainUnavailable": "چون دسته‌کلید سیستم در دسترس نیست، تاریخچه در حافظه می‌ماند.",
+  "OpenSettings": "باز کردن تنظیمات"
 }

@@ -150,5 +150,14 @@
   "CollectionOrange": "橙色",
   "CollectionRose": "玫瑰粉",
   "CollectionViolet": "紫色",
-  "CollectionSlate": "石板灰"
+  "CollectionSlate": "石板灰",
+  "PlatformUnavailable": "此版本不支持剪贴板集成。",
+  "AccessibilityPermission": "请允许辅助功能访问以自动粘贴。",
+  "GrantAccess": "授予权限",
+  "ManualPaste": "已复制。请在目标应用中粘贴。",
+  "GnomeExtensionMissing": "请安装 Vstavka GNOME 扩展以监视剪贴板。",
+  "PasteboardAccess": "允许 Vstavka 读取剪贴板，以便保存新复制的内容。",
+  "PasteboardAccessDenied": "macOS 阻止 Vstavka 读取剪贴板。请在“隐私与安全性”中允许访问。",
+  "KeychainUnavailable": "系统钥匙串不可用，历史记录仅保存在内存中。",
+  "OpenSettings": "打开设置"
 }
