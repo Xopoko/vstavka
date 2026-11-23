@@ -73,7 +73,8 @@ public sealed class Strings : INotifyPropertyChanged
                 if(code=="en")throw new InvalidOperationException("The English source catalog is missing.");
                 return ReadCatalog("en");
             }
-            var catalog=JsonSerializer.Deserialize<Dictionary<string,string>>(stream)??throw new InvalidDataException("Invalid localization catalog.");
+            var catalog = JsonSerializer.Deserialize(stream, VstavkaJsonContext.Default.LocalizationCatalog)
+                ?? throw new InvalidDataException("Invalid localization catalog.");
             Catalogs[code]=catalog;return catalog;
         }
     }

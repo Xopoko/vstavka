@@ -85,7 +85,8 @@ public sealed class HistoryStore
                 stream.ReadExactly(ciphertext);
                 plaintext = protector.Unprotect(ciphertext);
             }
-            var document = JsonSerializer.Deserialize<HistoryDocument>(plaintext) ?? throw new InvalidDataException("History is empty.");
+            var document = JsonSerializer.Deserialize(plaintext, VstavkaJsonContext.Default.HistoryDocument)
+                ?? throw new InvalidDataException("History is empty.");
             if (document.Version != 1)
                 throw new InvalidDataException("Unsupported history format.");
             if (document.Items is null || document.Settings is null || document.Items.Count > MaxItemCount)
@@ -201,7 +202,7 @@ public sealed class HistoryStore
         if (snapshot.Items.ToHashSet(ClipItem.ContentComparer).Count != snapshot.Items.Count)
             throw new InvalidDataException("Clipboard history contains duplicate content. The saved history has not been changed.");
         Directory.CreateDirectory(_directory);
-        var clearBytes = JsonSerializer.SerializeToUtf8Bytes(snapshot);
+        var clearBytes = JsonSerializer.SerializeToUtf8Bytes(snapshot, VstavkaJsonContext.Default.HistoryDocument);
         byte[] protectedBytes;
         try
         {
@@ -453,7 +454,7 @@ public sealed class HistoryStore
         (item.Kind == ClipKind.Files ? item.Files.Length > 0 : item.Files.Length == 0) &&
         (item.Kind is ClipKind.Text or ClipKind.Link or ClipKind.Color ? !string.IsNullOrWhiteSpace(item.Text) : true);
 
-    private sealed class HistoryDocument
+    internal sealed class HistoryDocument
     {
         public int Version { get; set; } = 1;
         public AppSettings Settings { get; set; } = new();
@@ -464,7 +465,7 @@ public sealed class HistoryStore
         public Dictionary<string, byte[]>? SourceIcons { get; set; }
     }
 
-    private sealed class CollectionListConverter : JsonConverter<List<ClipCollection>>
+    internal sealed class CollectionListConverter : JsonConverter<List<ClipCollection>>
     {
         public override List<ClipCollection>? Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
         {
@@ -485,7 +486,7 @@ public sealed class HistoryStore
                 }
                 using var element = JsonDocument.ParseValue(ref reader);
                 ClipCollection? collection;
-                try { collection = element.RootElement.Deserialize<ClipCollection>(options); }
+                try { collection = element.RootElement.Deserialize(VstavkaJsonContext.Default.ClipCollection); }
                 catch (JsonException) { continue; }
                 if (collection is null || string.IsNullOrWhiteSpace(collection.Id) || collection.Id.Length > 128 ||
                     collection.Name is null || !ClipCollection.Colors.Contains(collection.Color) || collection.CreatedAt == default)
@@ -498,10 +499,10 @@ public sealed class HistoryStore
         }
 
         public override void Write(Utf8JsonWriter writer, List<ClipCollection> collections, JsonSerializerOptions options) =>
-            JsonSerializer.Serialize(writer, collections, options);
+            JsonSerializer.Serialize(writer, collections, VstavkaJsonContext.Default.Collections);
     }
 
-    private sealed class SourceIconMapConverter : JsonConverter<Dictionary<string, byte[]>>
+    internal sealed class SourceIconMapConverter : JsonConverter<Dictionary<string, byte[]>>
     {
         private const int MaxBase64Length = ((MaxSourceIconBytes + 2) / 3) * 4;
 

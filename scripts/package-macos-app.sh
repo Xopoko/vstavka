@@ -5,7 +5,7 @@
 #   dotnet publish src/Vstavka.Desktop -c Release -r osx-arm64 --self-contained -o <publish-dir>
 #   scripts/package-macos-app.sh <publish-dir> <output-dir> [version]
 #
-# For the Mac App Store, publish with -p:VstavkaMacAppStore=true, then run:
+# For the Mac App Store, publish with -p:VstavkaMacAppStore=true -p:PublishAot=true, then run:
 #   scripts/package-macos-app.sh <publish-dir> <output-dir> <version> <build> --app-store
 # Set VSTAVKA_MACOS_APP_IDENTITY and VSTAVKA_MACOS_INSTALLER_IDENTITY to the signing
 # identities and VSTAVKA_MACOS_PROFILE to the Mac App Store provisioning profile.
@@ -35,6 +35,7 @@ case "$mode" in
         app_identity="${VSTAVKA_MACOS_APP_IDENTITY:?Set the Apple Distribution signing identity}"
         : "${VSTAVKA_MACOS_INSTALLER_IDENTITY:?Set the Mac App Store installer signing identity}"
         : "${VSTAVKA_MACOS_PROFILE:?Set the Mac App Store provisioning profile}"
+        umask 022
         ;;
     --sandbox-test|"") ;;
     *) echo "Unknown packaging mode: $mode" >&2; exit 1 ;;
@@ -46,6 +47,10 @@ fi
 
 if [[ ! -f "$publish_dir/$executable" ]]; then
     echo "$publish_dir does not contain $executable." >&2
+    exit 1
+fi
+if [[ -n "$mode" && -f "$publish_dir/$executable.dll" ]]; then
+    echo "The App Store build requires a Native AOT publish in a fresh directory." >&2
     exit 1
 fi
 
@@ -65,20 +70,17 @@ if [[ -z "$mode" ]]; then
     cp -R "$publish_dir/." "$macos/"
 else
     minimum_macos="14.0"
-    # The apphost follows the entry assembly link and probes that directory for .NET.
-    # Expose the signed native libraries there while keeping them in Frameworks.
+    # Native AOT resolves the UI libraries relative to the executable.
+    # Keep the signed libraries in Frameworks and expose them to that loader.
     mkdir -p "$bundle/Contents/Frameworks"
     shopt -s nullglob
     cp "$publish_dir/$executable" "$macos/"
     for library in "$publish_dir"/*.dylib; do
         name="${library##*/}"
         cp "$library" "$bundle/Contents/Frameworks/$name"
-        ln -s "../Frameworks/$name" "$resources/$name"
+        ln -s "../Frameworks/$name" "$macos/$name"
     done
-    for dependency in "$publish_dir"/*.dll "$publish_dir"/*.json; do
-        cp "$dependency" "$resources/"
-    done
-    ln -s "../Resources/$executable.dll" "$macos/$executable.dll"
+    cp "$script_dir/../LICENSE" "$resources/License.txt"
 fi
 chmod +x "$bundle/Contents/MacOS/$executable"
 
@@ -146,6 +148,7 @@ else
         entitlements="$icon_temp/distribution.entitlements"
         /usr/libexec/PlistBuddy -c "Add :com.apple.application-identifier string $app_id" "$entitlements"
         /usr/libexec/PlistBuddy -c "Add :com.apple.developer.team-identifier string $team_id" "$entitlements"
+        chmod -R a+rX "$bundle"
     fi
     for library in "$bundle/Contents/Frameworks"/*.dylib; do
         codesign --force --sign "$app_identity" ${keychain_options[@]+"${keychain_options[@]}"} \
