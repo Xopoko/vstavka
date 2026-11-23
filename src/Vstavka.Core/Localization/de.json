@@ -54,7 +54,7 @@
   "MaxItems": "Maximale Einträge",
   "PinnedRetention": "Angeheftete Einträge und Einträge in Sammlungen bleiben erhalten, bis du sie löschst.",
   "ExcludedApps": "Ausgeschlossene Apps",
-  "ExcludedAppsHint": "Ein Prozessname pro Zeile, zum Beispiel 1Password.exe. Datenschutzkennzeichen der Zwischenablage werden beachtet.",
+  "ExcludedAppsHint": "Ein Prozessname pro Zeile, zum Beispiel 1Password. Datenschutzkennzeichen der Zwischenablage werden beachtet.",
   "PrivacySummary": "Auf diesem Computer verschlüsselt. Es wird nichts hochgeladen.",
   "ClearHistory": "Verlauf leeren",
   "ClearConfirmation": "Den gesamten Verlauf einschließlich angehefteter Einträge löschen? Dies kann nicht rückgängig gemacht werden.",

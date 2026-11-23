@@ -54,7 +54,7 @@
   "MaxItems": "Item limit",
   "PinnedRetention": "Pinned and collected items are kept until you delete them.",
   "ExcludedApps": "Excluded apps",
-  "ExcludedAppsHint": "One process name per line, for example 1Password.exe. Clipboard privacy flags are respected.",
+  "ExcludedAppsHint": "One process name per line, for example 1Password. Clipboard privacy flags are respected.",
   "PrivacySummary": "Encrypted on this computer. Nothing is uploaded.",
   "ClearHistory": "Clear history",
   "ClearConfirmation": "Delete all history, including pinned items? This cannot be undone.",

@@ -54,7 +54,7 @@
   "MaxItems": "条目上限",
   "PinnedRetention": "固定和收藏的项目会一直保留，直到你将其删除。",
   "ExcludedApps": "排除的应用",
-  "ExcludedAppsHint": "每行填写一个进程名，例如 1Password.exe。遵循剪贴板隐私标记。",
+  "ExcludedAppsHint": "每行填写一个进程名，例如 1Password。遵循剪贴板隐私标记。",
   "PrivacySummary": "在本机加密，不上传任何内容。",
   "ClearHistory": "清空历史记录",
   "ClearConfirmation": "删除所有历史记录，包括已固定的条目？此操作无法撤销。",

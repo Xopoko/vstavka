@@ -54,7 +54,7 @@
   "MaxItems": "Elemszámkorlát",
   "PinnedRetention": "A rögzített és gyűjteményben lévő elemek a törlésükig megmaradnak.",
   "ExcludedApps": "Kizárt alkalmazások",
-  "ExcludedAppsHint": "Soronként egy folyamatnevet adjon meg, például: 1Password.exe. Az alkalmazás figyelembe veszi a vágólap adatvédelmi jelöléseit.",
+  "ExcludedAppsHint": "Soronként egy folyamatnevet adjon meg, például: 1Password. Az alkalmazás figyelembe veszi a vágólap adatvédelmi jelöléseit.",
   "PrivacySummary": "Titkosítva ezen a számítógépen. Semmit sem töltünk fel.",
   "ClearHistory": "Előzmények törlése",
   "ClearConfirmation": "Törli az összes előzményt a rögzített elemekkel együtt? Ez nem vonható vissza.",

@@ -54,7 +54,7 @@
   "MaxItems": "Limite di elementi",
   "PinnedRetention": "Gli elementi fissati e quelli nelle raccolte vengono conservati finché non li elimini.",
   "ExcludedApps": "App escluse",
-  "ExcludedAppsHint": "Un nome di processo per riga, ad esempio 1Password.exe. I contrassegni di privacy degli appunti vengono rispettati.",
+  "ExcludedAppsHint": "Un nome di processo per riga, ad esempio 1Password. I contrassegni di privacy degli appunti vengono rispettati.",
   "PrivacySummary": "Crittografato su questo computer. Nessun caricamento online.",
   "ClearHistory": "Cancella cronologia",
   "ClearConfirmation": "Eliminare tutta la cronologia, inclusi gli elementi fissati? L’operazione non può essere annullata.",

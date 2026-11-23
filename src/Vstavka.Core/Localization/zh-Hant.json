@@ -54,7 +54,7 @@
   "MaxItems": "項目上限",
   "PinnedRetention": "釘選和收藏的項目會保留到你將其刪除為止。",
   "ExcludedApps": "排除的應用程式",
-  "ExcludedAppsHint": "每行輸入一個處理程序名稱，例如 1Password.exe。系統會遵循剪貼簿的隱私標記。",
+  "ExcludedAppsHint": "每行輸入一個處理程序名稱，例如 1Password。系統會遵循剪貼簿的隱私標記。",
   "PrivacySummary": "在此電腦上加密，不會上傳任何內容。",
   "ClearHistory": "清除歷程記錄",
   "ClearConfirmation": "要刪除所有歷程記錄，包含已釘選的項目嗎？此動作無法復原。",

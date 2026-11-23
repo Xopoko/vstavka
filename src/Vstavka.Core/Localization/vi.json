@@ -54,7 +54,7 @@
   "MaxItems": "Giới hạn số mục",
   "PinnedRetention": "Các mục đã ghim và các mục trong bộ sưu tập được lưu cho đến khi bạn xóa chúng.",
   "ExcludedApps": "Ứng dụng bị loại trừ",
-  "ExcludedAppsHint": "Mỗi dòng một tên tiến trình, ví dụ 1Password.exe. Các dấu bảo mật của bộ nhớ tạm được tôn trọng.",
+  "ExcludedAppsHint": "Mỗi dòng một tên tiến trình, ví dụ 1Password. Các dấu bảo mật của bộ nhớ tạm được tôn trọng.",
   "PrivacySummary": "Được mã hóa trên máy tính này. Không tải gì lên mạng.",
   "ClearHistory": "Xóa lịch sử",
   "ClearConfirmation": "Xóa toàn bộ lịch sử, kể cả các mục đã ghim? Không thể hoàn tác thao tác này.",

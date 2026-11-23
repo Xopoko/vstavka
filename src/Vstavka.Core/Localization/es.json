@@ -54,7 +54,7 @@
   "MaxItems": "Límite de elementos",
   "PinnedRetention": "Los elementos fijados y los de las colecciones se conservan hasta que los elimines.",
   "ExcludedApps": "Aplicaciones excluidas",
-  "ExcludedAppsHint": "Un nombre de proceso por línea, por ejemplo 1Password.exe. Se respetan las marcas de privacidad del portapapeles.",
+  "ExcludedAppsHint": "Un nombre de proceso por línea, por ejemplo 1Password. Se respetan las marcas de privacidad del portapapeles.",
   "PrivacySummary": "Cifrado en este equipo. No se sube nada.",
   "ClearHistory": "Borrar historial",
   "ClearConfirmation": "¿Eliminar todo el historial, incluidos los elementos fijados? Esta acción no se puede deshacer.",

@@ -54,7 +54,7 @@
   "MaxItems": "Batas item",
   "PinnedRetention": "Item yang disematkan dan item dalam koleksi disimpan hingga Anda menghapusnya.",
   "ExcludedApps": "Aplikasi yang dikecualikan",
-  "ExcludedAppsHint": "Satu nama proses per baris, misalnya 1Password.exe. Penanda privasi papan klip tetap dipatuhi.",
+  "ExcludedAppsHint": "Satu nama proses per baris, misalnya 1Password. Penanda privasi papan klip tetap dipatuhi.",
   "PrivacySummary": "Dienkripsi di komputer ini. Tidak ada yang diunggah.",
   "ClearHistory": "Hapus riwayat",
   "ClearConfirmation": "Hapus seluruh riwayat, termasuk item yang disematkan? Tindakan ini tidak dapat dibatalkan.",

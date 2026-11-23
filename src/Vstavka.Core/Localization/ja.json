@@ -54,7 +54,7 @@
   "MaxItems": "保存件数の上限",
   "PinnedRetention": "ピン留めした項目とコレクション内の項目は、削除するまで保存されます。",
   "ExcludedApps": "除外するアプリ",
-  "ExcludedAppsHint": "1行に1つのプロセス名を入力します（例: 1Password.exe）。クリップボードのプライバシーフラグに従います。",
+  "ExcludedAppsHint": "1行に1つのプロセス名を入力します（例: 1Password）。クリップボードのプライバシーフラグに従います。",
   "PrivacySummary": "このPC上で暗号化。アップロードはしません。",
   "ClearHistory": "履歴を消去",
   "ClearConfirmation": "ピン留めした項目を含むすべての履歴を削除しますか？この操作は取り消せません。",

@@ -54,7 +54,7 @@
   "MaxItems": "Limite de itens",
   "PinnedRetention": "Os itens fixados e os itens em coleções são mantidos até você excluí-los.",
   "ExcludedApps": "Aplicativos excluídos",
-  "ExcludedAppsHint": "Um nome de processo por linha, por exemplo 1Password.exe. As marcações de privacidade da área de transferência são respeitadas.",
+  "ExcludedAppsHint": "Um nome de processo por linha, por exemplo 1Password. As marcações de privacidade da área de transferência são respeitadas.",
   "PrivacySummary": "Criptografado neste computador. Nada é enviado.",
   "ClearHistory": "Limpar histórico",
   "ClearConfirmation": "Excluir todo o histórico, incluindo os itens fixados? Essa ação não pode ser desfeita.",

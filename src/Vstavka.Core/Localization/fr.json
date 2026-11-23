@@ -54,7 +54,7 @@
   "MaxItems": "Nombre maximal d’éléments",
   "PinnedRetention": "Les éléments épinglés et ceux des collections sont conservés jusqu’à leur suppression.",
   "ExcludedApps": "Applications exclues",
-  "ExcludedAppsHint": "Un nom de processus par ligne, par exemple 1Password.exe. Les indicateurs de confidentialité du presse-papiers sont respectés.",
+  "ExcludedAppsHint": "Un nom de processus par ligne, par exemple 1Password. Les indicateurs de confidentialité du presse-papiers sont respectés.",
   "PrivacySummary": "Chiffré sur cet ordinateur. Aucun envoi en ligne.",
   "ClearHistory": "Effacer l’historique",
   "ClearConfirmation": "Supprimer tout l’historique, y compris les éléments épinglés ? Cette action est irréversible.",

@@ -54,7 +54,7 @@
   "MaxItems": "Limit elementów",
   "PinnedRetention": "Przypięte elementy i elementy w kolekcjach są przechowywane, dopóki ich nie usuniesz.",
   "ExcludedApps": "Wykluczone aplikacje",
-  "ExcludedAppsHint": "Jedna nazwa procesu w wierszu, na przykład 1Password.exe. Oznaczenia prywatności schowka są respektowane.",
+  "ExcludedAppsHint": "Jedna nazwa procesu w wierszu, na przykład 1Password. Oznaczenia prywatności schowka są respektowane.",
   "PrivacySummary": "Zaszyfrowane na tym komputerze. Nic nie jest przesyłane.",
   "ClearHistory": "Wyczyść historię",
   "ClearConfirmation": "Usunąć całą historię, łącznie z przypiętymi elementami? Tej operacji nie można cofnąć.",

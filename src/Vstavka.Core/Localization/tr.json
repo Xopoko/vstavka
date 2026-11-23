@@ -54,7 +54,7 @@
   "MaxItems": "Öğe sınırı",
   "PinnedRetention": "Sabitlenen ve koleksiyonlardaki öğeler siz silene kadar saklanır.",
   "ExcludedApps": "Hariç tutulan uygulamalar",
-  "ExcludedAppsHint": "Her satıra bir işlem adı girin, örneğin 1Password.exe. Pano gizlilik işaretlerine uyulur.",
+  "ExcludedAppsHint": "Her satıra bir işlem adı girin, örneğin 1Password. Pano gizlilik işaretlerine uyulur.",
   "PrivacySummary": "Bu bilgisayarda şifrelenir. Hiçbir şey yüklenmez.",
   "ClearHistory": "Geçmişi temizle",
   "ClearConfirmation": "Sabitlenen öğeler dahil tüm geçmiş silinsin mi? Bu işlem geri alınamaz.",
