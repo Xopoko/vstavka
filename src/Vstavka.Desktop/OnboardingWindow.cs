@@ -16,6 +16,7 @@ using FluentIcons.Common;
 using Vstavka.Core;
 using Vstavka.Core.Localization;
 using Vstavka.Platform;
+using Vstavka.Platform.MacOS;
 
 namespace Vstavka.Desktop;
 
@@ -248,7 +249,8 @@ internal sealed class OnboardingWindow : Window
 
     private bool ApplyStartupPreference()
     {
-        if (_startup is null || _platform.Startup.IsEnabled == _startup.Enabled || SetStartup(_startup.Enabled))
+        if (_startup is null || _platform is MacPlatformServices { IsAppStoreBuild: true } ||
+            _platform.Startup.IsEnabled == _startup.Enabled || SetStartup(_startup.Enabled))
             return true;
         _startup.SetError(true, _platform.Startup.IsEnabled);
         return false;
@@ -411,8 +413,10 @@ internal sealed class OnboardingWindow : Window
 
     private Control Permissions()
     {
+        var appStoreBuild = _platform is MacPlatformServices { IsAppStoreBuild: true };
         if (_platform.Startup.IsSupported)
-            _startup = new StartupRow(_platform.Name, _history.Store.Settings.StartAtLogin, SetStartup);
+            _startup = new StartupRow(_platform.Name, appStoreBuild ? _platform.Startup.IsEnabled :
+                _history.Store.Settings.StartAtLogin, SetStartup);
         var rows = new PermissionRows(_platform, _history, _animate, _startup, RequestSignOut);
         rows.HotkeyBecameAvailable += _history.RegisterSettingsShortcut;
         var profile = _platform.Name switch
@@ -424,7 +428,7 @@ internal sealed class OnboardingWindow : Window
         var content = new StackPanel
         {
             Spacing = 15, Margin = new Thickness(36, 0, 36, 13),
-            Children = { Heading("Permissions" + profile + "Title", "Permissions" + profile + "Description",
+            Children = { Heading("Permissions" + profile + "Title", appStoreBuild ? null : "Permissions" + profile + "Description",
                 24, out _, out _, TextAlignment.Start), rows }
         };
         return new ScrollViewer

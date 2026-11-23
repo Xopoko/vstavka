@@ -2,9 +2,8 @@ namespace Vstavka.Platform.MacOS;
 
 internal sealed class MacPermissions(
     Func<PasteboardAccess> getPasteboardAccess,
-    Func<bool> isAccessibilityTrusted,
     Action requestPasteboardAccess,
-    Action promptAccessibility,
+    (Func<bool> IsTrusted, Action Prompt)? accessibilityAccess,
     Action<string> openSettings)
 {
     private const string ClipboardSettings = "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Pasteboard";
@@ -12,16 +11,28 @@ internal sealed class MacPermissions(
     private int accessibilityPromptRequested;
 
     internal static MacPermissions System { get; } = new(
-        NativePasteboard.GetAccess, Accessibility.IsTrusted, NativePasteboard.RequestAccess, Accessibility.Prompt, OpenSettings);
+        NativePasteboard.GetAccess, NativePasteboard.RequestAccess,
+#if VSTAVKA_MAC_APP_STORE
+        null,
+#else
+        (Accessibility.IsTrusted, Accessibility.Prompt),
+#endif
+        OpenSettings);
 
     internal bool CanReadClipboard => ClipboardCapturePolicy.CanReadInBackground(getPasteboardAccess());
-    internal PermissionState AccessibilityState => isAccessibilityTrusted() ? PermissionState.Granted : PermissionState.Missing;
+    internal PermissionState AccessibilityState => accessibilityAccess?.IsTrusted() switch
+    {
+        true => PermissionState.Granted,
+        false => PermissionState.Missing,
+        null => PermissionState.NotNeeded,
+    };
 
-    internal IReadOnlyList<PlatformPermission> GetPermissions() =>
-    [
-        GetClipboardPermission(getPasteboardAccess()),
-        GetAccessibilityPermission(),
-    ];
+    internal IReadOnlyList<PlatformPermission> GetPermissions()
+    {
+        var clipboard = GetClipboardPermission(getPasteboardAccess());
+        var accessibility = GetAccessibilityPermission();
+        return accessibility.State == PermissionState.NotNeeded ? [clipboard] : [clipboard, accessibility];
+    }
 
     internal List<PlatformNotice> GetNotices()
     {
@@ -42,10 +53,10 @@ internal sealed class MacPermissions(
 
     internal void RequestAccessibility()
     {
-        if (isAccessibilityTrusted())
+        if (accessibilityAccess is not { } access || access.IsTrusted())
             return;
         if (Interlocked.Exchange(ref accessibilityPromptRequested, 1) == 0)
-            promptAccessibility();
+            access.Prompt();
         else
             openSettings(AccessibilitySettings);
     }

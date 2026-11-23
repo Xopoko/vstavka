@@ -5,25 +5,44 @@
 #   dotnet publish src/Vstavka.Desktop -c Release -r osx-arm64 --self-contained -o <publish-dir>
 #   scripts/package-macos-app.sh <publish-dir> <output-dir> [version]
 #
-# The bundle is signed ad hoc for local testing. Releases need a Developer ID signature and
-# notarization instead.
+# For the Mac App Store, publish with -p:VstavkaMacAppStore=true, then run:
+#   scripts/package-macos-app.sh <publish-dir> <output-dir> <version> <build> --app-store
+# Set VSTAVKA_MACOS_APP_IDENTITY and VSTAVKA_MACOS_INSTALLER_IDENTITY to the signing
+# identities and VSTAVKA_MACOS_PROFILE to the Mac App Store provisioning profile.
+# Use --sandbox-test in place of --app-store for a local sandboxed .app.
 set -euo pipefail
 
 if [[ "$(uname)" != "Darwin" ]]; then
     echo "Run this script on macOS." >&2
     exit 1
 fi
-if [[ $# -lt 2 ]]; then
-    echo "Usage: $0 <publish-dir> <output-dir> [version]" >&2
+if [[ $# -lt 2 || $# -gt 5 ]]; then
+    echo "Usage: $0 <publish-dir> <output-dir> [version [build [--app-store|--sandbox-test]]]" >&2
     exit 1
 fi
 
 publish_dir="$(cd "$1" && pwd)"
 output_dir="$2"
 version="${3:-0.3.0}"
+build="${4:-$version}"
+mode="${5:-}"
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 icon_source="$script_dir/../src/Vstavka/Assets/Vstavka.png"
 executable="Vstavka.Desktop"
+app_identity="-"
+case "$mode" in
+    --app-store)
+        app_identity="${VSTAVKA_MACOS_APP_IDENTITY:?Set the Apple Distribution signing identity}"
+        : "${VSTAVKA_MACOS_INSTALLER_IDENTITY:?Set the Mac App Store installer signing identity}"
+        : "${VSTAVKA_MACOS_PROFILE:?Set the Mac App Store provisioning profile}"
+        ;;
+    --sandbox-test|"") ;;
+    *) echo "Unknown packaging mode: $mode" >&2; exit 1 ;;
+esac
+if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ || ! "$build" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
+    echo "Specify a major.minor.patch version and a numeric build number." >&2
+    exit 1
+fi
 
 if [[ ! -f "$publish_dir/$executable" ]]; then
     echo "$publish_dir does not contain $executable." >&2
@@ -32,29 +51,53 @@ fi
 
 mkdir -p "$output_dir"
 bundle="$(cd "$output_dir" && pwd)/Vstavka.app"
-if [[ -e "$bundle" ]]; then
-    echo "$bundle already exists; remove it first." >&2
+package="${bundle%.app}.pkg"
+if [[ -e "$bundle" || ( "$mode" == --app-store && -e "$package" ) ]]; then
+    echo "The output already exists. Use a new output directory." >&2
     exit 1
 fi
 
 mkdir -p "$bundle/Contents/MacOS" "$bundle/Contents/Resources"
-cp -R "$publish_dir/." "$bundle/Contents/MacOS/"
+macos="$bundle/Contents/MacOS"
+minimum_macos="13.0"
+if [[ -z "$mode" ]]; then
+    cp -R "$publish_dir/." "$macos/"
+else
+    minimum_macos="14.0"
+    # The .NET host resolves its runtime and assemblies next to the executable.
+    # Keep code and resources in their bundle locations with relative links for the host.
+    mkdir -p "$bundle/Contents/Frameworks"
+    shopt -s nullglob
+    cp "$publish_dir/$executable" "$macos/"
+    for library in "$publish_dir"/*.dylib; do
+        name="${library##*/}"
+        cp "$library" "$bundle/Contents/Frameworks/$name"
+        ln -s "../Frameworks/$name" "$macos/$name"
+    done
+    for dependency in "$publish_dir"/*.dll "$publish_dir"/*.json; do
+        name="${dependency##*/}"
+        cp "$dependency" "$bundle/Contents/Resources/$name"
+        ln -s "../Resources/$name" "$macos/$name"
+    done
+fi
 chmod +x "$bundle/Contents/MacOS/$executable"
 
 icon_key=""
 if [[ -f "$icon_source" ]] && command -v iconutil >/dev/null && command -v sips >/dev/null; then
-    iconset="$(mktemp -d)/Vstavka.iconset"
+    icon_temp="$(mktemp -d)"
+    trap 'rm -rf "$icon_temp"' EXIT
+    iconset="$icon_temp/Vstavka.iconset"
     mkdir -p "$iconset"
-    for size in 16 32 64 128 256; do
+    for size in 16 32 128 256 512; do
         sips -z "$size" "$size" "$icon_source" --out "$iconset/icon_${size}x${size}.png" >/dev/null
+        sips -z "$((size * 2))" "$((size * 2))" "$icon_source" \
+            --out "$iconset/icon_${size}x${size}@2x.png" >/dev/null
     done
-    for size in 16 32 64 128; do
-        cp "$iconset/icon_$((size * 2))x$((size * 2)).png" "$iconset/icon_${size}x${size}@2x.png"
-    done
-    rm "$iconset/icon_64x64.png" "$iconset/icon_64x64@2x.png"
     iconutil -c icns "$iconset" -o "$bundle/Contents/Resources/Vstavka.icns"
-    rm -rf "$(dirname "$iconset")"
-    icon_key="    <key>CFBundleIconFile</key><string>Vstavka</string>"
+    icon_key="    <key>CFBundleIconFile</key><string>Vstavka.icns</string>"
+elif [[ -n "$mode" ]]; then
+    echo "The app icon is required for App Store packaging." >&2
+    exit 1
 fi
 
 cat > "$bundle/Contents/Info.plist" <<PLIST
@@ -68,8 +111,9 @@ cat > "$bundle/Contents/Info.plist" <<PLIST
     <key>CFBundleExecutable</key><string>$executable</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>$version</string>
-    <key>CFBundleVersion</key><string>$version</string>
-    <key>LSMinimumSystemVersion</key><string>13.0</string>
+    <key>CFBundleVersion</key><string>$build</string>
+    <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
+    <key>LSMinimumSystemVersion</key><string>$minimum_macos</string>
     <key>LSUIElement</key><true/>
     <key>NSHighResolutionCapable</key><true/>
 $icon_key
@@ -77,6 +121,45 @@ $icon_key
 </plist>
 PLIST
 
-codesign --force --deep --sign - "$bundle"
-codesign --verify --deep "$bundle"
-echo "$bundle"
+if [[ -z "$mode" ]]; then
+    codesign --force --deep --sign - "$bundle"
+else
+    sign_options=()
+    keychain_options=()
+    entitlements="$script_dir/../packaging/MacAppStore.entitlements"
+    if [[ "$mode" == --app-store ]]; then
+        sign_options=(--timestamp --options runtime)
+        if [[ -n "${VSTAVKA_SIGNING_KEYCHAIN:-}" ]]; then
+            keychain_options=(--keychain "$VSTAVKA_SIGNING_KEYCHAIN")
+        fi
+
+        cp "$VSTAVKA_MACOS_PROFILE" "$bundle/Contents/embedded.provisionprofile"
+        profile_plist="$icon_temp/profile.plist"
+        security cms -D -i "$VSTAVKA_MACOS_PROFILE" -o "$profile_plist"
+        app_id="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.application-identifier' "$profile_plist")"
+        team_id="$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$profile_plist")"
+        if [[ "$app_id" != *.io.github.xopoko.Vstavka ]]; then
+            echo "The provisioning profile does not match the Vstavka bundle ID." >&2
+            exit 1
+        fi
+        cp "$entitlements" "$icon_temp/distribution.entitlements"
+        entitlements="$icon_temp/distribution.entitlements"
+        /usr/libexec/PlistBuddy -c "Add :com.apple.application-identifier string $app_id" "$entitlements"
+        /usr/libexec/PlistBuddy -c "Add :com.apple.developer.team-identifier string $team_id" "$entitlements"
+    fi
+    for library in "$bundle/Contents/Frameworks"/*.dylib; do
+        codesign --force --sign "$app_identity" ${keychain_options[@]+"${keychain_options[@]}"} \
+            ${sign_options[@]+"${sign_options[@]}"} "$library"
+    done
+    codesign --force --sign "$app_identity" ${keychain_options[@]+"${keychain_options[@]}"} \
+        ${sign_options[@]+"${sign_options[@]}"} --entitlements "$entitlements" "$bundle"
+fi
+codesign --verify --strict --deep "$bundle"
+if [[ "$mode" == --app-store ]]; then
+    productbuild --component "$bundle" /Applications ${keychain_options[@]+"${keychain_options[@]}"} \
+        --sign "$VSTAVKA_MACOS_INSTALLER_IDENTITY" "$package"
+    pkgutil --check-signature "$package"
+    echo "$package"
+else
+    echo "$bundle"
+fi

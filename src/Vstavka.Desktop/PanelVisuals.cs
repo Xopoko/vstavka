@@ -62,7 +62,7 @@ internal static class PanelVisuals
         return dot;
     }
 
-    public static Control Hint(string key)
+    public static Control Hint(string key, string? actionKey = null)
     {
         var hint = Strings.Get(key).Split("  ", 2, StringSplitOptions.None);
         if (hint.Length != 2)
@@ -79,7 +79,7 @@ internal static class PanelVisuals
         return new StackPanel
         {
             Orientation = Orientation.Horizontal, Spacing = 5, VerticalAlignment = VerticalAlignment.Center,
-            Children = { keycap, Label(hint[1], 12, "MutedBrush") }
+            Children = { keycap, Label(actionKey is null ? hint[1] : Strings.Get(actionKey), 12, "MutedBrush") }
         };
     }
 

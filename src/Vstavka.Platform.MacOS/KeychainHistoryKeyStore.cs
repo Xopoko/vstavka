@@ -7,7 +7,11 @@ namespace Vstavka.Platform.MacOS;
 internal sealed partial class KeychainHistoryKeyStore : IHistoryKeyStore
 {
     private const string Security = "/System/Library/Frameworks/Security.framework/Security";
+#if VSTAVKA_MAC_APP_STORE
+    private const string Service = "io.github.xopoko.Vstavka.AppStore";
+#else
     private const string Service = "io.github.xopoko.Vstavka";
+#endif
     private const string Account = "history-key";
     private const int KeySize = 32;
     private const int Success = 0;

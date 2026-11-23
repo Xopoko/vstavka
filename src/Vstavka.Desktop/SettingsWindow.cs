@@ -9,6 +9,7 @@ using Avalonia.Media;
 using Vstavka.Core;
 using Vstavka.Core.Localization;
 using Vstavka.Platform;
+using Vstavka.Platform.MacOS;
 
 namespace Vstavka.Desktop;
 
@@ -26,6 +27,7 @@ internal sealed class SettingsWindow : Window
     private readonly TextBlock _error;
     private readonly StartupRow? _startup;
     private readonly ShortcutRecorder _recorder;
+    private bool _startupChoiceChanged;
     private bool _saved;
 
     public SettingsWindow(IPlatformServices platform, DesktopHistory history, bool animate = true)
@@ -33,6 +35,7 @@ internal sealed class SettingsWindow : Window
         _platform = platform;
         _history = history;
         _draft = history.Store.Settings.Copy();
+        var appStoreBuild = platform is MacPlatformServices { IsAppStoreBuild: true };
         animate &= DesktopMotion.Enabled;
         Title = Strings.Get("Settings");
         Width = 650;
@@ -59,9 +62,12 @@ internal sealed class SettingsWindow : Window
         var contents = new StackPanel { Spacing = 14, Margin = new Thickness(30, 19, 30, 18), Children = { appearance, shortcut } };
         if (platform.Startup.IsSupported)
         {
+            if (appStoreBuild)
+                _draft.StartAtLogin = platform.Startup.IsEnabled;
             _startup = new StartupRow(platform.Name, _draft.StartAtLogin, value =>
             {
                 _draft.StartAtLogin = value;
+                _startupChoiceChanged = true;
                 return true;
             });
             contents.Children.Add(Section("Startup", SetupVisuals.Surface(_startup)));
@@ -99,9 +105,21 @@ internal sealed class SettingsWindow : Window
                 SetupVisuals.Text(Strings.Get("ExcludedAppsHint"), 12, "MutedBrush") }
         };
         var description = SetupVisuals.Text(Strings.Get(history.Store.IsPersistent ? "PrivacySummary" : "PrivacyMemory"), 12, "MutedBrush");
+        Control privacy = description;
+        if (appStoreBuild)
+        {
+            var policy = new HyperlinkButton
+            {
+                Content = Strings.Get("PrivacyPolicy"),
+                NavigateUri = new Uri("https://github.com/Xopoko/vstavka-support/blob/main/PRIVACY.md"),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Padding = new Thickness(0, 3)
+            };
+            privacy = new StackPanel { Children = { description, policy } };
+        }
         var retentionDescription = SetupVisuals.Text(Strings.Get("PinnedRetention"), 12, "MutedBrush");
         var historySection = Section("History", Card(
-            description, Field("Retention", _retention), Field("MaxItems", _limit), retentionDescription, excluded, ClearHistory()));
+            privacy, Field("Retention", _retention), Field("MaxItems", _limit), retentionDescription, excluded, ClearHistory()));
         contents.Children.Add(historySection);
 
         var scroll = new ScrollViewer
@@ -201,7 +219,8 @@ internal sealed class SettingsWindow : Window
             _recorder.BringIntoView();
             return;
         }
-        if (_startup is not null && _platform.Startup.IsEnabled != _draft.StartAtLogin && !_platform.Startup.TrySetEnabled(_draft.StartAtLogin))
+        if (_startup is not null && (_startupChoiceChanged || _platform is not MacPlatformServices { IsAppStoreBuild: true }) &&
+            _platform.Startup.IsEnabled != _draft.StartAtLogin && !_platform.Startup.TrySetEnabled(_draft.StartAtLogin))
         {
             _draft.StartAtLogin = _platform.Startup.IsEnabled;
             _startup.SetError(true, _draft.StartAtLogin);

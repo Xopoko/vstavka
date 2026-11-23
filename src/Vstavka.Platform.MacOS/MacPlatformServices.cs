@@ -10,6 +10,12 @@ public sealed class MacPlatformServices : IPlatformServices
     private readonly Lazy<IHistoryProtector?> historyProtector = new(CreateHistoryProtector);
 
     public static bool IsSupported => OperatingSystem.IsMacOS();
+    public bool IsAppStoreBuild { get; } =
+#if VSTAVKA_MAC_APP_STORE
+        true;
+#else
+        false;
+#endif
 
     public MacPlatformServices()
     {
@@ -23,7 +29,7 @@ public sealed class MacPlatformServices : IPlatformServices
     }
 
     public string Name => "macOS";
-    public string DataDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "Application Support", "Vstavka");
+    public string DataDirectory => Path.Combine(GetApplicationSupportDirectory(), "Vstavka");
     public string DefaultGesture => MacGlobalHotkey.DefaultGesture;
     public IReadOnlyList<string> SupportedGestures => MacGlobalHotkey.SupportedGestures;
     public IReadOnlyList<PlatformPermission> Permissions => MacPermissions.System.GetPermissions();
@@ -59,6 +65,17 @@ public sealed class MacPlatformServices : IPlatformServices
                 notices.Add(new("keychain-unavailable", "The history key is unavailable in macOS Keychain. History is kept in memory."));
             return notices;
         }
+    }
+
+    private static string GetApplicationSupportDirectory()
+    {
+        const int applicationSupportDirectory = 14;
+        const int userDomain = 1;
+        using var pool = new AutoreleasePool();
+        var manager = ObjC.Get(ObjC.Class("NSFileManager"), "defaultManager");
+        var urls = ObjC.Send(manager, ObjC.Sel("URLsForDirectory:inDomains:"), applicationSupportDirectory, userDomain);
+        return ObjC.ReadString(ObjC.Get(ObjC.Get(urls, "firstObject"), "path"))
+            ?? throw new InvalidOperationException("macOS could not locate the Application Support directory.");
     }
 
     private static IHistoryProtector? CreateHistoryProtector()

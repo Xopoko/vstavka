@@ -27,7 +27,7 @@ internal sealed class MacPasteService : IPasteService, IDisposable
 
     public async Task<bool> PasteAsync()
     {
-        if (disposed || target == 0 || Permission != PermissionState.Granted)
+        if (disposed || target == 0 || Permission == PermissionState.Missing)
             return false;
 
         var app = target;
@@ -42,6 +42,9 @@ internal sealed class MacPasteService : IPasteService, IDisposable
                 Activate(app);
             }
 
+            if (Permission == PermissionState.NotNeeded)
+                return false;
+
             for (var i = 0; i < 10; i++)
             {
                 // Resume on the UI context so AppKit can process the activation between checks.
@@ -52,7 +55,7 @@ internal sealed class MacPasteService : IPasteService, IDisposable
                 if (ObjC.Is(app, "isTerminated"))
                     return false;
                 if (RunningApps.ProcessId(app) == RunningApps.ProcessId(RunningApps.Frontmost))
-                    return Permission == PermissionState.Granted && Accessibility.PostPaste();
+                    return PostPaste();
             }
             return false;
         }
@@ -60,6 +63,15 @@ internal sealed class MacPasteService : IPasteService, IDisposable
         {
             ObjC.Release(app);
         }
+    }
+
+    private bool PostPaste()
+    {
+#if VSTAVKA_MAC_APP_STORE
+        return false;
+#else
+        return Permission == PermissionState.Granted && Accessibility.PostPaste();
+#endif
     }
 
     private static void Activate(nint app)
@@ -91,6 +103,7 @@ internal sealed class MacPasteService : IPasteService, IDisposable
     }
 }
 
+#if !VSTAVKA_MAC_APP_STORE
 internal static partial class Accessibility
 {
     private const string ApplicationServices = "/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices";
@@ -155,3 +168,4 @@ internal static partial class Accessibility
     [LibraryImport(CoreGraphics)]
     private static partial void CGEventPost(uint tap, nint nativeEvent);
 }
+#endif

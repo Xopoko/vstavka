@@ -6,6 +6,9 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(VstavkaMacAppStore)' == 'true'">
+    <DefineConstants>$(DefineConstants);VSTAVKA_MAC_APP_STORE</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Vstavka.Core/Vstavka.Core.csproj" />
     <ProjectReference Include="../Vstavka.Platform/Vstavka.Platform.csproj" />

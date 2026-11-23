@@ -17,6 +17,7 @@ using FluentIcons.Common;
 using Vstavka.Core;
 using Vstavka.Core.Localization;
 using Vstavka.Platform;
+using Vstavka.Platform.MacOS;
 
 namespace Vstavka.Desktop;
 
@@ -57,6 +58,7 @@ internal sealed class PanelWindow : Window
     private bool _dismissing;
     private bool _pasting;
 
+    private bool ClipboardOnly => _platform is MacPlatformServices { IsAppStoreBuild: true };
     public bool IsOpen => IsVisible && !_dismissing;
     public event Action<string>? Feedback;
     public event Action? SettingsRequested;
@@ -162,7 +164,7 @@ internal sealed class PanelWindow : Window
         _hints = new StackPanel
         {
             Orientation = Orientation.Horizontal, Spacing = 14, VerticalAlignment = VerticalAlignment.Center,
-            Children = { PanelVisuals.Hint("ChooseHint"), PanelVisuals.Hint("PasteHint") }
+            Children = { PanelVisuals.Hint("ChooseHint"), PanelVisuals.Hint("PasteHint", ClipboardOnly ? "Copy" : null) }
         };
         _status = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 7 };
         var footer = new Grid
@@ -611,16 +613,17 @@ internal sealed class PanelWindow : Window
     {
         var card = new ClipCardView(item, _history.Store, () => TogglePin(item));
         var menu = new ContextMenu { FlowDirection = FlowDirection };
-        menu.Items.Add(Option("Paste", () => _ = PasteAsync(item, false), new KeyGesture(Key.Enter)));
-        menu.Items.Add(Option("PastePlain", () => _ = PasteAsync(item, true), new KeyGesture(Key.Enter, KeyModifiers.Shift)));
-        menu.Items.Add(Option("Copy", () =>
-        {
-            if (TryWrite(item, plain: false))
+        menu.Items.Add(Option(ClipboardOnly ? "Copy" : "Paste", () => _ = PasteAsync(item, false), new KeyGesture(Key.Enter)));
+        menu.Items.Add(Option(ClipboardOnly ? "CopyPlain" : "PastePlain", () => _ = PasteAsync(item, true), new KeyGesture(Key.Enter, KeyModifiers.Shift)));
+        if (!ClipboardOnly)
+            menu.Items.Add(Option("Copy", () =>
             {
-                Dismiss();
-                Feedback?.Invoke(Strings.Get("ManualPaste"));
-            }
-        }));
+                if (TryWrite(item, plain: false))
+                {
+                    Dismiss();
+                    Feedback?.Invoke(Strings.Get("ManualPaste"));
+                }
+            }));
         menu.Items.Add(new Separator());
         menu.Items.Add(Option(item.IsPinned ? "Unpin" : "Pin", () => TogglePin(item)));
         menu.Items.Add(Option("Delete", () => Delete(item), new KeyGesture(Key.Delete)));

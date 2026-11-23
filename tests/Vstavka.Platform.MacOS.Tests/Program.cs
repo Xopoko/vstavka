@@ -104,8 +104,8 @@ Run("Permissions refresh and route only user requests", () =>
     var board = new FakePasteboard();
     var trusted = false;
     var actions = new List<string>();
-    var permissions = new MacPermissions(() => board.Access, () => trusted,
-        () => actions.Add("clipboard read"), () => actions.Add("accessibility prompt"), actions.Add);
+    var permissions = new MacPermissions(() => board.Access, () => actions.Add("clipboard read"),
+        (() => trusted, () => actions.Add("accessibility prompt")), actions.Add);
 
     foreach (var access in new[] { PasteboardAccess.Legacy, PasteboardAccess.AlwaysAllow })
     {
@@ -142,6 +142,20 @@ Run("Permissions refresh and route only user requests", () =>
     Check(permissions.GetPermissions()[1] == new PlatformPermission("accessibility", PermissionRequirement.Optional, PermissionState.Granted) &&
         permissions.GetNotices().All(notice => notice.Code != "accessibility-permission") && actions.Count == 2,
         "Granting trust clears the notice and makes a stale request harmless.");
+});
+
+Run("Manual paste requires only clipboard permission", () =>
+{
+    var clipboardRequested = false;
+    var permissions = new MacPermissions(() => PasteboardAccess.Ask, () => clipboardRequested = true,
+        null, _ => throw new InvalidOperationException("Unexpected settings request."));
+    var clipboard = permissions.GetPermissions().Single();
+    Check(clipboard.Code == "clipboard-access" && clipboard.Requirement == PermissionRequirement.Required &&
+        permissions.AccessibilityState == PermissionState.NotNeeded &&
+        permissions.GetNotices().Single().Code == "pasteboard-access-approval", "Only clipboard access is reported.");
+    permissions.RequestAccessibility();
+    clipboard.Request!();
+    Check(clipboardRequested, "The clipboard request remains available.");
 });
 
 Run("Start at login reflects system status and errors", () =>
