@@ -1,11 +1,12 @@
 using System.Text;
 using System.Text.Json;
-using System.Reflection;
 using Vstavka.Core;
 
 var testRoot = Path.Combine(Path.GetTempPath(), "Vstavka-Core-Tests", Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(testRoot);
 var results = new List<(string Name, Exception? Error)>();
+// DPAPI on Windows; elsewhere the same AES-GCM protector that macOS and Linux use, with an in-memory key.
+IHistoryProtector protector = OperatingSystem.IsWindows() ? new WindowsHistoryProtector() : new AesGcmHistoryProtector(new MemoryKeyStore());
 
 try
 {
@@ -29,8 +30,6 @@ try
             (null, "Ctrl+Shift+V"), (" ", "Ctrl+Shift+V"), ("unknown", "Ctrl+Shift+V"),
             ("Alt+V", "Alt+V"), (" ctrl+alt+v ", "Ctrl+Alt+V")
         };
-        var protect = typeof(HistoryStore).Assembly.GetType("Vstavka.Core.WindowsDataProtection")!
-            .GetMethod("Protect", BindingFlags.Static | BindingFlags.NonPublic)!;
         foreach (var (saved, expected) in cases)
         {
             var directory = Path.Combine(testRoot, "legacy-" + Guid.NewGuid().ToString("N"));
@@ -44,9 +43,9 @@ try
                 Settings = new { Hotkey = saved, Volume = 0.63, Language = "ru", StartAtLogin = false, ExcludedApps = new[] { "SyntheticExcluded" } },
                 Items = new[] { item }
             });
-            var encrypted = (byte[])protect.Invoke(null, new object[] { document })!;
+            var encrypted = protector.Protect(document);
             File.WriteAllBytes(Path.Combine(directory, "history.vstavka"), encrypted);
-            var restored = new HistoryStore(directory);
+            var restored = NewStore(directory);
             restored.Load();
             Check(restored.LoadWarning is null && restored.Settings.Hotkey == expected, "Old settings load with a supported non-conflicting shortcut.");
             Check(restored.Items.Single().Id == item.Id && restored.Items[0].Text == item.Text && restored.Items[0].IsPinned, "Migration preserves stored content and pins.");
@@ -54,7 +53,7 @@ try
             Check(restored.Collections.Count == 0 && restored.Items[0].CollectionId is null, "Legacy documents load as uncollected history.");
             Check(restored.Settings.Volume == 0.63 && restored.Settings.Language == "ru" && !restored.Settings.StartAtLogin && restored.Settings.ExcludedApps.Single() == "SyntheticExcluded", "Other preferences survive migration.");
             restored.Save();
-            var restarted = new HistoryStore(directory);
+            var restarted = NewStore(directory);
             restarted.Load();
             Check(restarted.LoadWarning is null && restarted.Settings.Hotkey == expected && restarted.Items.Single().Id == item.Id, "Migrated shortcut and history survive a save and restart.");
         }
@@ -63,7 +62,7 @@ try
     Run("Collections roundtrip in encrypted history and invalid metadata is discarded", () =>
     {
         var directory = Path.Combine(testRoot, "collection-roundtrip");
-        var store = new HistoryStore(directory);
+        var store = NewStore(directory);
         var valid = store.CreateCollection("  Prompts  ", "CollectionViolet").Collection!;
         var other = store.CreateCollection("Work", "CollectionTeal").Collection!;
         var item = Text("Synthetic prompt");
@@ -75,20 +74,18 @@ try
         Check(store.RenameCollection(valid.Id, "  Saved prompts  ") == CollectionEditError.None &&
             store.SetCollectionColor(valid.Id, "CollectionRose"), "Rename and color use the same collection identity.");
         store.Save();
-        var loaded = new HistoryStore(directory);
+        var loaded = NewStore(directory);
         loaded.Load();
         Check(loaded.LoadWarning is null && loaded.Collections.SequenceEqual(store.Collections) &&
             loaded.Search("prompt", collectionId: valid.Id).Single().Id == item.Id && loaded.Search("").Count == 0,
             "Metadata, creation order and memberships roundtrip and the general search excludes collections.");
 
-        var protect = typeof(HistoryStore).Assembly.GetType("Vstavka.Core.WindowsDataProtection")!
-            .GetMethod("Protect", BindingFlags.Static | BindingFlags.NonPublic)!;
         var broken = JsonSerializer.SerializeToUtf8Bytes(new
         {
             Version = 1, Settings = store.Settings, Items = store.Items,
             Collections = new object[] { other with { Color = "unknown" }, new { Id = 7 }, store.Collections[0], valid }
         });
-        File.WriteAllBytes(Path.Combine(directory, "history.vstavka"), (byte[])protect.Invoke(null, new object[] { broken })!);
+        File.WriteAllBytes(Path.Combine(directory, "history.vstavka"), protector.Protect(broken));
         loaded.Load();
         Check(loaded.LoadWarning is null && loaded.Collections.Single() == store.Collections[0] && loaded.Items.Count == 2 &&
             loaded.Items.Single(x => x.Id == item.Id).CollectionId == valid.Id && loaded.Search("").Single().Id == orphan.Id,
@@ -198,10 +195,8 @@ try
         {
             Version = 1, Settings = new AppSettings { MaxItems = items.Length }, Items = items, SourceIcons = icons
         });
-        var protect = typeof(HistoryStore).Assembly.GetType("Vstavka.Core.WindowsDataProtection")!
-            .GetMethod("Protect", BindingFlags.Static | BindingFlags.NonPublic)!;
-        File.WriteAllBytes(Path.Combine(directory, "history.vstavka"), (byte[])protect.Invoke(null, [document])!);
-        var store = new HistoryStore(directory);
+        File.WriteAllBytes(Path.Combine(directory, "history.vstavka"), protector.Protect(document));
+        var store = NewStore(directory);
         store.Load();
         Check(store.LoadWarning is null && store.Items.Count == items.Length, "Invalid icons leave the full history readable.");
         Check(store.Items.Count(item => !store.GetSourceIcon(item.SourceApp).IsEmpty) == HistoryStore.MaxSourceIcons &&
@@ -348,7 +343,7 @@ try
     Run("Encrypted save/load roundtrip and atomic replacement", () =>
     {
         var directory = Path.Combine(testRoot, "encrypted");
-        var store = new HistoryStore(directory);
+        var store = NewStore(directory);
         const string marker = "SYNTHETIC-VSTAVKA-ROUNDTRIP-CONTENT-5708";
         var text = Text(marker);
         text.IsPinned = true;
@@ -363,7 +358,7 @@ try
         Check(!Contains(firstCiphertext, Encoding.UTF8.GetBytes(marker)), "Storage does not contain plaintext test marker.");
         Check(!Contains(firstCiphertext, Encoding.Unicode.GetBytes(marker)), "Storage does not contain UTF-16 plaintext marker.");
         Check(firstCiphertext[0] != (byte)'{', "Storage is not JSON plaintext.");
-        var reloaded = new HistoryStore(directory);
+        var reloaded = NewStore(directory);
         reloaded.Load();
         Check(reloaded.LoadWarning is null && reloaded.Items.Count == 3, "All item kinds load from DPAPI storage.");
         Check(reloaded.Items.Single(x => x.Kind == ClipKind.Text).Text == marker && reloaded.Items[0].IsPinned, "Text and pin preserved.");
@@ -371,7 +366,7 @@ try
         Check(reloaded.Settings.Volume == 0.72 && !reloaded.Settings.StartAtLogin, "Settings roundtrip.");
         reloaded.Add(Text("second atomic save"));
         reloaded.Save();
-        var final = new HistoryStore(directory);
+        var final = NewStore(directory);
         final.Load();
         Check(final.Items.Count == 4 && final.LoadWarning is null, "Existing file replaced successfully.");
         Check(!File.ReadAllBytes(storagePath).SequenceEqual(firstCiphertext), "Replacement contains new encrypted data.");
@@ -385,7 +380,7 @@ try
         var path = Path.Combine(directory, "history.vstavka");
         var corruptBytes = Encoding.UTF8.GetBytes("synthetic-invalid-history-for-recovery-test");
         File.WriteAllBytes(path, corruptBytes);
-        var store = new HistoryStore(directory);
+        var store = NewStore(directory);
         store.Load();
         Check(!store.SavingBlocked && store.LoadWarning is not null && store.Items.Count == 0,
             "Successful quarantine reports corruption and leaves the replacement store usable.");
@@ -395,7 +390,7 @@ try
         store.Add(Text("synthetic replacement"));
         store.Save();
         Check(File.Exists(path) && File.ReadAllBytes(quarantine).SequenceEqual(corruptBytes), "New history leaves recovery file untouched.");
-        var restored = new HistoryStore(directory);
+        var restored = NewStore(directory);
         restored.Load();
         Check(restored.LoadWarning is null && restored.Items.Count == 1, "New encrypted store operates after quarantine.");
     });
@@ -405,7 +400,7 @@ try
         var directory = Path.Combine(testRoot, "history-path-blocked");
         var path = Path.Combine(directory, "history.vstavka");
         Directory.CreateDirectory(path);
-        var store = new HistoryStore(directory);
+        var store = NewStore(directory);
         store.Load();
         Check(store.SavingBlocked && store.LoadWarning is not null && store.Items.Count == 0,
             "The caller can distinguish unavailable settings from a new or recovered profile.");
@@ -423,26 +418,26 @@ try
         Check(!store.SavingBlocked && store.LoadWarning is null, "Reloading an available profile clears the failure.");
     });
 
-    Run("Tampered DPAPI payload is rejected and preserved", () =>
+    Run("Tampered encrypted payload is rejected and preserved", () =>
     {
         var directory = Path.Combine(testRoot, "tampered");
-        var store = new HistoryStore(directory);
-        store.Add(Text("synthetic DPAPI integrity proof"));
+        var store = NewStore(directory);
+        store.Add(Text("synthetic integrity proof"));
         store.Save();
         var path = Path.Combine(directory, "history.vstavka");
         var bytes = File.ReadAllBytes(path);
         bytes[^1] ^= 0x5a;
         File.WriteAllBytes(path, bytes);
-        var readback = new HistoryStore(directory);
+        var readback = NewStore(directory);
         readback.Load();
-        Check(readback.Items.Count == 0 && readback.LoadWarning is not null, "Tamper detected by DPAPI.");
+        Check(readback.Items.Count == 0 && readback.LoadWarning is not null, "Tamper detected.");
         Check(File.ReadAllBytes(Directory.GetFiles(directory, "history.recovery-*.vstavka").Single()).SequenceEqual(bytes), "Tampered original retained.");
     });
 
     Run("An invalid edited item cannot replace an existing valid saved history", () =>
     {
         var directory = Path.Combine(testRoot, "invalid-edit");
-        var store = new HistoryStore(directory);
+        var store = NewStore(directory);
         var original = Text("synthetic valid original");
         store.Add(original);
         store.Save();
@@ -454,7 +449,7 @@ try
         catch (InvalidDataException) { rejected = true; }
         Check(rejected, "Invalid mutable model snapshot rejected before persistence.");
         Check(File.ReadAllBytes(path).SequenceEqual(originalBytes), "Prior saved history stays byte-for-byte unchanged.");
-        var readback = new HistoryStore(directory);
+        var readback = NewStore(directory);
         readback.Load();
         Check(readback.LoadWarning is null && readback.Items.Single().Text == "synthetic valid original", "Last good history remains recoverable.");
     });
@@ -462,7 +457,7 @@ try
     Run("Async saves snapshot mutable items, file arrays, and settings before returning", () =>
     {
         var directory = Path.Combine(testRoot, "async-snapshot");
-        var store = new HistoryStore(directory);
+        var store = NewStore(directory);
         var item = Text("before queued snapshot");
         var files = new ClipItem { Kind = ClipKind.Files, Files = [@"C:\Synthetic\before.txt"] };
         store.Add(item);
@@ -481,7 +476,7 @@ try
         store.Settings.Volume = 0.11;
         store.Settings.ExcludedApps[0] = "ChangedApp";
         Task.WhenAll(first, second).GetAwaiter().GetResult();
-        var readback = new HistoryStore(directory);
+        var readback = NewStore(directory);
         readback.Load();
         Check(readback.Items.Single(x => x.Kind == ClipKind.Text).Text == "captured second snapshot", "Item text belongs to the call-time snapshot.");
         Check(!readback.Items.Single(x => x.Kind == ClipKind.Text).IsPinned, "Later pin mutations are isolated.");
@@ -492,7 +487,7 @@ try
     Run("FIFO async saves followed by synchronous exit save preserve the latest snapshot", () =>
     {
         var directory = Path.Combine(testRoot, "async-exit");
-        var store = new HistoryStore(directory);
+        var store = NewStore(directory);
         var item = Text("initial");
         store.Add(item);
         store.Add(new ClipItem { Kind = ClipKind.Image, ImageBytes = new byte[HistoryStore.MaxImageBytes] });
@@ -514,7 +509,7 @@ try
         }
         finally { SynchronizationContext.SetSynchronizationContext(originalContext); }
         Check(writes.All(x => x.IsCompletedSuccessfully), "Synchronous save completed all earlier queued saves first.");
-        var readback = new HistoryStore(directory);
+        var readback = NewStore(directory);
         readback.Load();
         Check(readback.Items.Single(x => x.Kind == ClipKind.Text).Text == "final synchronous exit snapshot" && readback.Settings.Volume == 0.91,
             "No older queued snapshot can overwrite the final synchronous state.");
@@ -525,7 +520,7 @@ try
     {
         var directory = Path.Combine(testRoot, "async-recovery");
         File.WriteAllText(directory, "synthetic file blocks the requested directory");
-        var store = new HistoryStore(directory);
+        var store = NewStore(directory);
         var item = Text("before temporary failure");
         store.Add(item);
         var failed = store.SaveAsync();
@@ -536,7 +531,7 @@ try
         File.Delete(directory);
         item.Text = "saved after failure";
         store.SaveAsync().GetAwaiter().GetResult();
-        var readback = new HistoryStore(directory);
+        var readback = NewStore(directory);
         readback.Load();
         Check(readback.LoadWarning is null && readback.Items.Single().Text == "saved after failure", "A later valid save succeeds after an earlier task faults.");
     });
@@ -569,6 +564,43 @@ try
             "An exclusion accepts an executable path and matches a process name with dots.");
         Check(store.Add(new ClipItem { Text = "allowed", SourceApp = "Example.Other" }),
             "Different process names are allowed even when they have the same prefix before a dot.");
+    });
+
+    Run("AES-GCM protection authenticates history and needs its stored key", () =>
+    {
+        var keys = new MemoryKeyStore();
+        var aes = new AesGcmHistoryProtector(keys);
+        var clear = Encoding.UTF8.GetBytes("synthetic history payload");
+        var first = aes.Protect(clear);
+        var key = keys.TryLoadKey();
+        var second = aes.Protect(clear);
+        Check(key is { Length: 32 } && !second.SequenceEqual(first) && keys.TryLoadKey()!.SequenceEqual(key),
+            "One random key is created and reused; every payload gets a fresh nonce.");
+        Check(aes.Unprotect(first).SequenceEqual(clear) && !Contains(first, clear), "Payloads roundtrip and never contain the clear text.");
+        foreach (var index in new[] { 0, 20, first.Length - 1 })
+        {
+            var damaged = (byte[])first.Clone();
+            damaged[index] ^= 0x5a;
+            Check(Throws<System.Security.Cryptography.CryptographicException>(() => aes.Unprotect(damaged)), $"A changed byte at {index} is rejected.");
+        }
+        Check(Throws<System.Security.Cryptography.CryptographicException>(() => new AesGcmHistoryProtector(new MemoryKeyStore()).Unprotect(first)),
+            "A missing key is reported as unreadable history.");
+        var otherKeys = new MemoryKeyStore();
+        otherKeys.SaveKey(new byte[32]);
+        Check(Throws<System.Security.Cryptography.CryptographicException>(() => new AesGcmHistoryProtector(otherKeys).Unprotect(first)),
+            "Another key cannot open the history.");
+
+        var directory = Path.Combine(testRoot, "aes-store");
+        var store = new HistoryStore(directory, aes);
+        store.Add(Text("synthetic AES history entry"));
+        store.Save();
+        var readback = new HistoryStore(directory, new AesGcmHistoryProtector(keys));
+        readback.Load();
+        Check(readback.Items.Single().Text == "synthetic AES history entry", "A history store saved with AES-GCM reloads with the same key.");
+        var locked = new HistoryStore(directory, new AesGcmHistoryProtector(new MemoryKeyStore()));
+        locked.Load();
+        Check(locked.Items.Count == 0 && locked.LoadWarning is not null && Directory.GetFiles(directory, "history.recovery-*.vstavka").Length == 1,
+            "Without its key the file is kept aside instead of being overwritten.");
     });
 
     Run("100 MiB image budget evicts old images and protects pins and collection items", () =>
@@ -611,7 +643,8 @@ void Run(string name, Action test)
     catch (Exception exception) { results.Add((name, exception)); }
 }
 
-HistoryStore Store(string name) => new(Path.Combine(testRoot, name));
+HistoryStore Store(string name) => NewStore(Path.Combine(testRoot, name));
+HistoryStore NewStore(string directory) => new(directory, protector);
 static ClipItem Text(string value, int minutesAgo = 0) => new() { Text = value, SourceApp = "SyntheticTest", CapturedAt = DateTimeOffset.UtcNow.AddMinutes(-minutesAgo) };
 static byte[] SolidRedIcon() => Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==");
 static void Check(bool condition, string message)
@@ -619,6 +652,18 @@ static void Check(bool condition, string message)
     if (!condition) throw new InvalidOperationException(message);
 }
 static bool Contains(byte[] haystack, byte[] needle) => haystack.AsSpan().IndexOf(needle) >= 0;
+static bool Throws<T>(Action action) where T : Exception
+{
+    try { action(); return false; }
+    catch (T) { return true; }
+}
+
+sealed class MemoryKeyStore : IHistoryKeyStore
+{
+    private byte[]? _key;
+    public byte[]? TryLoadKey() => _key?.ToArray();
+    public void SaveKey(byte[] key) => _key = key.ToArray();
+}
 
 sealed class RejectingSynchronizationContext : SynchronizationContext
 {

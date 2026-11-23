@@ -24,6 +24,7 @@ public sealed class HistoryStore
     private const int MaxSourceNameLength = 1024;
     private readonly string _directory;
     private readonly string _filePath;
+    private readonly IHistoryProtector _protector;
     private readonly List<ClipItem> _items = [];
     private readonly List<ClipCollection> _collections = [];
     private readonly Dictionary<string, byte[]> _sourceIcons = new(StringComparer.OrdinalIgnoreCase);
@@ -31,9 +32,14 @@ public sealed class HistoryStore
     private readonly object _saveQueueLock = new();
     private Task _pendingWrite = Task.CompletedTask;
 
-    public HistoryStore(string directory)
+    /// <summary>Protects history with Windows DPAPI, as earlier releases did.</summary>
+    public HistoryStore(string directory) : this(directory, new WindowsHistoryProtector()) { }
+
+    public HistoryStore(string directory, IHistoryProtector protector)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(directory);
+        ArgumentNullException.ThrowIfNull(protector);
+        _protector = protector;
         _directory = Path.GetFullPath(directory);
         _filePath = Path.Combine(_directory, "history.vstavka");
         _readOnlyItems = _items.AsReadOnly();
@@ -70,7 +76,7 @@ public sealed class HistoryStore
                     throw new InvalidDataException("History exceeds its storage limit.");
                 var ciphertext = new byte[(int)length];
                 stream.ReadExactly(ciphertext);
-                plaintext = WindowsDataProtection.Unprotect(ciphertext);
+                plaintext = _protector.Unprotect(ciphertext);
             }
             var document = JsonSerializer.Deserialize<HistoryDocument>(plaintext) ?? throw new InvalidDataException("History is empty.");
             if (document.Version != 1)
@@ -191,7 +197,7 @@ public sealed class HistoryStore
         {
             if (clearBytes.LongLength > MaxStorageFileBytes - 4096)
                 throw new IOException("Clipboard history exceeds its storage limit. Remove some entries and try again.");
-            protectedBytes = WindowsDataProtection.Protect(clearBytes);
+            protectedBytes = _protector.Protect(clearBytes);
         }
         finally
         {
