@@ -67,7 +67,7 @@ internal sealed class SettingsWindow : Window
             contents.Children.Add(Section("Startup", SetupVisuals.Surface(_startup)));
         }
 
-        var permissions = new PermissionRows(platform, animate);
+        var permissions = new PermissionRows(platform, history, animate);
         permissions.HotkeyBecameAvailable += history.RegisterSettingsShortcut;
         var permissionSection = Section("Permissions", permissions);
         permissionSection.IsVisible = permissions.IsVisible;
@@ -211,6 +211,7 @@ internal sealed class SettingsWindow : Window
         }
 
         _draft.OnboardingCompleted = previous.OnboardingCompleted;
+        _draft.OnboardingStep = previous.OnboardingStep;
         _draft.MaxItems = max;
         _draft.ExcludedApps = (_excluded.Text ?? "").Split(['\r', '\n', ';', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();

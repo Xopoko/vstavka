@@ -4,12 +4,14 @@ using Avalonia.Animation.Easings;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Shapes;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using FluentIcons.Common;
 using Vstavka.Core.Localization;
 using Vstavka.Platform;
+using Path = Avalonia.Controls.Shapes.Path;
 
 namespace Vstavka.Desktop;
 
@@ -23,33 +25,49 @@ internal sealed class PermissionRows : UserControl
     };
 
     private readonly IPlatformServices _platform;
+    private readonly DesktopHistory _history;
     private readonly bool _animate;
     private readonly StartupRow? _startup;
+    private readonly Action<Action> _signOut;
     private readonly DispatcherTimer _poll;
     private readonly StackPanel _list = new();
     private readonly Dictionary<string, PermissionRow> _rows = [];
     private bool? _hotkeyAvailable;
-    private bool _accessibilityRequested;
 
     public event Action<bool>? AvailabilityChanged;
     public event Action? HotkeyBecameAvailable;
 
-    public PermissionRows(IPlatformServices platform, bool animate, StartupRow? startup = null)
+    public PermissionRows(IPlatformServices platform, DesktopHistory history, bool animate, StartupRow? startup = null,
+        Action<Action>? signOut = null)
     {
         _platform = platform;
+        _history = history;
         _animate = animate;
         _startup = startup;
+        _signOut = signOut ?? (action => _ = history.SignOutAsync(action));
         Content = SetupVisuals.Surface(_list, 12);
         _poll = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _poll.Tick += (_, _) => Refresh();
-        AttachedToVisualTree += (_, _) => { Refresh(); _poll.Start(); };
-        DetachedFromVisualTree += (_, _) => _poll.Stop();
+        AttachedToVisualTree += (_, _) =>
+        {
+            _history.GnomeHelperInstallChanged += Refresh;
+            Refresh();
+            _poll.Start();
+        };
+        DetachedFromVisualTree += (_, _) =>
+        {
+            _poll.Stop();
+            _history.GnomeHelperInstallChanged -= Refresh;
+        };
         Refresh();
     }
 
+    public static string Title(PlatformPermission permission) =>
+        Labels.TryGetValue(permission.Code, out var labels) ? Strings.Get(labels.Title) : permission.Code;
+
     public void Refresh()
     {
-        var permissions = _platform.Permissions.Where(permission => permission.State != PermissionState.NotNeeded).ToArray();
+        var permissions = _history.Permissions.Where(permission => permission.State != PermissionState.NotNeeded).ToArray();
         var hotkeyAvailable = _platform.Capabilities.HasFlag(PlatformCapabilities.GlobalHotkey);
         if (hotkeyAvailable && _hotkeyAvailable == false)
             HotkeyBecameAvailable?.Invoke();
@@ -73,7 +91,11 @@ internal sealed class PermissionRows : UserControl
             AddRow(_startup);
 
         foreach (var permission in permissions)
-            _rows[permission.Code].Update(permission, _accessibilityRequested);
+        {
+            var gnome = permission.Code == "gnome-helper";
+            _rows[permission.Code].Update(permission, _history.AccessibilityRequested, gnome && _history.InstallingGnomeHelper,
+                gnome && _history.GnomeHelperInstallFailed);
+        }
 
         var visible = _list.Children.Count > 0;
         if (IsVisible != visible)
@@ -96,9 +118,21 @@ internal sealed class PermissionRows : UserControl
 
     private void Request(PlatformPermission permission)
     {
+        if (permission.Request is not { } action)
+            return;
+        if (permission.State == PermissionState.RestartRequired)
+        {
+            _signOut(action);
+            return;
+        }
+        if (permission.Code == "gnome-helper")
+        {
+            _ = _history.InstallGnomeHelperAsync(action);
+            return;
+        }
         if (permission.Code == "accessibility")
-            _accessibilityRequested = true;
-        permission.Request?.Invoke();
+            _history.AccessibilityRequested = true;
+        action();
         Refresh();
     }
 
@@ -110,10 +144,12 @@ internal sealed class PermissionRows : UserControl
         private readonly string _actionKey;
         private readonly Border _illustration;
         private readonly Border _knob;
-        private readonly TextBlock _waiting;
+        private readonly TextBlock _restartHint;
+        private readonly TextBlock _installError;
         private readonly Control _accessibility;
         private Control? _status;
         private PlatformPermission _permission;
+        private bool _installing;
 
         public PermissionRow(PlatformPermission permission, IPlatformServices platform, bool animate, Action<PlatformPermission> request)
         {
@@ -125,7 +161,6 @@ internal sealed class PermissionRows : UserControl
             ColumnSpacing = 8;
             Margin = new Thickness(12, 9);
             var known = Labels.TryGetValue(permission.Code, out var labels);
-            var title = known ? Strings.Get(labels.Title) : permission.Code;
             var description = known ? Strings.Get(labels.Description)
                 : platform.Notices.FirstOrDefault(notice => notice.Code == permission.Code)?.Message;
             var glyph = PanelVisuals.Glyph(known ? labels.Icon : Symbol.Shield, 17, "AccentBrush");
@@ -142,7 +177,7 @@ internal sealed class PermissionRows : UserControl
             tag.Padding = new Thickness(5, 0);
             tag.VerticalAlignment = VerticalAlignment.Center;
             var heading = new WrapPanel { ItemSpacing = 6, LineSpacing = 2 };
-            heading.Children.Add(SetupVisuals.Text(title, 14, strong: true));
+            heading.Children.Add(SetupVisuals.Text(Title(permission), 14, strong: true));
             heading.Children.Add(tag);
             var details = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center, Children = { heading } };
             if (permission.Code == "accessibility")
@@ -150,8 +185,11 @@ internal sealed class PermissionRows : UserControl
             if (!string.IsNullOrWhiteSpace(description))
                 details.Children.Add(SetupVisuals.Text(description, 12, "MutedBrush"));
 
-            _waiting = SetupVisuals.Text(Strings.Get("GnomeSignOut"), 12, "MutedBrush");
-            details.Children.Add(_waiting);
+            _restartHint = SetupVisuals.Text(Strings.Get(permission.Code == "gnome-helper"
+                ? "GnomeRestartDescription" : "PermissionRestartDescription"), 12, "MutedBrush");
+            details.Children.Add(_restartHint);
+            _installError = SetupVisuals.Text(Strings.Get("GnomeInstallFailed"), 12, "WarningBrush");
+            details.Children.Add(_installError);
             _knob = PanelVisuals.Dot("SurfaceBrush", 10);
             _knob.HorizontalAlignment = HorizontalAlignment.Left;
             _illustration = SetupVisuals.Surface(_knob, 8, "HoverLineBrush", "HoverLineBrush");
@@ -165,33 +203,39 @@ internal sealed class PermissionRows : UserControl
             _accessibility = accessibility;
             details.Children.Add(accessibility);
             SetupVisuals.Add(this, details, 1);
-            Update(permission, false);
         }
 
-        public void Update(PlatformPermission permission, bool accessibilityRequested)
+        public void Update(PlatformPermission permission, bool accessibilityRequested, bool installing, bool installFailed)
         {
-            _waiting.IsVisible = permission.Code == "gnome-helper" && permission.State == PermissionState.Missing && permission.Request is null;
+            _restartHint.IsVisible = permission.State == PermissionState.RestartRequired;
+            _installError.IsVisible = installFailed && permission.State == PermissionState.Missing;
             _accessibility.IsVisible = permission.Code == "accessibility" && accessibilityRequested;
-            var stateChanged = _status is null || permission.State != _permission.State || (permission.Request is null) != (_permission.Request is null);
-            var becameGranted = _status is not null && _permission.State == PermissionState.Missing && permission.State == PermissionState.Granted;
+            var stateChanged = _status is null || permission.State != _permission.State
+                || (permission.Request is null) != (_permission.Request is null) || installing != _installing;
+            var becameGranted = _status is not null && _permission.State != PermissionState.Granted
+                && permission.State == PermissionState.Granted;
             _permission = permission;
+            _installing = installing;
             if (!stateChanged)
                 return;
 
             if (_status is not null)
                 Children.Remove(_status);
-            var granted = permission.State == PermissionState.Granted;
-            _status = granted
-                ? SetupVisuals.Horizontal(5, PanelVisuals.Glyph(Symbol.Checkmark, 14, "SuccessBrush"),
-                    SetupVisuals.Text(Strings.Get(_allowedKey), 12, "SuccessBrush", strong: true))
-                : permission.Request is not null
-                    ? SetupVisuals.Button(_actionKey, () => _request(_permission), "permission", "Request-" + permission.Code)
-                    : SetupVisuals.Text(Strings.Get("Waiting"), 12, "MutedBrush");
+            IsEnabled = !installing;
+            _status = installing ? InstallingStatus() : permission.State switch
+            {
+                PermissionState.Granted => SetupVisuals.Horizontal(5, PanelVisuals.Glyph(Symbol.Checkmark, 14, "SuccessBrush"),
+                    SetupVisuals.Text(Strings.Get(_allowedKey), 12, "SuccessBrush", strong: true)),
+                PermissionState.RestartRequired => RestartStatus(),
+                _ when permission.Request is not null =>
+                    SetupVisuals.Button(_actionKey, () => _request(_permission), "permission", "Request-" + permission.Code),
+                _ => SetupVisuals.Text(Strings.Get("PermissionNotAvailable"), 12, "MutedBrush")
+            };
             _status.Name ??= "Status-" + permission.Code;
             _status.VerticalAlignment = VerticalAlignment.Center;
             _status.HorizontalAlignment = HorizontalAlignment.Right;
             SetupVisuals.Add(this, _status, 2);
-            if (granted)
+            if (permission.State == PermissionState.Granted)
             {
                 _illustration.Bind(Border.BackgroundProperty, _illustration.GetResourceObservable("PrimaryBrush"));
                 _knob.HorizontalAlignment = HorizontalAlignment.Right;
@@ -204,6 +248,33 @@ internal sealed class PermissionRows : UserControl
                     _ = SetupVisuals.Animate(_knob, 320, CancellationToken.None,
                         (0, 1, "translateX(-9px)"), (1, 1, "translateX(0px)"));
             }
+        }
+
+        private Control InstallingStatus()
+        {
+            var spinner = new Path
+            {
+                Name = "GnomeInstallSpinner", Width = 14, Height = 14, StrokeThickness = 1.75,
+                Data = Geometry.Parse("M7,1 A6,6 0 1 1 1,7"), FlowDirection = FlowDirection.LeftToRight
+            };
+            spinner.Bind(Shape.StrokeProperty, spinner.GetResourceObservable("AccentBrush"));
+            spinner.Classes.Set("setup-install-spinner", _animate);
+            return SetupVisuals.Horizontal(6, spinner, SetupVisuals.Text(Strings.Get("InstallingGnomeHelper"), 12, "MutedBrush"));
+        }
+
+        private Control RestartStatus()
+        {
+            var label = SetupVisuals.Text(Strings.Get("SignOutToFinish"), 12, "WarningBrush", strong: true);
+            label.TextAlignment = TextAlignment.End;
+            var status = new StackPanel { Spacing = 5, MaxWidth = 156, Children = { label } };
+            if (_permission.Request is not null)
+            {
+                var button = SetupVisuals.Button("SignOut", () => _request(_permission), "permission", "Request-" + Name);
+                button.Classes.Add("secondary");
+                button.HorizontalAlignment = HorizontalAlignment.Right;
+                status.Children.Add(button);
+            }
+            return status;
         }
     }
 }

@@ -225,6 +225,9 @@ internal sealed class ShortcutRecorder : UserControl
         return strip;
     }
 
+    public static string GestureText(string gesture, string platform) =>
+        string.Join(platform == "macOS" ? "" : "+", GestureLabels(gesture, platform));
+
     private static IEnumerable<string> GestureLabels(string gesture, string platform) =>
         HotkeyGesture.TryParse(gesture, out var parsed)
             ? Labels(parsed.Modifiers, platform).Append(parsed.Key == "Space" ? Strings.Get("SpaceKey") : parsed.Key)

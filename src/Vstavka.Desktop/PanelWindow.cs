@@ -478,7 +478,7 @@ internal sealed class PanelWindow : Window
             "pasteboard-access-denied" => Strings.Get("PasteboardAccessDenied"),
             "keychain-unavailable" => Strings.Get("KeychainUnavailable"),
             "gnome-extension-missing" => Strings.Get("GnomeHelperNotice"),
-            "gnome-helper-restart" => Strings.Get("GnomeSignOut"),
+            "gnome-helper-restart" => Strings.Get("GnomeRestartNotice"),
             "gnome-extension-not-allowed" => notice.Message,
             _ => notice?.Message ?? _history.Warning ?? Strings.Get(_history.Paused ? "Paused"
                 : _platform is DemoPlatformServices ? "DemoStatus" : "LocalHistory")
@@ -500,15 +500,23 @@ internal sealed class PanelWindow : Window
                     "pasteboard-access-approval" => "Allow",
                     "pasteboard-access-denied" => "OpenSettings",
                     "gnome-extension-missing" => "Install",
+                    "gnome-helper-restart" => "SignOut",
                     "shortcut-unavailable" => "Settings",
                     _ => "GrantAccess"
                 }),
                 Classes = { "panel-button", "permission" },
                 VerticalAlignment = VerticalAlignment.Center
             };
-            action.Click += (_, _) =>
+            action.Click += async (_, _) =>
             {
-                resolve();
+                if (notice.Code == "gnome-helper-restart")
+                {
+                    action.IsEnabled = false;
+                    try { await _history.SignOutAsync(resolve); }
+                    finally { action.IsEnabled = true; }
+                }
+                else
+                    resolve();
                 DispatcherTimer.RunOnce(() =>
                 {
                     if (IsOpen)

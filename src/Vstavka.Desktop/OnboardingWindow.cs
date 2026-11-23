@@ -6,6 +6,8 @@ using Avalonia.Controls;
 using Avalonia.Controls.Chrome;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -24,23 +26,29 @@ internal sealed class OnboardingWindow : Window
     private readonly DesktopHistory _history;
     private readonly bool _animate;
     private readonly Grid _stage = new() { ClipToBounds = true };
-    private readonly StackPanel _progress = SetupVisuals.Horizontal(6);
     private readonly Border _footer;
-    private readonly Border[] _dots = new Border[4];
+    private readonly (Button Button, Border Marker)[] _dots = new (Button, Border)[LastStep + 1];
+    private Button _back;
+    private Button _next;
+    private int _furthestStep;
     private CancellationTokenSource? _motion;
     private StartupRow? _startup;
+    private (PlatformPermission? Blocker, bool Ready) _practiceReadiness;
     private TextBox? _practiceBox;
     private TextBlock? _practiceTitle;
     private TextBlock? _practiceError;
     private readonly Grid[] _checks = new Grid[3];
     private string _practiceText = "";
+    private string? _practiceInput;
+    private string? _copyError;
+    private bool _copying;
     private bool _copied;
     private bool _openedWithShortcut;
     private bool _pasted;
     private bool _welcomePlayed;
 
     public int Step { get; private set; }
-    public bool Practicing => IsVisible && Step == LastStep;
+    public bool Practicing => IsVisible && _practiceBox is not null;
     public bool PracticeCompleted => _copied && _openedWithShortcut && _pasted;
     public ClipItem? PracticeItem => Practicing && _copied
         ? _history.Store.Items.FirstOrDefault(item => item.Kind == ClipKind.Text && item.Text == _practiceText)
@@ -64,6 +72,7 @@ internal sealed class OnboardingWindow : Window
         }
 
         _footer = SetupVisuals.Footer(new Grid(), new Thickness(32, 0));
+        (_back, _next) = BuildFooter();
         var root = new Grid { RowDefinitions = new("*,62") };
         SetupVisuals.Add(root, _stage);
         SetupVisuals.Add(root, _footer, row: 1);
@@ -75,30 +84,30 @@ internal sealed class OnboardingWindow : Window
         }
         Content = root;
 
-        for (var index = 0; index < _dots.Length; index++)
-        {
-            var dot = new Border
-            {
-                Classes = { "setup-dot" }, Height = 6, Width = 6, CornerRadius = new CornerRadius(3),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            if (_animate)
-                dot.Transitions = new Transitions
-                {
-                    new DoubleTransition { Property = WidthProperty, Duration = TimeSpan.FromMilliseconds(300), Easing = new ExponentialEaseOut() }
-                };
-            _dots[index] = dot;
-            _progress.Children.Add(dot);
-        }
-
         ActualThemeVariantChanged += (_, _) => ApplyAppearance();
         _history.SettingsChanged += ApplyAppearance;
+        _history.GnomeHelperInstallChanged += RefreshPracticeReadiness;
         ApplyAppearance();
-        Opened += (_, _) => ShowStep(0, slide: false);
+        AddHandler(KeyDownEvent, (_, e) =>
+        {
+            if (Step > 0 && e.Key == Key.Left && e.KeyModifiers == KeyModifiers.Alt)
+            {
+                e.Handled = true;
+                Back();
+            }
+        }, RoutingStrategies.Tunnel);
+        Opened += (_, _) =>
+        {
+            var settings = _history.Store.Settings;
+            ShowStep(settings.OnboardingCompleted ? 0 : Math.Clamp(settings.OnboardingStep, 0, LastStep), slide: false);
+        };
+        Activated += (_, _) => RefreshPracticeReadiness();
         Closed += (_, _) =>
         {
             StopMotion();
             _history.SettingsChanged -= ApplyAppearance;
+            _history.GnomeHelperInstallChanged -= RefreshPracticeReadiness;
+            _practiceBox = null;
             _stage.Children.Clear();
         };
     }
@@ -130,8 +139,15 @@ internal sealed class OnboardingWindow : Window
     private void ShowStep(int index, bool slide = true)
     {
         StopMotion();
+        var direction = Math.Sign(index - Step);
+        if (_practiceBox is not null)
+            _practiceInput = _practiceBox.Text;
+        _practiceBox = null;
         _startup = null;
         Step = index;
+        _furthestStep = Math.Max(_furthestStep, index);
+        if (_history.Store.Settings.OnboardingStep != index)
+            _history.SetOnboardingStep(index);
         SetupVisuals.Localize(this);
         _motion = new CancellationTokenSource();
         var token = _motion.Token;
@@ -145,32 +161,67 @@ internal sealed class OnboardingWindow : Window
         };
         _stage.Children.Add(control);
         UpdateFooter();
-        if (_animate && slide)
+        if (_animate && slide && direction != 0)
+        {
+            var offset = 28 * direction * (Strings.IsRightToLeft ? -1 : 1);
             _ = SetupVisuals.Animate(control, 300, token,
-                (0, 0, Strings.IsRightToLeft ? "translateX(-28px)" : "translateX(28px)"), (1, 1, "translateX(0px)"));
+                (0, 0, $"translateX({offset}px)"), (1, 1, "translateX(0px)"));
+        }
+    }
+
+    private (Button Back, Button Next) BuildFooter()
+    {
+        var progress = SetupVisuals.Horizontal(0);
+        for (var index = 0; index < _dots.Length; index++)
+        {
+            var dot = new Border
+            {
+                Classes = { "setup-dot" }, Height = 6, Width = 6, CornerRadius = new CornerRadius(3),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            if (_animate)
+                dot.Transitions = new Transitions
+                {
+                    new DoubleTransition { Property = WidthProperty, Duration = TimeSpan.FromMilliseconds(300), Easing = new ExponentialEaseOut() }
+                };
+            var target = index;
+            var button = new Button { Name = $"StepDot{target + 1}", Classes = { "panel-button", "setup-step" }, Content = dot };
+            AutomationProperties.SetName(button, Strings.Format("SetupProgress", target + 1, LastStep + 1));
+            button.Click += (_, _) => NavigateTo(target);
+            _dots[index] = (button, dot);
+            progress.Children.Add(button);
+        }
+        var back = SetupVisuals.Button("BackSetup", Back, "ghost", "BackStep",
+            Strings.IsRightToLeft ? Symbol.ChevronRight : Symbol.ChevronLeft);
+        var skip = SetupVisuals.Button("SkipSetup", Complete, "ghost", "SkipSetup");
+        var next = SetupVisuals.Button("GetStarted", Next, "primary", "NextStep");
+        next.IsDefault = true;
+        var contents = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
+        SetupVisuals.Add(contents, SetupVisuals.Horizontal(8, progress, back));
+        SetupVisuals.Add(contents, SetupVisuals.Horizontal(8, skip, next), 1);
+        _footer.Child = contents;
+        return (back, next);
     }
 
     private void UpdateFooter()
     {
         for (var index = 0; index < _dots.Length; index++)
         {
-            var dot = _dots[index];
+            var (button, dot) = _dots[index];
             dot.Width = index == Step ? 18 : 6;
             dot.Classes.Set("active", index == Step);
+            dot.Classes.Set("visited", index <= _furthestStep);
+            button.IsEnabled = index <= _furthestStep;
         }
-        if (_progress.Parent is Grid old)
-            old.Children.Remove(_progress);
-        AutomationProperties.SetName(_progress, Strings.Format("SetupProgress", Step + 1, LastStep + 1));
-        var skip = SetupVisuals.Button("SkipSetup", Complete, "ghost", "SkipSetup");
-        var next = SetupVisuals.Button(Step switch { 0 => "GetStarted", LastStep => "FinishSetup", _ => "ContinueSetup" },
-            Next, "primary", "NextStep");
-        next.IsDefault = true;
-        var contents = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 8 };
-        SetupVisuals.Add(contents, _progress);
-        SetupVisuals.Add(contents, skip, 1);
-        SetupVisuals.Add(contents, next, 2);
-        _footer.Child = contents;
+        if (Step == 0 && _back.IsFocused)
+            _dots[0].Button.Focus();
+        _back.IsVisible = Step > 0;
+        var nextLabel = Strings.Get(Step switch { 0 => "GetStarted", LastStep => "FinishSetup", _ => "ContinueSetup" });
+        _next.Content = nextLabel;
+        AutomationProperties.SetName(_next, nextLabel);
     }
+
+    private void Back() => NavigateTo(Step - 1);
 
     private void Next()
     {
@@ -179,15 +230,34 @@ internal sealed class OnboardingWindow : Window
             Complete();
             return;
         }
-        if (Step == 2 && _startup is not null && _platform.Startup.IsEnabled != _startup.Enabled
-            && !SetStartup(_startup.Enabled))
-        {
-            _startup.SetError(true, _platform.Startup.IsEnabled);
+        NavigateTo(Step + 1);
+    }
+
+    private void NavigateTo(int step)
+    {
+        if (step < 0 || step > LastStep || step == Step)
             return;
-        }
-        if (Step == 2)
+        if (Step == 2 && step > Step)
+        {
+            if (!ApplyStartupPreference())
+                return;
             _history.RegisterSettingsShortcut();
-        ShowStep(Step + 1);
+        }
+        ShowStep(step);
+    }
+
+    private bool ApplyStartupPreference()
+    {
+        if (_startup is null || _platform.Startup.IsEnabled == _startup.Enabled || SetStartup(_startup.Enabled))
+            return true;
+        _startup.SetError(true, _platform.Startup.IsEnabled);
+        return false;
+    }
+
+    private void RequestSignOut(Action signOut)
+    {
+        if (ApplyStartupPreference())
+            _ = _history.SignOutAsync(signOut);
     }
 
     private bool SetStartup(bool enabled)
@@ -204,6 +274,7 @@ internal sealed class OnboardingWindow : Window
     {
         var settings = _history.Store.Settings.Copy();
         settings.OnboardingCompleted = true;
+        settings.OnboardingStep = 0;
         _history.ApplySettings(settings);
         Close();
     }
@@ -224,6 +295,7 @@ internal sealed class OnboardingWindow : Window
             _history.ApplySettings(settings);
             if (Strings.Language != code)
                 Strings.SetLanguage(code);
+            (_back, _next) = BuildFooter();
             ShowStep(0, slide: false);
         };
 
@@ -341,13 +413,13 @@ internal sealed class OnboardingWindow : Window
     {
         if (_platform.Startup.IsSupported)
             _startup = new StartupRow(_platform.Name, _history.Store.Settings.StartAtLogin, SetStartup);
-        var rows = new PermissionRows(_platform, _animate, _startup);
+        var rows = new PermissionRows(_platform, _history, _animate, _startup, RequestSignOut);
         rows.HotkeyBecameAvailable += _history.RegisterSettingsShortcut;
         var profile = _platform.Name switch
         {
             "macOS" => "Mac",
             "Windows" => "Windows",
-            _ => _platform.Permissions.Any(permission => permission.Code == "gnome-helper") ? "Gnome" : "Linux"
+            _ => _history.Permissions.Any(permission => permission.Code == "gnome-helper") ? "Gnome" : "Linux"
         };
         var content = new StackPanel
         {
@@ -364,18 +436,25 @@ internal sealed class OnboardingWindow : Window
 
     private Control Practice(CancellationToken token)
     {
-        _practiceText = Strings.Get("PracticeSample");
+        _practiceReadiness = ReadPracticeReadiness();
+        if (!_practiceReadiness.Ready)
+            return PracticeNotReady(_practiceReadiness.Blocker);
+
+        _history.RegisterSettingsShortcut();
+        if (!_copied && !_copying)
+            _practiceText = Strings.Get("PracticeSample");
         var heading = Heading(PracticeCompleted ? "PracticeComplete" : "PracticeTitle", null,
             28, out _practiceTitle, out _, TextAlignment.Start);
-        var copyButton = SetupVisuals.Button("Copy", CopyPracticeSample, "permission", "CopyPracticeSample");
+        var copyButton = SetupVisuals.Button("Copy", () => _ = CopyPracticeSampleAsync(), "permission", "CopyPracticeSample");
         var sample = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 6 };
         SetupVisuals.Add(sample, SetupVisuals.Text(_practiceText, 12));
         SetupVisuals.Add(sample, copyButton, 1);
         var sampleCard = SetupVisuals.Surface(sample, 8);
         sampleCard.Padding = new Thickness(9, 5);
         sampleCard.Margin = new Thickness(0, 6, 0, 0);
-        _practiceError = SetupVisuals.Text("", 12, "WarningBrush");
-        _practiceError.IsVisible = false;
+        _practiceError = SetupVisuals.Text(_copyError ?? "", 12, "WarningBrush");
+        _practiceError.Name = "PracticeCopyError";
+        _practiceError.IsVisible = _copyError is not null;
 
         var left = new StackPanel { Spacing = 15 };
         left.Children.Add(Checklist(0, new StackPanel { Children = { SetupVisuals.Text(Strings.Get("PracticeCopy"), strong: true), sampleCard, _practiceError } }));
@@ -388,7 +467,7 @@ internal sealed class OnboardingWindow : Window
         _practiceBox = new TextBox
         {
             Name = "PracticeBox", AcceptsReturn = true, MinHeight = 166, MaxHeight = 190, TextWrapping = TextWrapping.Wrap,
-            Classes = { "panel-search", "setup-input" }, Text = _pasted ? _practiceText : ""
+            Classes = { "panel-search", "setup-input" }, Text = _practiceInput ?? ""
         };
         AutomationProperties.SetName(_practiceBox, Strings.Get("PracticePasteHere"));
         var right = new StackPanel
@@ -407,6 +486,67 @@ internal sealed class OnboardingWindow : Window
         };
     }
 
+    private (PlatformPermission? Blocker, bool Ready) ReadPracticeReadiness()
+    {
+        var blocker = _history.Permissions.FirstOrDefault(permission =>
+            permission.Requirement == PermissionRequirement.Required && permission.State != PermissionState.Granted);
+        const PlatformCapabilities required = PlatformCapabilities.WatchClipboard | PlatformCapabilities.GlobalHotkey;
+        return (blocker, blocker is null && (_platform is DemoPlatformServices || _platform.Capabilities.HasFlag(required)));
+    }
+
+    private void RefreshPracticeReadiness()
+    {
+        if (Step != LastStep || !IsVisible)
+            return;
+        var current = ReadPracticeReadiness();
+        if (current.Ready != _practiceReadiness.Ready || Key(current.Blocker) != Key(_practiceReadiness.Blocker))
+            ShowStep(LastStep, slide: false);
+
+        static (string?, PermissionState?, bool) Key(PlatformPermission? permission) =>
+            (permission?.Code, permission?.State, permission?.Request is not null);
+    }
+
+    private Control PracticeNotReady(PlatformPermission? permission)
+    {
+        var needsRestart = permission?.State == PermissionState.RestartRequired;
+        var text = permission switch
+        {
+            { State: PermissionState.RestartRequired } => Strings.Format(
+                permission.Code == "gnome-helper" ? "PracticeGnomeRestart" : "PracticePermissionRestart",
+                SetupVisuals.ShortcutInText(ShortcutRecorder.GestureText(_history.Shortcut, _platform.Name))),
+            not null => Strings.Format("PracticePermissionMissing", PermissionRows.Title(permission)),
+            _ => Strings.Get("PracticeUnavailable")
+        };
+        var icon = SetupVisuals.Surface(PanelVisuals.Glyph(Symbol.Info, 20, "AccentBrush"), 10,
+            "SelectedSurfaceBrush", "SelectedSurfaceBrush");
+        icon.Width = icon.Height = 40;
+        icon.HorizontalAlignment = HorizontalAlignment.Left;
+        var title = SetupVisuals.Text(Strings.Get("PracticeAlmostThere"), 28, strong: true);
+        AutomationProperties.SetHeadingLevel(title, 1);
+        var details = new StackPanel { Spacing = 6, Children = { title, SetupVisuals.Text(text, 14, "MutedBrush") } };
+        var content = new StackPanel
+        {
+            Name = "PracticeNotReady", Width = 408, MinHeight = 186, Spacing = 15, Margin = new Thickness(36, 16),
+            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+            Children = { icon, details }
+        };
+        Button? action = null;
+        if (needsRestart && permission?.Request is { } signOut)
+            action = SetupVisuals.Button("SignOut", () => RequestSignOut(signOut), "setup-tinted", "PracticeSignOut");
+        else if (permission is not null)
+            action = SetupVisuals.Button("BackToPermissions", Back, "secondary", "BackToPermissions");
+        if (action is not null)
+        {
+            action.HorizontalAlignment = HorizontalAlignment.Left;
+            content.Children.Add(action);
+        }
+        return new ScrollViewer
+        {
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = content,
+            VerticalContentAlignment = VerticalAlignment.Center
+        };
+    }
+
     private Control Checklist(int index, Control control)
     {
         var circle = new Grid { Width = 22, Height = 22, VerticalAlignment = VerticalAlignment.Top };
@@ -417,18 +557,51 @@ internal sealed class OnboardingWindow : Window
         return row;
     }
 
-    private void CopyPracticeSample()
+    private async Task CopyPracticeSampleAsync()
     {
+        if (_copying)
+            return;
+        _copying = true;
         var item = new ClipItem { Text = _practiceText, SourceApp = "Vstavka" };
         var store = _history.Store;
-        _copied = (store.Add(item) || store.LastRejectionReason is null) && _history.TryWrite(item);
-        _history.HistoryChanged();
-        if (_practiceError is not null)
+        try
         {
-            _practiceError.IsVisible = !_copied;
-            _practiceError.Text = store.LastRejectionReason ?? Strings.Get("ClipboardWriteFailed");
+            var accepted = store.Add(item) || store.LastRejectionReason is null;
+            var rejection = store.LastRejectionReason;
+            _history.HistoryChanged();
+            _copied = accepted && await WritePracticeSampleAsync(item);
+            _copyError = _copied ? null : rejection ?? Strings.Get("ClipboardWriteFailed");
+            if (Practicing && _practiceError is not null)
+            {
+                _practiceError.IsVisible = _copyError is not null;
+                _practiceError.Text = _copyError;
+                UpdatePractice();
+            }
         }
-        UpdatePractice();
+        finally { _copying = false; }
+    }
+
+    private async Task<bool> WritePracticeSampleAsync(ClipItem item)
+    {
+        try
+        {
+            _platform.ClipboardWriter.Write(item, plainText: false);
+            return true;
+        }
+        catch (Exception)
+        {
+            try
+            {
+                if (Clipboard is not { } clipboard)
+                    return false;
+                await clipboard.SetTextAsync(item.Text);
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
     }
 
     private void UpdatePractice(CancellationToken token = default, bool animate = true)

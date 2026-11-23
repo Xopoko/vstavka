@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Input.Raw;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -210,6 +211,16 @@ Run("Clipboard settings action refreshes the footer, and reopening shows new not
         Flush(panel);
         Check(Find<TextBlock>(panel, "PlatformStatus").Text == "Adapter-specific message." && !NoticeButtons(panel).Any(),
             "Reopening picks up the unknown notice and shows its own message without a button.");
+
+        panel.Dismiss();
+        demo.Notices = [new("gnome-helper-restart", "Restart GNOME.", () => requests++)];
+        panel.Open(positionOnScreen: false);
+        Flush(panel);
+        var signOut = NoticeButtons(panel).Single();
+        Check(Find<TextBlock>(panel, "PlatformStatus").Text == Strings.Get("GnomeRestartNotice")
+            && Equals(signOut.Content, Strings.Get("SignOut")), "The restart notice names the next action.");
+        Click(panel, signOut);
+        Check(requests == 2, "The panel signs out through the notice action.");
     }
     finally { panel.Close(); }
 });
@@ -300,8 +311,10 @@ Run("Welcome changes language immediately and Skip completes setup", () =>
         Flush(window);
         Check(window.FlowDirection == FlowDirection.RightToLeft && HasLabel(window, "WelcomeSetupTitle")
             && history.Store.Settings.Language == "ar", "Changing language redraws the current step in RTL.");
+        Advance(window, 1);
         Click(window, Find<Button>(window, "SkipSetup"));
-        Check(history.Store.Settings.OnboardingCompleted && !window.IsVisible, "Skip saves completion and closes.");
+        Check(history.Store.Settings.OnboardingCompleted && history.Store.Settings.OnboardingStep == 0
+            && !window.IsVisible, "Skip saves completion, clears the saved step and closes.");
     }
     finally { if (window.IsVisible) window.Close(); Strings.SetLanguage("en"); }
 });
@@ -343,6 +356,17 @@ Run("The shortcut recorder validates, registers, saves and cancels", () =>
         Click(window, Find<Button>(window, "ChangeShortcut"));
         Press(window, Key.Escape, PhysicalKey.Escape);
         Check(!Find<ShortcutRecorder>(window, "ShortcutRecorder").IsRecording && history.Shortcut == "Ctrl+Alt+K", "Escape cancels recording.");
+        Advance(window, 2);
+        Click(window, Find<Button>(window, "BackStep"));
+        Check(window.Step == 1 && Find<ShortcutRecorder>(window, "ShortcutRecorder").Gesture == "Ctrl+Alt+K",
+            "Back keeps the chosen shortcut.");
+        Press(window, Key.Left, PhysicalKey.ArrowLeft, RawInputModifiers.Alt);
+        Check(window.Step == 0 && !Find<Button>(window, "BackStep").IsVisible, "Alt+Left returns to the first step, where Back is hidden.");
+        var permissionsDot = Find<Button>(window, "StepDot3");
+        Check(AutomationProperties.GetName(permissionsDot) == Strings.Format("SetupProgress", 3, 4)
+            && !Find<Button>(window, "StepDot4").IsEnabled, "Progress names each step and skips no unreached step.");
+        Click(window, permissionsDot);
+        Check(window.Step == 2 && history.Shortcut == "Ctrl+Alt+K", "An already reached dot navigates forward without resetting the shortcut.");
     }
     finally { window.Close(); history.Stop(); }
 });
@@ -364,6 +388,9 @@ Run("Permission requests, live state and startup use the adapter", () =>
         Click(window, Find<Button>(window, "Request-clipboard-access"));
         Click(window, Find<Button>(window, "Request-accessibility"));
         Check(calls == 2 && HasLabel(window, "AccessibilityInstruction"), "Missing permission buttons request access and show the next action.");
+        Click(window, Find<Button>(window, "BackStep"));
+        Click(window, Find<Button>(window, "StepDot3"));
+        Check(HasLabel(window, "AccessibilityInstruction"), "Navigation preserves the instructions for a permission already requested.");
         demo.DemoPermissions[0] = new("clipboard-access", PermissionRequirement.Required, PermissionState.Granted);
         var frame = new DispatcherFrame();
         DispatcherTimer.RunOnce(() => frame.Continue = false, TimeSpan.FromMilliseconds(1150));
@@ -379,6 +406,140 @@ Run("Permission requests, live state and startup use the adapter", () =>
         Check(!history.Store.Settings.StartAtLogin && !demo.Startup.IsEnabled, "Switching off applies and saves.");
         Click(window, startup);
         Check(history.Store.Settings.StartAtLogin && demo.Startup.IsEnabled, "Switching on calls the adapter.");
+    }
+    finally { window.Close(); }
+});
+
+Run("Signing out on permissions saves the step and starts the guide again at login", () =>
+{
+    var directory = Path.Combine(Path.GetTempPath(), "Vstavka.OnboardingTests." + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(directory);
+    try
+    {
+        using var demo = new SetupDemo("Linux") { DataDirectory = directory, HistoryProtector = new AesGcmHistoryProtector(new TestKeyStore()) };
+        DesktopHistory? signedOutWith = null;
+        demo.DemoPermissions.Add(GnomePermission(PermissionState.RestartRequired, () => signedOutWith = CreateHistory(demo, seed: false)));
+        var history = CreateHistory(demo, seed: false);
+        var window = new OnboardingWindow(demo, history, animate: false);
+        var settings = new SettingsWindow(demo, history, animate: false);
+        window.Show();
+        try
+        {
+            Advance(window, 2);
+            Check(history.Store.Settings.OnboardingStep == 2 && HasLabel(window, "SignOutToFinish")
+                && HasLabel(window, "GnomeRestartDescription"), "The permissions step saves its index and explains the restart.");
+            var action = Find<Button>(window, "Request-gnome-helper");
+            Check(Equals(action.Content, Strings.Get("SignOut")), "A pending restart offers Sign out.");
+            settings.Show();
+            Flush(settings);
+            Click(settings, Find<Button>(settings, "SaveSettings"));
+            Check(history.Store.Settings.OnboardingStep == 2, "A settings draft from before navigation preserves the latest step.");
+            Click(window, action);
+            PumpUntil(() => signedOutWith is not null, "The row invokes the sign-out action.");
+            Check(signedOutWith!.Store.Settings.OnboardingStep == 2 && !signedOutWith.Store.Settings.OnboardingCompleted
+                && demo.Startup.IsEnabled, "The disk snapshot and startup registration are ready before sign-out.");
+        }
+        finally
+        {
+            if (settings.IsVisible)
+                settings.Close();
+            window.Close();
+            history.Stop();
+        }
+
+        demo.DemoPermissions[0] = GnomePermission(PermissionState.Granted);
+        var resumed = new OnboardingWindow(demo, signedOutWith!, animate: false);
+        resumed.Show();
+        try
+        {
+            Flush(resumed);
+            Check(resumed.Step == 2 && HasLabel(resumed, "Installed") && Find<Button>(resumed, "StepDot2").IsEnabled,
+                "Reopening from the disk snapshot shows the installed helper on the saved step.");
+        }
+        finally { resumed.Close(); signedOutWith!.Stop(); }
+    }
+    finally { Directory.Delete(directory, recursive: true); }
+});
+
+Run("Installing the GNOME helper stays responsive and refreshes after the worker finishes", () =>
+{
+    using var demo = new SetupDemo("Linux") { Capabilities = PlatformCapabilities.None };
+    var release = new TaskCompletionSource();
+    var entered = new TaskCompletionSource<bool>();
+    demo.DemoPermissions.Add(GnomePermission(PermissionState.Missing, () =>
+    {
+        entered.SetResult(Dispatcher.UIThread.CheckAccess());
+        release.Task.Wait(TimeSpan.FromSeconds(5));
+    }));
+    var history = CreateHistory(demo, seed: false);
+    var window = new OnboardingWindow(demo, history, animate: false);
+    window.Show();
+    try
+    {
+        Advance(window, 2);
+        Click(window, Find<Button>(window, "Request-gnome-helper"));
+        PumpUntil(() => entered.Task.IsCompleted, "The install action starts.");
+        Check(!entered.Task.Result && HasLabel(window, "InstallingGnomeHelper")
+            && Find<Control>(window, "GnomeInstallSpinner").IsVisible
+            && !Find<Grid>(window, "gnome-helper").IsEnabled, "Installing uses a worker and replaces the row action with a spinner.");
+        Click(window, Find<Button>(window, "BackStep"));
+        Click(window, Find<Button>(window, "StepDot3"));
+        Check(window.Step == 2 && HasLabel(window, "InstallingGnomeHelper") && !release.Task.IsCompleted,
+            "Navigation works while installation is still in flight and the state stays visible when returning.");
+        Advance(window, 3);
+        demo.DemoPermissions[0] = GnomePermission(PermissionState.RestartRequired, () => { });
+        release.SetResult();
+        PumpUntil(() => !history.InstallingGnomeHelper, "The install completes.");
+        Flush(window);
+        Check(Find<Button>(window, "PracticeSignOut").IsVisible, "Try it updates when the installation changes the required action.");
+        Click(window, Find<Button>(window, "BackStep"));
+        Check(HasLabel(window, "SignOutToFinish") && Find<Grid>(window, "gnome-helper").IsEnabled
+            && Find<Button>(window, "Request-gnome-helper").IsEnabled, "A completed install refreshes to the sign-out state.");
+    }
+    finally
+    {
+        release.TrySetResult();
+        window.Close();
+    }
+});
+
+Run("Try it reflects missing permissions, pending restart and adapter capabilities", () =>
+{
+    using var demo = new SetupDemo("Linux") { Capabilities = PlatformCapabilities.None };
+    var signOuts = 0;
+    demo.DemoPermissions.Add(GnomePermission(PermissionState.Missing));
+    var history = CreateHistory(demo, seed: false);
+    var window = new OnboardingWindow(demo, history, animate: false);
+    window.Show();
+    try
+    {
+        Advance(window, 2);
+        Check(HasLabel(window, "PermissionNotAvailable"), "A missing permission without an action says Not available.");
+        Advance(window, 3);
+        Check(HasLabel(window, "PracticeAlmostThere") && HasText(window, Strings.Format("PracticePermissionMissing", Strings.Get("GnomeHelperTitle")))
+            && !window.Practicing && Equals(Find<Button>(window, "NextStep").Content, Strings.Get("FinishSetup")),
+            "Missing permission shows its name, with Finish still available.");
+        Click(window, Find<Button>(window, "BackToPermissions"));
+        Check(window.Step == 2, "The missing-permission action returns to the permissions step.");
+        demo.DemoPermissions[0] = GnomePermission(PermissionState.RestartRequired, () => signOuts++);
+        Advance(window, 3);
+        Check(!window.Practicing && HasText(window, Strings.Format("PracticeGnomeRestart", demo.DefaultGesture)),
+            "A pending restart explains signing back in and includes the configured shortcut.");
+        Click(window, Find<Button>(window, "PracticeSignOut"));
+        Check(signOuts == 1, "Try it can start sign-out.");
+
+        Click(window, Find<Button>(window, "BackStep"));
+        demo.DemoPermissions[0] = GnomePermission(PermissionState.Granted);
+        demo.Capabilities = PlatformCapabilities.WatchClipboard;
+        Advance(window, 3);
+        Check(!window.Practicing && HasLabel(window, "PracticeUnavailable"), "An unavailable global hotkey prevents practice.");
+
+        Click(window, Find<Button>(window, "BackStep"));
+        demo.DemoPermissions.Add(new("accessibility", PermissionRequirement.Optional, PermissionState.Missing));
+        demo.Capabilities |= PlatformCapabilities.GlobalHotkey;
+        Advance(window, 3);
+        Check(window.Practicing && Find<Button>(window, "CopyPracticeSample").IsVisible && HasLabel(window, "PracticeCopy"),
+            "Capabilities and all required permissions unlock the checklist with an optional permission still missing.");
     }
     finally { window.Close(); }
 });
@@ -405,8 +566,14 @@ Run("Try it uses the real panel and completes setup with an in-app paste", () =>
         Flush(window);
         Check(!windows.Panel.IsVisible && Find<TextBox>(window, "PracticeBox").Text == text && demo.PasteRequests == 0
             && window.PracticeCompleted && HasLabel(window, "PracticeComplete"), "Return inserts the sample without injecting input.");
+        Find<TextBox>(window, "PracticeBox").Text += " Edited.";
+        Click(window, Find<Button>(window, "StepDot2"));
+        Click(window, Find<Button>(window, "StepDot4"));
+        Check(window.PracticeCompleted && Find<TextBox>(window, "PracticeBox").Text == text + " Edited.",
+            "Leaving and returning via the dots retains the completed checklist and edited text.");
         Click(window, Find<Button>(window, "NextStep"));
-        Check(history.Store.Settings.OnboardingCompleted && windows.Onboarding is null, "Finish saves completion and closes the guide.");
+        Check(history.Store.Settings.OnboardingCompleted && history.Store.Settings.OnboardingStep == 0
+            && windows.Onboarding is null, "Finish saves completion, clears the saved step and closes the guide.");
     }
     finally
     {
@@ -434,6 +601,26 @@ Run("Try it uses the real panel and completes setup with an in-app paste", () =>
     }
 });
 
+Run("Copy can fall back to the Avalonia headless clipboard", () =>
+{
+    var writer = new ThrowingClipboardWriter();
+    using var demo = new SetupDemo("Linux") { Writer = writer };
+    var history = CreateHistory(demo, seed: false);
+    var window = new OnboardingWindow(demo, history, animate: false);
+    window.Show();
+    try
+    {
+        Advance(window, 3);
+        Click(window, Find<Button>(window, "CopyPracticeSample"));
+        var read = window.Clipboard!.TryGetTextAsync();
+        PumpUntil(() => read.IsCompleted && window.PracticeItem is not null, "The fallback copies the practice item.");
+        Check(writer.Calls == 1 && read.GetAwaiter().GetResult() == Strings.Get("PracticeSample")
+            && history.Store.Items.Single().SourceApp == "Vstavka" && !Find<TextBlock>(window, "PracticeCopyError").IsVisible,
+            "Copy tries the adapter, updates the headless clipboard and history, and hides the write error.");
+    }
+    finally { window.Close(); }
+});
+
 if (args.Length == 2)
 {
     Run("Render light, dark, RTL, empty and platform notice PNGs", () =>
@@ -446,6 +633,8 @@ if (args.Length == 2)
         Render("empty", ThemeVariant.Light, "en", seed: false);
         using var withNotice = new NoticeDemo { Notices = [new("pasteboard-access-denied", "Denied.", () => { })] };
         Render("notice", ThemeVariant.Light, "en", seed: true, withNotice);
+        withNotice.Notices = [new("gnome-helper-restart", "Restart GNOME.", () => { })];
+        Render("notice-gnome-restart", ThemeVariant.Light, "en", seed: true, withNotice);
         foreach (var (variant, language, name) in new[]
         {
             (ThemeVariant.Light, "en", "light"), (ThemeVariant.Dark, "en", "dark"), (ThemeVariant.Light, "ar", "rtl")
@@ -454,6 +643,7 @@ if (args.Length == 2)
             using var demo = new SetupDemo("macOS");
             demo.DemoPermissions.AddRange(MacPermissions());
             RenderOnboarding(demo, variant, language, name, allSteps: true);
+            RenderGnomeStates(variant, language, name);
         }
         using var windows = new SetupDemo("Windows");
         RenderOnboarding(windows, ThemeVariant.Light, "en", "windows", allSteps: false);
@@ -504,6 +694,34 @@ if (args.Length == 2)
                 }
             }
             finally { window.Close(); }
+        }
+
+        void RenderGnomeStates(ThemeVariant variant, string language, string suffix)
+        {
+            Strings.SetLanguage(language);
+            using var demo = new SetupDemo("Linux") { Capabilities = PlatformCapabilities.None };
+            var release = new TaskCompletionSource();
+            demo.DemoPermissions.Add(GnomePermission(PermissionState.Missing, () => release.Task.Wait(TimeSpan.FromSeconds(5))));
+            var history = CreateHistory(demo, seed: false);
+            history.Store.Settings.Language = language;
+            history.Store.Settings.OnboardingStep = 2;
+            var window = new OnboardingWindow(demo, history, animate: false) { RequestedThemeVariant = variant };
+            window.Show();
+            try
+            {
+                Advance(window, 3);
+                SaveFrame(window, "onboarding-4-gnome-missing-" + suffix);
+                Click(window, Find<Button>(window, "BackToPermissions"));
+                Click(window, Find<Button>(window, "Request-gnome-helper"));
+                SaveFrame(window, "onboarding-3-gnome-installing-" + suffix);
+                demo.DemoPermissions[0] = GnomePermission(PermissionState.RestartRequired, () => { });
+                release.SetResult();
+                PumpUntil(() => !history.InstallingGnomeHelper, "The render installer completes.");
+                SaveFrame(window, "onboarding-3-gnome-restart-" + suffix);
+                Advance(window, 3);
+                SaveFrame(window, "onboarding-4-gnome-restart-" + suffix);
+            }
+            finally { release.TrySetResult(); window.Close(); }
         }
 
         void SaveFrame(Window window, string name)
@@ -581,6 +799,20 @@ static void Flush(Window panel)
     Dispatcher.UIThread.RunJobs();
 }
 
+static void PumpUntil(Func<bool> condition, string message)
+{
+    if (condition())
+        return;
+    var frame = new DispatcherFrame();
+    var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(10) };
+    timer.Tick += (_, _) => { if (condition()) frame.Continue = false; };
+    using var timeout = DispatcherTimer.RunOnce(() => frame.Continue = false, TimeSpan.FromSeconds(3));
+    timer.Start();
+    try { Dispatcher.UIThread.PushFrame(frame); }
+    finally { timer.Stop(); }
+    Check(condition(), message);
+}
+
 static void Advance(OnboardingWindow window, int step)
 {
     Flush(window);
@@ -598,6 +830,9 @@ static PlatformPermission[] MacPermissions() =>
     new("accessibility", PermissionRequirement.Optional, PermissionState.Missing, () => { })
 ];
 
+static PlatformPermission GnomePermission(PermissionState state, Action? request = null) =>
+    new("gnome-helper", PermissionRequirement.Required, state, request);
+
 static T Find<T>(Visual root, string name) where T : Control =>
     root.GetVisualDescendants().OfType<T>().Single(control => control.Name == name);
 
@@ -607,8 +842,10 @@ static Button ButtonNamed(Window root, string name) =>
 static IEnumerable<Button> NoticeButtons(Window root) =>
     root.GetVisualDescendants().OfType<Button>().Where(button => button.Classes.Contains("permission"));
 
-static bool HasLabel(Window root, string key) =>
-    root.GetVisualDescendants().OfType<TextBlock>().Any(label => label.IsVisible && label.Text == Strings.Get(key));
+static bool HasLabel(Window root, string key) => HasText(root, Strings.Get(key));
+
+static bool HasText(Window root, string text) =>
+    root.GetVisualDescendants().OfType<TextBlock>().Any(label => label.IsVisible && label.Text == text);
 
 static Point Center(Window root, Control control) =>
     control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), root)
@@ -659,20 +896,21 @@ sealed class SetupDemo(string profile) : IPlatformServices, IGlobalHotkey
 {
     private readonly DemoPlatformServices _demo = new();
     public string Name => profile;
-    public PlatformCapabilities Capabilities => PlatformCapabilities.GlobalHotkey;
+    public PlatformCapabilities Capabilities { get; set; } = PlatformCapabilities.GlobalHotkey | PlatformCapabilities.WatchClipboard;
     public IReadOnlyList<PlatformNotice> Notices => _demo.Notices;
-    public string DataDirectory => _demo.DataDirectory;
+    public string DataDirectory { get; init; } = Path.Combine(Path.GetTempPath(), "Vstavka.Demo");
     public string DefaultGesture => profile == "macOS" ? "Shift+Meta+V" : _demo.DefaultGesture;
     public IReadOnlyList<string> SupportedGestures => [DefaultGesture];
     public List<PlatformPermission> DemoPermissions => _demo.DemoPermissions;
     public IReadOnlyList<PlatformPermission> Permissions => _demo.Permissions;
     public IStartupRegistration Startup => _demo.Startup;
     public IClipboardMonitor Clipboard => _demo.Clipboard;
-    public IClipboardWriter ClipboardWriter => _demo.ClipboardWriter;
+    public IClipboardWriter? Writer { get; init; }
+    public IClipboardWriter ClipboardWriter => Writer ?? _demo.ClipboardWriter;
     public IGlobalHotkey Hotkey => this;
     public IPasteService Paste => _demo.Paste;
     public IPanelWindow PanelWindow => _demo.PanelWindow;
-    public IHistoryProtector? HistoryProtector => _demo.HistoryProtector;
+    public IHistoryProtector? HistoryProtector { get; init; }
     public ClipItem? LastWritten => _demo.LastWritten;
     public int PasteRequests => _demo.PasteRequests;
     public string? RegisteredShortcut { get; private set; }
@@ -690,4 +928,22 @@ sealed class SetupDemo(string profile) : IPlatformServices, IGlobalHotkey
     }
 
     public void Dispose() => _demo.Dispose();
+}
+
+sealed class TestKeyStore : IHistoryKeyStore
+{
+    private byte[]? _key;
+    public byte[]? TryLoadKey() => _key?.ToArray();
+    public void SaveKey(byte[] key) => _key = key.ToArray();
+}
+
+sealed class ThrowingClipboardWriter : IClipboardWriter
+{
+    public int Calls { get; private set; }
+
+    public void Write(ClipItem item, bool plainText)
+    {
+        Calls++;
+        throw new InvalidOperationException("Injected clipboard failure.");
+    }
 }

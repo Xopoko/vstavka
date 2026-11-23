@@ -106,6 +106,13 @@
     <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource HoverLineBrush}" />
   </Style>
+  <Style Selector="Button.panel-button.setup-tinted">
+    <Setter Property="Background" Value="{DynamicResource SelectedSurfaceBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+  </Style>
+  <Style Selector="Button.panel-button.setup-tinted:pointerover, Button.panel-button.setup-tinted:pressed">
+    <Setter Property="Background" Value="{DynamicResource SelectionBrush}" />
+  </Style>
   <Style Selector="Button.panel-button.primary">
     <Setter Property="MinWidth" Value="100" />
     <Setter Property="FontWeight" Value="SemiBold" />
@@ -190,8 +197,32 @@
   <Style Selector="Border.setup-dot">
     <Setter Property="Background" Value="{DynamicResource HoverLineBrush}" />
   </Style>
+  <Style Selector="Border.setup-dot.visited:not(.active)">
+    <Setter Property="Background" Value="{DynamicResource MutedBrush}" />
+  </Style>
   <Style Selector="Border.setup-dot.active">
     <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+  </Style>
+  <Style Selector="Button.panel-button.setup-step">
+    <Setter Property="MinWidth" Value="24" />
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="CornerRadius" Value="6" />
+  </Style>
+  <Style Selector="Button.panel-button.setup-step:disabled">
+    <Setter Property="Opacity" Value="1" />
+  </Style>
+  <Style Selector="Button.panel-button.setup-step:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+  <Style Selector="Path.setup-install-spinner">
+    <Style.Animations>
+      <Animation Duration="0:0:0.9" IterationCount="Infinite">
+        <KeyFrame Cue="0%"><Setter Property="RotateTransform.Angle" Value="0" /></KeyFrame>
+        <KeyFrame Cue="100%"><Setter Property="RotateTransform.Angle" Value="360" /></KeyFrame>
+      </Animation>
+    </Style.Animations>
   </Style>
 
   <Style Selector="TextBox.panel-search">
