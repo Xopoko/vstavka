@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Input.Raw;
@@ -166,9 +167,9 @@ Run("RTL mirrors layout and navigation, and grants the requested permission", ()
             Press(panel, Key.Left, PhysicalKey.ArrowLeft);
             Check(cards.SelectedIndex == 1, "Left advances through the RTL list.");
             var status = Find<TextBlock>(panel, "PlatformStatus");
-            Check(status.Text == Strings.Get("AccessibilityPermission"), "The first known platform notice is localized.");
+            Check(status.Text == Strings.Format("AutomaticPasteOff", SetupVisuals.ShortcutInText("Ctrl+V")), "The first known platform notice is localized.");
             var grant = NoticeButtons(panel).Single();
-            Check(Equals(grant.Content, Strings.Get("GrantAccess")), "The grant button is localized.");
+            Check(Equals(grant.Content, Strings.Get("TurnOn")), "The accessibility button is specific and localized.");
             Click(panel, grant);
             Check(requests == 1, "The footer button invokes the notice action once.");
         }
@@ -213,6 +214,226 @@ Run("Clipboard settings action refreshes the footer, and reopening shows new not
     finally { panel.Close(); }
 });
 
+Run("Toolbar actions and the Settings save and clear flows", () =>
+{
+    using var demo = new SetupDemo("Windows");
+    var history = CreateHistory(demo, seed: true);
+    var windows = new DesktopWindows(demo, history, animate: false, positionPanel: false);
+    windows.OpenPanel();
+    try
+    {
+        var panel = windows.Panel;
+        Flush(panel);
+        Click(panel, ButtonNamed(panel, Strings.Get("Pause")));
+        Check(history.Paused, "Pause toggles saving.");
+        Click(panel, ButtonNamed(panel, Strings.Get("Resume")));
+        Check(!history.Paused, "Resume toggles saving back on.");
+        Click(panel, ButtonNamed(panel, Strings.Get("Close")));
+        Check(!panel.IsVisible, "Close hides the panel.");
+        windows.OpenPanel();
+        Flush(panel);
+        Click(panel, ButtonNamed(panel, Strings.Get("Settings")));
+        var settings = windows.Settings ?? throw new InvalidOperationException("Settings did not open.");
+        Check(!panel.IsVisible && settings.IsVisible, "Settings hides the panel and opens a window.");
+        windows.OpenSettings();
+        Check(windows.Settings == settings, "Settings has one instance.");
+        Flush(settings);
+
+        var excluded = Find<TextBox>(settings, "ExcludedAppsSetting");
+        Check(Find<TextBox>(settings, "MaxItemsSetting").VerticalContentAlignment == VerticalAlignment.Center
+            && excluded.MinLines == 4 && excluded.MaxLines == 4
+            && ScrollViewer.GetVerticalScrollBarVisibility(excluded) == ScrollBarVisibility.Auto,
+            "The item limit is centered and the exclusions have a scrollable four-line viewport.");
+        var clear = Find<Button>(settings, "ClearHistory");
+        clear.BringIntoView();
+        Flush(settings);
+        Check(ColorOf(clear.BorderBrush) == ColorOf(settings.Resources["DangerLineBrush"] as IBrush)
+            && ColorOf(clear.Foreground) == ColorOf(settings.Resources["DangerBrush"] as IBrush),
+            "Clear history signals its destructive action.");
+        Click(settings, clear);
+        var confirmation = Find<Border>(settings, "ClearConfirmation");
+        Check(confirmation.IsVisible && history.Store.Items.Any(item => item.IsPinned),
+            "Clear opens inline confirmation and preserves all items before confirmation.");
+        var settingsScroll = Find<ScrollViewer>(settings, "SettingsScroll");
+        Check(confirmation.TranslatePoint(new Point(0, confirmation.Bounds.Height), settingsScroll) is { } bottom
+            && bottom.Y <= settingsScroll.Bounds.Height, "The confirmation scrolls fully into view.");
+        var confirm = Find<Button>(settings, "ConfirmClear");
+        Check(ColorOf(confirm.Background) == ColorOf(settings.Resources["DangerFillBrush"] as IBrush),
+            "The confirmation uses a filled destructive button.");
+        Click(settings, confirm);
+        Check(history.Store.Items.Count == 0 && HasLabel(settings, "HistoryCleared"), "Confirmation clears even pinned items.");
+
+        var theme = Find<ComboBox>(settings, "ThemeSetting");
+        theme.SelectedIndex = 2;
+        Find<ComboBox>(settings, "AccentSetting").SelectedIndex = 3;
+        Find<ComboBox>(settings, "SettingsLanguage").SelectedItem = Find<ComboBox>(settings, "SettingsLanguage").Items
+            .OfType<ComboBoxItem>().Single(item => Equals(item.Tag, "fr"));
+        Find<TextBox>(settings, "MaxItemsSetting").Text = "42";
+        Find<TextBox>(settings, "ExcludedAppsSetting").Text = "Photos\nnotes; photos";
+        Check(history.Store.Settings.Theme == "system" && Strings.Language == "en", "Appearance stays unchanged while editing.");
+        Click(settings, Find<Button>(settings, "SaveSettings"));
+        var saved = history.Store.Settings;
+        Check(windows.Settings is null && saved.Theme == "dark" && saved.Accent == "teal" && saved.Language == "fr"
+            && Strings.Language == "fr" && saved.MaxItems == 42 && saved.ExcludedApps.SequenceEqual(["Photos", "notes"]) && demo.Startup.IsEnabled,
+            "Save applies the edited appearance and history settings.");
+    }
+    finally
+    {
+        windows.Settings?.Close();
+        windows.Panel.Close();
+        Strings.SetLanguage("en");
+        SetupVisuals.ApplyTheme("system");
+    }
+});
+
+Run("Welcome changes language immediately and Skip completes setup", () =>
+{
+    using var demo = new DemoPlatformServices();
+    var history = CreateHistory(demo, seed: false);
+    var window = new OnboardingWindow(demo, history, animate: false) { RequestedThemeVariant = ThemeVariant.Light };
+    window.Show();
+    try
+    {
+        Flush(window);
+        var language = Find<ComboBox>(window, "WelcomeLanguage");
+        language.SelectedItem = language.Items.OfType<ComboBoxItem>().Single(item => Equals(item.Tag, "ar"));
+        Flush(window);
+        Check(window.FlowDirection == FlowDirection.RightToLeft && HasLabel(window, "WelcomeSetupTitle")
+            && history.Store.Settings.Language == "ar", "Changing language redraws the current step in RTL.");
+        Click(window, Find<Button>(window, "SkipSetup"));
+        Check(history.Store.Settings.OnboardingCompleted && !window.IsVisible, "Skip saves completion and closes.");
+    }
+    finally { if (window.IsVisible) window.Close(); Strings.SetLanguage("en"); }
+});
+
+Run("The shortcut recorder validates, registers, saves and cancels", () =>
+{
+    using var demo = new SetupDemo("Windows");
+    var history = CreateHistory(demo, seed: false);
+    demo.UnavailableShortcut = demo.DefaultGesture;
+    history.Start();
+    var panel = OpenPanel(demo, history);
+    try
+    {
+        Check(Find<TextBlock>(panel, "PlatformStatus").Text == Strings.Get("HotkeyBusy") &&
+            Equals(NoticeButtons(panel).Single().Content, Strings.Get("Settings")), "A failed binding is actionable in the footer.");
+    }
+    finally { panel.Close(); }
+    var toggles = 0;
+    history.ToggleRequested += () => toggles++;
+    var window = new OnboardingWindow(demo, history, animate: false) { RequestedThemeVariant = ThemeVariant.Light };
+    window.Show();
+    try
+    {
+        Flush(window);
+        Click(window, Find<Button>(window, "NextStep"));
+        Check(window.Step == 1, "Get started advances to the shortcut step.");
+        Click(window, Find<Button>(window, "ChangeShortcut"));
+        demo.TriggerShortcut();
+        Check(toggles == 0, "Global hotkeys are ignored while recording.");
+        Press(window, Key.V, PhysicalKey.V, RawInputModifiers.Shift);
+        Check(Find<TextBlock>(window, "ShortcutHint").Text == Strings.Get("ShortcutModifier") &&
+            history.Store.Settings.PanelShortcut is null, "Shift+V is rejected with the typing hint.");
+        demo.UnavailableShortcut = "Ctrl+Alt+J";
+        Press(window, Key.J, PhysicalKey.J, RawInputModifiers.Control | RawInputModifiers.Alt);
+        Check(Find<TextBlock>(window, "ShortcutHint").Text == Strings.Get("ShortcutTaken"), "A busy shortcut reports the conflict.");
+        Press(window, Key.K, PhysicalKey.K, RawInputModifiers.Control | RawInputModifiers.Alt);
+        Check(history.Store.Settings.PanelShortcut == "Ctrl+Alt+K" && demo.RegisteredShortcut == "Ctrl+Alt+K"
+            && !history.ShortcutRegistrationFailed && HasLabel(window, "ShortcutSaved"), "A usable gesture is registered and saved.");
+        Click(window, Find<Button>(window, "ChangeShortcut"));
+        Press(window, Key.Escape, PhysicalKey.Escape);
+        Check(!Find<ShortcutRecorder>(window, "ShortcutRecorder").IsRecording && history.Shortcut == "Ctrl+Alt+K", "Escape cancels recording.");
+    }
+    finally { window.Close(); history.Stop(); }
+});
+
+Run("Permission requests, live state and startup use the adapter", () =>
+{
+    using var demo = new SetupDemo("macOS");
+    var calls = 0;
+    demo.DemoPermissions.AddRange([
+        new("clipboard-access", PermissionRequirement.Required, PermissionState.Missing, () => calls++),
+        new("accessibility", PermissionRequirement.Optional, PermissionState.Missing, () => calls++)]);
+    var history = CreateHistory(demo, seed: false);
+    var window = new OnboardingWindow(demo, history, animate: false);
+    window.Show();
+    try
+    {
+        Advance(window, 2);
+        Check(HasLabel(window, "Required") && HasLabel(window, "Optional"), "Rows show their requirement tags.");
+        Click(window, Find<Button>(window, "Request-clipboard-access"));
+        Click(window, Find<Button>(window, "Request-accessibility"));
+        Check(calls == 2 && HasLabel(window, "AccessibilityInstruction"), "Missing permission buttons request access and show the next action.");
+        demo.DemoPermissions[0] = new("clipboard-access", PermissionRequirement.Required, PermissionState.Granted);
+        var frame = new DispatcherFrame();
+        DispatcherTimer.RunOnce(() => frame.Continue = false, TimeSpan.FromMilliseconds(1150));
+        Dispatcher.UIThread.PushFrame(frame);
+        Flush(window);
+        var status = Find<StackPanel>(window, "Status-clipboard-access");
+        Check(HasLabel(window, "Allowed") && status.Children.OfType<FluentIcons.Avalonia.SymbolIcon>().Any(),
+            "Polling replaces the request with a check and Allowed.");
+
+        var startup = Find<ToggleButton>(window, "StartupToggle");
+        Check(startup.IsChecked == true, "Startup shows its saved default.");
+        Click(window, startup);
+        Check(!history.Store.Settings.StartAtLogin && !demo.Startup.IsEnabled, "Switching off applies and saves.");
+        Click(window, startup);
+        Check(history.Store.Settings.StartAtLogin && demo.Startup.IsEnabled, "Switching on calls the adapter.");
+    }
+    finally { window.Close(); }
+});
+
+Run("Try it uses the real panel and completes setup with an in-app paste", () =>
+{
+    using var demo = new SetupDemo("Windows");
+    var history = CreateHistory(demo, seed: true);
+    var windows = new DesktopWindows(demo, history, animate: false, positionPanel: false);
+    history.Start();
+    windows.OpenOnboarding();
+    var window = windows.Onboarding!;
+    try
+    {
+        Advance(window, 3);
+        Click(window, Find<Button>(window, "CopyPracticeSample"));
+        var text = Strings.Get("PracticeSample");
+        Check(history.Store.Items.Any(item => item.Text == text && item.SourceApp == "Vstavka") && demo.LastWritten?.Text == text,
+            "Copy inserts the sample into history and writes through the demo clipboard.");
+        demo.TriggerShortcut();
+        Flush(windows.Panel);
+        Check(windows.Panel.IsOpen, "The global shortcut opens the real panel.");
+        Press(windows.Panel, Key.Enter, PhysicalKey.Enter);
+        Flush(window);
+        Check(!windows.Panel.IsVisible && Find<TextBox>(window, "PracticeBox").Text == text && demo.PasteRequests == 0
+            && window.PracticeCompleted && HasLabel(window, "PracticeComplete"), "Return inserts the sample without injecting input.");
+        Click(window, Find<Button>(window, "NextStep"));
+        Check(history.Store.Settings.OnboardingCompleted && windows.Onboarding is null, "Finish saves completion and closes the guide.");
+    }
+    finally
+    {
+        windows.Onboarding?.Close();
+        windows.Panel.Close();
+        history.Stop();
+    }
+
+    using var preview = new DemoPlatformServices();
+    var previewHistory = CreateHistory(preview, seed: false);
+    var previewWindows = new DesktopWindows(preview, previewHistory, animate: false, positionPanel: false);
+    previewWindows.OpenOnboarding();
+    var guide = previewWindows.Onboarding!;
+    try
+    {
+        Advance(guide, 3);
+        Click(guide, Find<Button>(guide, "CopyPracticeSample"));
+        Press(guide, Key.V, PhysicalKey.V, RawInputModifiers.Control | RawInputModifiers.Shift);
+        Check(previewWindows.Panel.IsOpen, "The focused demo guide can practice its shortcut without a global binding.");
+    }
+    finally
+    {
+        previewWindows.Panel.Close();
+        guide.Close();
+    }
+});
+
 if (args.Length == 2)
 {
     Run("Render light, dark, RTL, empty and platform notice PNGs", () =>
@@ -225,6 +446,73 @@ if (args.Length == 2)
         Render("empty", ThemeVariant.Light, "en", seed: false);
         using var withNotice = new NoticeDemo { Notices = [new("pasteboard-access-denied", "Denied.", () => { })] };
         Render("notice", ThemeVariant.Light, "en", seed: true, withNotice);
+        foreach (var (variant, language, name) in new[]
+        {
+            (ThemeVariant.Light, "en", "light"), (ThemeVariant.Dark, "en", "dark"), (ThemeVariant.Light, "ar", "rtl")
+        })
+        {
+            using var demo = new SetupDemo("macOS");
+            demo.DemoPermissions.AddRange(MacPermissions());
+            RenderOnboarding(demo, variant, language, name, allSteps: true);
+        }
+        using var windows = new SetupDemo("Windows");
+        RenderOnboarding(windows, ThemeVariant.Light, "en", "windows", allSteps: false);
+        using var gnome = new SetupDemo("Linux");
+        gnome.DemoPermissions.Add(new("gnome-helper", PermissionRequirement.Required, PermissionState.Missing, () => { }));
+        RenderOnboarding(gnome, ThemeVariant.Light, "en", "gnome", allSteps: false);
+        using var mac = new SetupDemo("macOS");
+        mac.DemoPermissions.AddRange(MacPermissions());
+        RenderOnboarding(mac, ThemeVariant.Light, "en", "macos", allSteps: false);
+        foreach (var (variant, name) in new[] { (ThemeVariant.Light, "light"), (ThemeVariant.Dark, "dark") })
+        {
+            using var demo = new SetupDemo("Windows");
+            var settings = new SettingsWindow(demo, CreateHistory(demo, seed: true), animate: false) { RequestedThemeVariant = variant };
+            settings.Show();
+            try
+            {
+                SaveFrame(settings, "settings-" + name);
+                var clear = Find<Button>(settings, "ClearHistory");
+                clear.BringIntoView();
+                Flush(settings);
+                Click(settings, clear);
+                SaveFrame(settings, "settings-confirm-clear-" + name);
+            }
+            finally { settings.Close(); }
+        }
+
+        void RenderOnboarding(SetupDemo demo, ThemeVariant variant, string language, string suffix, bool allSteps)
+        {
+            Strings.SetLanguage(language);
+            var history = CreateHistory(demo, seed: false);
+            history.Store.Settings.Language = language;
+            var window = new OnboardingWindow(demo, history, animate: false) { RequestedThemeVariant = variant };
+            window.Show();
+            try
+            {
+                if (allSteps)
+                {
+                    for (var step = 0; step < 4; step++)
+                    {
+                        Advance(window, step);
+                        SaveFrame(window, $"onboarding-{step + 1}-{suffix}");
+                    }
+                }
+                else
+                {
+                    Advance(window, 2);
+                    SaveFrame(window, $"onboarding-3-{suffix}");
+                }
+            }
+            finally { window.Close(); }
+        }
+
+        void SaveFrame(Window window, string name)
+        {
+            window.MouseMove(new Point(12, 12));
+            Flush(window);
+            using var frame = window.CaptureRenderedFrame() ?? throw new InvalidOperationException("No rendered frame for " + name);
+            frame.Save(Path.Combine(directory, name + ".png"), PngBitmapEncoderOptions.Default);
+        }
 
         void Render(string name, ThemeVariant variant, string language, bool seed, IPlatformServices? services = null)
         {
@@ -293,6 +581,23 @@ static void Flush(Window panel)
     Dispatcher.UIThread.RunJobs();
 }
 
+static void Advance(OnboardingWindow window, int step)
+{
+    Flush(window);
+    while (window.Step < step)
+    {
+        var before = window.Step;
+        Click(window, Find<Button>(window, "NextStep"));
+        Check(window.Step == before + 1, "Continue advances one step.");
+    }
+}
+
+static PlatformPermission[] MacPermissions() =>
+[
+    new("clipboard-access", PermissionRequirement.Required, PermissionState.Granted),
+    new("accessibility", PermissionRequirement.Optional, PermissionState.Missing, () => { })
+];
+
 static T Find<T>(Visual root, string name) where T : Control =>
     root.GetVisualDescendants().OfType<T>().Single(control => control.Name == name);
 
@@ -347,5 +652,42 @@ sealed class NoticeDemo : IPlatformServices, IPasteService
     public void CaptureTarget() => _demo.CaptureTarget();
     public Task<bool> PasteAsync() => _demo.PasteAsync();
     public void RequestPermission() => throw new InvalidOperationException("The footer must call the notice action.");
+    public void Dispose() => _demo.Dispose();
+}
+
+sealed class SetupDemo(string profile) : IPlatformServices, IGlobalHotkey
+{
+    private readonly DemoPlatformServices _demo = new();
+    public string Name => profile;
+    public PlatformCapabilities Capabilities => PlatformCapabilities.GlobalHotkey;
+    public IReadOnlyList<PlatformNotice> Notices => _demo.Notices;
+    public string DataDirectory => _demo.DataDirectory;
+    public string DefaultGesture => profile == "macOS" ? "Shift+Meta+V" : _demo.DefaultGesture;
+    public IReadOnlyList<string> SupportedGestures => [DefaultGesture];
+    public List<PlatformPermission> DemoPermissions => _demo.DemoPermissions;
+    public IReadOnlyList<PlatformPermission> Permissions => _demo.Permissions;
+    public IStartupRegistration Startup => _demo.Startup;
+    public IClipboardMonitor Clipboard => _demo.Clipboard;
+    public IClipboardWriter ClipboardWriter => _demo.ClipboardWriter;
+    public IGlobalHotkey Hotkey => this;
+    public IPasteService Paste => _demo.Paste;
+    public IPanelWindow PanelWindow => _demo.PanelWindow;
+    public IHistoryProtector? HistoryProtector => _demo.HistoryProtector;
+    public ClipItem? LastWritten => _demo.LastWritten;
+    public int PasteRequests => _demo.PasteRequests;
+    public string? RegisteredShortcut { get; private set; }
+    public string? UnavailableShortcut { get; set; }
+
+    public event Action? Pressed;
+    public void TriggerShortcut() => Pressed?.Invoke();
+
+    public bool TryRegister(string gesture)
+    {
+        if (gesture == UnavailableShortcut || !_demo.TryRegister(gesture))
+            return false;
+        RegisteredShortcut = gesture;
+        return true;
+    }
+
     public void Dispose() => _demo.Dispose();
 }

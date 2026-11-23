@@ -8,7 +8,7 @@ namespace Vstavka.Desktop;
 
 internal static class PanelTheme
 {
-    public static void Apply(Control target)
+    public static void Apply(Control target, string? accentName = null)
     {
         var colors = Application.Current?.PlatformSettings?.GetColorValues();
         var dark = target.ActualThemeVariant == ThemeVariant.Dark;
@@ -26,7 +26,15 @@ internal static class PanelTheme
         }
 
         var systemAccent = colors?.AccentColor1 ?? Colors.Transparent;
-        var accent = systemAccent.A > 0 ? Color.FromRgb(systemAccent.R, systemAccent.G, systemAccent.B) : Color.Parse("#246AC5");
+        var accent = accentName switch
+        {
+            "violet" => Color.Parse("#7147BE"),
+            "blue" => Color.Parse("#246AC5"),
+            "teal" => Color.Parse("#127B77"),
+            "rose" => Color.Parse("#AC4268"),
+            "amber" => Color.Parse("#9B640F"),
+            _ => systemAccent.A > 0 ? Color.FromRgb(systemAccent.R, systemAccent.G, systemAccent.B) : Color.Parse("#246AC5")
+        };
         var selection = Mix(surface, accent, highContrast ? .10 : dark ? .36 : .13);
         var selectedSurface = Mix(surface, accent, dark ? .17 : .08);
         var foregroundAccent = dark ? Mix(accent, Colors.White, .50) : accent;
@@ -49,12 +57,26 @@ internal static class PanelTheme
         Set("InputBrush", highContrast ? surface : Color.Parse(dark ? "#2B2B30" : "#FBFBFC"));
         Set("MediaBrush", highContrast ? surface : Color.Parse(dark ? "#17171A" : "#F0F0F2"));
         Set("AccentBrush", foregroundAccent);
+        var primary = accent;
+        while (Contrast(primary, Colors.White) < 4.5)
+            primary = Mix(primary, Colors.Black, .08);
+        Set("PrimaryBrush", primary);
+        Set("PrimaryHoverBrush", Mix(primary, Colors.Black, .13));
+        Set("PrimaryInkBrush", Colors.White);
         Set("HoverBrush", Mix(surface, ink, .07));
         Set("PressedBrush", Mix(surface, ink, .13));
         Set("SelectionBrush", selection);
         Set("SelectedSurfaceBrush", selectedSurface);
         Set("SuccessBrush", highContrast ? ink : Color.Parse(dark ? "#91D09D" : "#527E5B"));
         Set("WarningBrush", highContrast ? ink : Color.Parse(dark ? "#EDBE76" : "#98600F"));
+        var dangerFill = highContrast ? ink : Color.Parse(dark ? "#AD344B" : "#B52F49");
+        Set("DangerBrush", highContrast ? ink : Color.Parse(dark ? "#F5A4B3" : "#AA3F55"));
+        Set("DangerLineBrush", highContrast ? ink : Color.Parse(dark ? "#B37180" : "#BF7283"));
+        Set("DangerSurfaceBrush", highContrast ? surface : Color.Parse(dark ? "#482831" : "#FFF0F2"));
+        Set("DangerFillBrush", dangerFill);
+        Set("DangerHoverBrush", highContrast ? dangerFill : Mix(dangerFill, Colors.Black, .12));
+        Set("DangerPressedBrush", highContrast ? dangerFill : Mix(dangerFill, Colors.Black, .23));
+        Set("OnDangerBrush", highContrast ? surface : Colors.White);
         Set("TextTypeBrush", muted);
         SetTint("LinkTypeBrush", "#35658B", "#9EC9F3");
         SetTint("ImageTypeBrush", "#87532F", "#EBBC98");

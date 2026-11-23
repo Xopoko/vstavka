@@ -10,11 +10,16 @@ internal sealed class DesktopHistory
     private readonly IPlatformServices _platform;
     private readonly DispatcherTimer _saveTimer;
     private Task _pendingSave = Task.CompletedTask;
+    private string? _registeredGesture;
+    private readonly HashSet<object> _recorders = [];
 
     public HistoryStore Store { get; }
     public bool Paused { get; private set; }
     public string? Warning { get; private set; }
+    public bool ShortcutRegistrationFailed { get; private set; }
+    public string Shortcut => Store.Settings.PanelShortcut ?? _platform.DefaultGesture;
     public event Action? Changed;
+    public event Action? SettingsChanged;
     public event Action? ToggleRequested;
 
     public DesktopHistory(IPlatformServices platform)
@@ -38,11 +43,52 @@ internal sealed class DesktopHistory
         _platform.Clipboard.Start();
         _platform.Hotkey.Pressed += OnHotkey;
 
-        var gesture = _platform.SupportedGestures.Contains(Store.Settings.Hotkey)
-            ? Store.Settings.Hotkey
-            : _platform.DefaultGesture;
-        if (_platform.Capabilities.HasFlag(PlatformCapabilities.GlobalHotkey) && !_platform.Hotkey.TryRegister(gesture))
-            Warning ??= Strings.Get("HotkeyBusy");
+        RegisterSettingsShortcut();
+    }
+
+    public void SetRecording(object recorder, bool recording)
+    {
+        if (recording)
+            _recorders.Add(recorder);
+        else
+            _recorders.Remove(recorder);
+    }
+
+    public bool TryRegisterShortcut(string gesture)
+    {
+        if (_registeredGesture == gesture)
+            return true;
+        if (!_platform.Hotkey.TryRegister(gesture))
+            return false;
+        _registeredGesture = gesture;
+        return true;
+    }
+
+    public void RegisterSettingsShortcut() => ShortcutRegistrationFailed =
+        (_platform.Capabilities.HasFlag(PlatformCapabilities.GlobalHotkey) || _platform is DemoPlatformServices) &&
+        !TryRegisterShortcut(Shortcut);
+
+    public void ApplySettings(AppSettings settings)
+    {
+        Store.Settings = settings;
+        Store.ApplyRetention();
+        RegisterSettingsShortcut();
+        SettingsChanged?.Invoke();
+        HistoryChanged();
+    }
+
+    public bool TryWrite(ClipItem item, bool plainText = false)
+    {
+        try
+        {
+            _platform.ClipboardWriter.Write(item, plainText);
+            return true;
+        }
+        catch (Exception error) when (error is ArgumentException or IOException or InvalidOperationException
+            or NotSupportedException or UnauthorizedAccessException or System.Runtime.InteropServices.ExternalException)
+        {
+            return false;
+        }
     }
 
     public void TogglePause()
@@ -95,9 +141,15 @@ internal sealed class DesktopHistory
     private void OnHotkey()
     {
         if (Dispatcher.UIThread.CheckAccess())
-            ToggleRequested?.Invoke();
+            ToggleFromHotkey();
         else
-            Dispatcher.UIThread.Post(() => ToggleRequested?.Invoke());
+            Dispatcher.UIThread.Post(ToggleFromHotkey);
+    }
+
+    private void ToggleFromHotkey()
+    {
+        if (_recorders.Count == 0)
+            ToggleRequested?.Invoke();
     }
 
     private void Save() => _pendingSave = SaveAsync();

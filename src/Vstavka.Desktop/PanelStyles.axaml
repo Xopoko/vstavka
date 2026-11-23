@@ -63,11 +63,11 @@
       </ControlTemplate>
     </Setter>
   </Style>
-  <Style Selector="Button.panel-button:pointerover">
+  <Style Selector="Button.panel-button:not(.primary):pointerover">
     <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource InkBrush}" />
   </Style>
-  <Style Selector="Button.panel-button:pressed">
+  <Style Selector="Button.panel-button:not(.primary):pressed">
     <Setter Property="Background" Value="{DynamicResource PressedBrush}" />
   </Style>
   <Style Selector="Button.panel-button:focus-visible /template/ Border#FocusRing">
@@ -96,6 +96,102 @@
     <Setter Property="FontSize" Value="12" />
     <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
+  </Style>
+  <Style Selector="Button.panel-button.secondary">
+    <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource InkBrush}" />
+  </Style>
+  <Style Selector="Button.panel-button.secondary:pointerover">
+    <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource HoverLineBrush}" />
+  </Style>
+  <Style Selector="Button.panel-button.primary">
+    <Setter Property="MinWidth" Value="100" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Background" Value="{DynamicResource PrimaryBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryInkBrush}" />
+  </Style>
+  <Style Selector="Button.panel-button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.panel-button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource PrimaryHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryInkBrush}" />
+  </Style>
+  <Style Selector="Button.panel-button.danger">
+    <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource DangerLineBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+  </Style>
+  <Style Selector="Button.panel-button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.panel-button.danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource DangerSurfaceBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+  </Style>
+  <Style Selector="Button.panel-button.danger-filled">
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Background" Value="{DynamicResource DangerFillBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource OnDangerBrush}" />
+  </Style>
+  <Style Selector="Button.panel-button.danger-filled:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource DangerHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource OnDangerBrush}" />
+  </Style>
+  <Style Selector="Button.panel-button.danger-filled:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource DangerPressedBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource OnDangerBrush}" />
+  </Style>
+  <Style Selector="Button.panel-button.primary:focus-visible /template/ Border#FocusRing, Button.panel-button.danger-filled:focus-visible /template/ Border#FocusRing">
+    <Setter Property="Margin" Value="-4" />
+  </Style>
+
+  <Style Selector="ToggleButton.setup-switch">
+    <Setter Property="MinWidth" Value="40" />
+    <Setter Property="Height" Value="26" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="FocusAdorner" Value="{x:Null}" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Grid Width="40" Height="26" Background="Transparent">
+          <Border Name="Track" Height="22" CornerRadius="11" Background="{DynamicResource HoverBrush}"
+                  BorderThickness="1" BorderBrush="{DynamicResource HoverLineBrush}" Padding="3">
+            <Border Name="Knob" Width="14" Height="14" CornerRadius="7"
+                    HorizontalAlignment="Left" Background="{DynamicResource MutedBrush}" />
+          </Border>
+          <Border Name="FocusRing" Margin="-3" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="2"
+                  CornerRadius="13" IsHitTestVisible="False" IsVisible="False" />
+        </Grid>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="ToggleButton.setup-switch:checked /template/ Border#Track">
+    <Setter Property="Background" Value="{DynamicResource PrimaryBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.setup-switch:checked /template/ Border#Knob">
+    <Setter Property="HorizontalAlignment" Value="Right" />
+    <Setter Property="Background" Value="{DynamicResource PrimaryInkBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.setup-switch:focus-visible /template/ Border#FocusRing">
+    <Setter Property="IsVisible" Value="True" />
+  </Style>
+  <Style Selector="TextBox.setup-input">
+    <Setter Property="Padding" Value="10,7" />
+  </Style>
+  <Style Selector="ComboBox.setup-select">
+    <Setter Property="Background" Value="{DynamicResource InputBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="HorizontalContentAlignment" Value="Left" />
+    <Setter Property="FocusAdorner">
+      <Template>
+        <Border BorderThickness="2" CornerRadius="8" BorderBrush="{DynamicResource AccentBrush}" />
+      </Template>
+    </Setter>
+  </Style>
+  <Style Selector="Border.setup-dot">
+    <Setter Property="Background" Value="{DynamicResource HoverLineBrush}" />
+  </Style>
+  <Style Selector="Border.setup-dot.active">
+    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
   </Style>
 
   <Style Selector="TextBox.panel-search">

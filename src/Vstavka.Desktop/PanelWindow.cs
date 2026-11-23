@@ -59,6 +59,8 @@ internal sealed class PanelWindow : Window
 
     public bool IsOpen => IsVisible && !_dismissing;
     public event Action<string>? Feedback;
+    public event Action? SettingsRequested;
+    public Func<OnboardingWindow?>? PracticeTarget { get; set; }
 
     public PanelWindow(IPlatformServices platform, DesktopHistory history, bool animate = true)
     {
@@ -115,7 +117,7 @@ internal sealed class PanelWindow : Window
             Children =
             {
                 _pause,
-                PanelVisuals.IconButton(Symbol.Settings, Strings.Get("Settings"), () => { }),
+                PanelVisuals.IconButton(Symbol.Settings, Strings.Get("Settings"), () => _ = OpenSettingsAsync()),
                 PanelVisuals.IconButton(Symbol.Dismiss, Strings.Get("Close"), Dismiss)
             }
         };
@@ -182,11 +184,11 @@ internal sealed class PanelWindow : Window
         _drawer.Bind(Border.BorderBrushProperty, _drawer.GetResourceObservable("LineBrush"));
         Content = new Grid { ClipToBounds = true, Children = { _drawer } };
 
-        ActualThemeVariantChanged += (_, _) => PanelTheme.Apply(this);
+        ActualThemeVariantChanged += (_, _) => ApplyAppearance();
         var settings = Application.Current?.PlatformSettings;
         if (settings is not null)
             settings.ColorValuesChanged += OnSystemColorsChanged;
-        PanelTheme.Apply(this);
+        ApplyAppearance();
         SizeChanged += (_, e) =>
         {
             _searchColumn.Width = new GridLength(Math.Clamp(e.NewSize.Width * .23, 128, 248));
@@ -213,7 +215,7 @@ internal sealed class PanelWindow : Window
         AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
     }
 
-    public void Open(bool positionOnScreen = true)
+    public void Open(bool positionOnScreen = true, ClipItem? practiceItem = null)
     {
         if (_pasting)
             return;
@@ -229,6 +231,15 @@ internal sealed class PanelWindow : Window
         if (positionOnScreen)
             PositionAtBottom();
         Refresh();
+        if (practiceItem is not null)
+        {
+            _filters[_activeFilter].Button.Classes.Remove("active");
+            _activeFilter = practiceItem.CollectionId is null
+                ? 0 : Math.Max(0, _filters.FindIndex(filter => filter.Collection == practiceItem.CollectionId));
+            _filters[_activeFilter].Button.Classes.Add("active");
+            _search.Clear();
+            ApplyFilter(resetScroll: true);
+        }
         AttachNativePanel();
 
         if (!_isShowing)
@@ -238,12 +249,19 @@ internal sealed class PanelWindow : Window
         }
         Show();
         Activate();
-        SelectCard(Math.Max(0, _cards.SelectedIndex));
+        var practiceIndex = practiceItem is null ? -1 : _visible.ToList().FindIndex(item => item.Id == practiceItem.Id);
+        SelectCard(practiceIndex >= 0 ? practiceIndex : Math.Max(0, _cards.SelectedIndex));
         if (_animate)
             _ = Animate(TimeSpan.FromMilliseconds(190), from: 0, to: 1, slide: true);
     }
 
     public void Dismiss() => _ = DismissAsync();
+
+    private async Task OpenSettingsAsync()
+    {
+        await DismissAsync();
+        SettingsRequested?.Invoke();
+    }
 
     private async Task DismissAsync()
     {
@@ -317,7 +335,9 @@ internal sealed class PanelWindow : Window
     }
 
     private void OnSystemColorsChanged(object? sender, Avalonia.Platform.PlatformColorValues e) =>
-        Dispatcher.UIThread.Post(() => PanelTheme.Apply(this));
+        Dispatcher.UIThread.Post(ApplyAppearance);
+
+    public void ApplyAppearance() => PanelTheme.Apply(this, _history.Store.Settings.Accent);
 
     private void OnHistoryChanged()
     {
@@ -447,15 +467,18 @@ internal sealed class PanelWindow : Window
     private void UpdateStatus()
     {
         var notice = _platform.Notices.FirstOrDefault();
-        var warning = notice is not null || _history.Warning is not null || _history.Paused;
+        var warning = notice is not null || _history.ShortcutRegistrationFailed || _history.Warning is not null || _history.Paused;
+        if (_history.ShortcutRegistrationFailed)
+            notice = new PlatformNotice("shortcut-unavailable", Strings.Get("HotkeyBusy"), () => _ = OpenSettingsAsync());
         var text = notice?.Code switch
         {
             "adapter-not-wired" => Strings.Get("PlatformUnavailable"),
-            "accessibility-permission" => Strings.Get("AccessibilityPermission"),
-            "pasteboard-access-approval" => Strings.Get("PasteboardAccess"),
+            "accessibility-permission" => Strings.Format("AutomaticPasteOff", SetupVisuals.ShortcutInText(_platform.Name == "macOS" ? "⌘V" : "Ctrl+V")),
+            "pasteboard-access-approval" => Strings.Get("ClipboardApprovalNotice"),
             "pasteboard-access-denied" => Strings.Get("PasteboardAccessDenied"),
             "keychain-unavailable" => Strings.Get("KeychainUnavailable"),
-            "gnome-extension-missing" => Strings.Get("GnomeExtensionMissing"),
+            "gnome-extension-missing" => Strings.Get("GnomeHelperNotice"),
+            "gnome-helper-restart" => Strings.Get("GnomeSignOut"),
             "gnome-extension-not-allowed" => notice.Message,
             _ => notice?.Message ?? _history.Warning ?? Strings.Get(_history.Paused ? "Paused"
                 : _platform is DemoPlatformServices ? "DemoStatus" : "LocalHistory")
@@ -471,7 +494,15 @@ internal sealed class PanelWindow : Window
         {
             var action = new Button
             {
-                Content = Strings.Get(notice.Code == "pasteboard-access-denied" ? "OpenSettings" : "GrantAccess"),
+                Content = Strings.Get(notice.Code switch
+                {
+                    "accessibility-permission" => "TurnOn",
+                    "pasteboard-access-approval" => "Allow",
+                    "pasteboard-access-denied" => "OpenSettings",
+                    "gnome-extension-missing" => "Install",
+                    "shortcut-unavailable" => "Settings",
+                    _ => "GrantAccess"
+                }),
                 Classes = { "panel-button", "permission" },
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -611,29 +642,24 @@ internal sealed class PanelWindow : Window
 
     private bool TryWrite(ClipItem item, bool plain)
     {
-        try
-        {
-            _platform.ClipboardWriter.Write(item, plain);
-            _platform.Clipboard.SuppressNextChange();
+        if (_history.TryWrite(item, plain))
             return true;
-        }
-        catch (Exception error) when (error is ArgumentException or IOException or InvalidOperationException
-            or NotSupportedException or UnauthorizedAccessException or System.Runtime.InteropServices.ExternalException)
-        {
-            Feedback?.Invoke(Strings.Get("ClipboardWriteFailed"));
-            return false;
-        }
+        Feedback?.Invoke(Strings.Get("ClipboardWriteFailed"));
+        return false;
     }
 
     private async Task PasteAsync(ClipItem item, bool plain)
     {
         if (_pasting || !TryWrite(item, plain))
             return;
+        var practice = PracticeTarget?.Invoke();
         _pasting = true;
         try
         {
             await DismissAsync();
-            if (!await _platform.Paste.PasteAsync())
+            if (practice is not null)
+                practice.ReceivePracticePaste(item);
+            else if (!await _platform.Paste.PasteAsync())
                 Feedback?.Invoke(Strings.Get("ManualPaste"));
         }
         finally

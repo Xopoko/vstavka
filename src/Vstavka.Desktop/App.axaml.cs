@@ -40,23 +40,17 @@ public sealed partial class App : Application
         history = new DesktopHistory(platform);
         if (PlatformFactory.IsDemo(args))
             DemoSamples.Seed(history.Store);
-        Strings.SetLanguage(history.Store.Settings.Language);
-
-        var panel = new PanelWindow(platform, history);
-        history.ToggleRequested += () =>
-        {
-            if (panel.IsOpen)
-                panel.Dismiss();
-            else
-                panel.Open();
-        };
-        panel.Feedback += text => ShowFeedback(text, panel);
+        var windows = new DesktopWindows(platform, history, ShowFeedback);
 
         var open = new NativeMenuItem(Strings.Get("TrayOpen"));
         var pause = new NativeMenuItem(Strings.Get("Pause"));
+        var settings = new NativeMenuItem(Strings.Get("TraySettings"));
+        var welcome = new NativeMenuItem(Strings.Get("WelcomeGuide"));
         var quit = new NativeMenuItem(Strings.Get("Exit"));
-        open.Click += (_, _) => panel.Open();
+        open.Click += (_, _) => windows.OpenPanel();
         pause.Click += (_, _) => history.TogglePause();
+        settings.Click += (_, _) => windows.OpenSettings();
+        welcome.Click += (_, _) => windows.OpenOnboarding();
         quit.Click += (_, _) => desktop.Shutdown();
         history.Changed += () => pause.Header = Strings.Get(history.Paused ? "Resume" : "Pause");
         using var iconStream = CreateTrayIcon();
@@ -64,10 +58,17 @@ public sealed partial class App : Application
         {
             Icon = new WindowIcon(iconStream),
             ToolTipText = Strings.Get("AppName"),
-            Menu = new NativeMenu { Items = { open, pause, new NativeMenuItemSeparator(), quit } },
+            Menu = new NativeMenu { Items = { open, pause, new NativeMenuItemSeparator(), settings, welcome, new NativeMenuItemSeparator(), quit } },
             IsVisible = true
         };
-        tray.Clicked += (_, _) => panel.Open();
+        tray.Clicked += (_, _) => windows.OpenPanel();
+        history.SettingsChanged += () =>
+        {
+            open.Header = Strings.Get("TrayOpen");
+            settings.Header = Strings.Get("TraySettings");
+            welcome.Header = Strings.Get("WelcomeGuide");
+            quit.Header = Strings.Get("Exit");
+        };
         TrayIcon.SetIcons(this, new TrayIcons { tray });
         desktop.Exit += (_, _) =>
         {
@@ -84,6 +85,8 @@ public sealed partial class App : Application
             }
         };
         history.Start();
+        if (!history.Store.Settings.OnboardingCompleted && (!PlatformFactory.IsDemo(args) || args.Contains("--onboarding")))
+            Dispatcher.UIThread.Post(windows.OpenOnboarding);
     }
 
     private void ShowFeedback(string text, PanelWindow panel)

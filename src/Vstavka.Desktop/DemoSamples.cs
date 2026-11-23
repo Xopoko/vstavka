@@ -31,7 +31,7 @@ internal static class DemoSamples
         store.SetSourceIcon("Notes", SourceIcon());
     }
 
-    private static byte[] ExampleImage()
+    internal static byte[] ExampleImage()
     {
         using var bitmap = new RenderTargetBitmap(new PixelSize(320, 180));
         using (var drawing = bitmap.CreateDrawingContext())
