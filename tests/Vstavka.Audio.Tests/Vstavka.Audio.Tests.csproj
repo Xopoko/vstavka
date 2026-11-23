@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Vstavka.Core/Vstavka.Core.csproj" />
+    <Compile Include="../../src/Vstavka/Services/SystemBridge.cs" Link="Production/SystemBridge.cs" />
+    <Compile Include="../../src/Vstavka/Services/SoundService.cs" Link="Production/SoundService.cs" />
+  </ItemGroup>
+</Project>

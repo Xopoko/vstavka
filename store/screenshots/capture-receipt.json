@@ -1,0 +1,42 @@
+{
+  "schema": "vstavka.store-screenshots.v2",
+  "description": "Offscreen renders of the real RibbonWindow and SettingsWindow content with synthetic items; no clipboard, desktop or personal data.",
+  "appVersion": "0.2.4.0",
+  "language": "en",
+  "accent": "blue",
+  "scale": 2,
+  "files": [
+    {
+      "scene": 1,
+      "file": "01-history-light.png",
+      "width": 3120,
+      "height": 1800,
+      "bytes": 196325,
+      "sha256": "44B2C823FDB7654556FA04F1EDB36E252E8B9C2B47C5FE4FAB0A33ECFE115BE3"
+    },
+    {
+      "scene": 2,
+      "file": "02-history-dark.png",
+      "width": 3120,
+      "height": 1800,
+      "bytes": 197606,
+      "sha256": "E696938A5B3AE17DA8681227A30AF4E599D39BA1FA2A2375901AE1C521193435"
+    },
+    {
+      "scene": 3,
+      "file": "03-prompts-collection.png",
+      "width": 3120,
+      "height": 1800,
+      "bytes": 145888,
+      "sha256": "AB220A5B009B8EAFAFEBE77E243CEDB57366972643DEFC829988BDC5E5BBC48C"
+    },
+    {
+      "scene": 4,
+      "file": "04-settings.png",
+      "width": 3120,
+      "height": 1800,
+      "bytes": 123056,
+      "sha256": "198D2C9C122EB5F3E1860A864FC21E9D707B0971585446F41A2E48D2BDE41001"
+    }
+  ]
+}

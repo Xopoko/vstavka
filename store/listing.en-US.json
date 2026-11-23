@@ -1,0 +1,48 @@
+{
+  "schema": "vstavka.store-listing.v1",
+  "sourceVersion": "unreleased",
+  "language": "en-US",
+  "productName": "Vstavka",
+  "category": "Productivity",
+  "price": "Free",
+  "shortDescription": "Find and reuse what you copy. A keyboard-friendly clipboard history with visual cards, pins, collections, search, and short copy and paste sounds.",
+  "description": "Vstavka keeps your clipboard history in a horizontal panel at the bottom of your screen. Press Ctrl+Shift+V, find a card, and paste it back into the app you were using. If another app needs Ctrl+Shift+V, switch to Ctrl+Alt+V or Alt+V in Settings.\n\nBrowse text, links, color values, images, and copied file paths. Each card shows the icon of the app you copied from. Pin frequently used items, filter by content type, or search your history. Use the keyboard to move between cards and paste your selection.\n\nKeep prompts, snippets, and other things you reuse in collections. Give each collection a name and a color; its items stay out of your everyday history and are kept until you remove them.\n\nShort, separate sounds provide copy and paste feedback. Adjust the volume, turn either sound off, and choose whether Vstavka starts when you sign in to Windows. Light, dark, and system themes, six accent choices including the Windows accent, and 24 interface languages help it fit your desktop.\n\nYour history stays on this PC and is encrypted for your Windows account. There are no accounts, ads, subscriptions, in-app purchases, analytics, or cloud sync. Pause saving, exclude sensitive apps, delete individual items, or clear your history in Settings.\n\nText is saved without formatting. File cards remember file paths, so the original files must still exist when you paste them. Automatic pasting follows Windows security restrictions; apps running as administrator may require a manual paste. Paste sounds for Ctrl+V and Shift+Insert indicate the shortcut, not confirmation that another app accepted the content.\n\nVstavka is free and open source. It requires Windows 11 on an x64 PC.",
+  "features": [
+    "Open a horizontal clipboard panel with Ctrl+Shift+V",
+    "Preview text, links, colors, images, and copied file paths",
+    "See the icon of the app each item came from",
+    "Search, filter by type, and pin items you use often",
+    "Keep prompts and snippets in named, colored collections",
+    "Navigate and paste with keyboard shortcuts",
+    "Separate copy and paste sounds with volume controls",
+    "Light, dark, and system themes with a Windows accent option",
+    "24 interface languages, including right-to-left layouts",
+    "Local history encrypted for your Windows account",
+    "Pause saving, exclude apps, and manage history retention",
+    "Optional startup when you sign in to Windows"
+  ],
+  "keywords": [
+    "clipboard history",
+    "clipboard manager",
+    "copy paste",
+    "text snippets",
+    "image clipboard",
+    "pinned clips",
+    "productivity"
+  ],
+  "whatsNew": "A cleaner look with neutral colors and clearer cards. Collections keep saved snippets out of your everyday history. Cards show the icon of the app you copied from. Ctrl+Shift+V opens history by default again; Ctrl+Alt+V and Alt+V remain available in Settings.",
+  "minimumHardware": [
+    "Windows 11, x64",
+    "Keyboard and pointing device"
+  ],
+  "recommendedHardware": [
+    "Audio output for copy and paste sounds"
+  ],
+  "publisherDisplayName": "Horoko",
+  "copyrightAndTrademarkInfo": null,
+  "developedBy": null,
+  "websiteUrl": "https://github.com/Xopoko/vstavka-support",
+  "privacyPolicyUrl": "https://github.com/Xopoko/vstavka-support/blob/main/PRIVACY.md",
+  "supportUrl": "https://github.com/Xopoko/vstavka-support/issues/new/choose",
+  "additionalLicenseTerms": null
+}

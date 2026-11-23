@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap10="http://schemas.microsoft.com/appx/manifest/uap/windows10/10"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap10 desktop rescap">
+  <!-- Package-Store.ps1 replaces all identity fields via XML APIs. These are not a Store identity. -->
+  <Identity Name="Vstavka.LocalPreview" Publisher="CN=VstavkaLocalPreview" Version="1.1.4.0" ProcessorArchitecture="x64" />
+  <Properties>
+    <DisplayName>Vstavka</DisplayName>
+    <PublisherDisplayName>Local preview</PublisherDisplayName>
+    <Description>Clipboard history with quick search and short sounds.</Description>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+  <!-- Package-Store.ps1 adds languages from the runtime list. -->
+  <Resources />
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.22000.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+  <Applications>
+    <Application Id="Vstavka" Executable="Vstavka.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="Vstavka"
+        Description="Clipboard history with quick search and short sounds."
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png"
+        BackgroundColor="transparent" />
+      <Extensions>
+        <desktop:Extension Category="windows.startupTask" Executable="Vstavka.exe" EntryPoint="Windows.FullTrustApplication" uap10:Parameters="--startup">
+          <desktop:StartupTask TaskId="VstavkaStartup" Enabled="false" DisplayName="Vstavka" />
+        </desktop:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

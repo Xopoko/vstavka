@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- The clipboard boundary is replaced; image codecs and dispatcher are real WPF. -->
+    <NoWarn>$(NoWarn);CS0436</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Vstavka.Core/Vstavka.Core.csproj" />
+    <Compile Include="../../src/Vstavka/Services/ClipboardService.cs" Link="Production/ClipboardService.cs" />
+  </ItemGroup>
+</Project>

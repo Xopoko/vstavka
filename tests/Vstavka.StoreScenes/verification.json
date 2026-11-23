@@ -1,0 +1,34 @@
+{
+  "passed": true,
+  "kind": "offscreen-view-layout-only",
+  "scenes": [
+    {
+      "scene": 1,
+      "widthDip": 1532,
+      "heightDip": 337.6,
+      "visibleCards": 6,
+      "ownerWindowsShown": false
+    },
+    {
+      "scene": 2,
+      "widthDip": 1532,
+      "heightDip": 337.6,
+      "visibleCards": 6,
+      "ownerWindowsShown": false
+    },
+    {
+      "scene": 3,
+      "widthDip": 1532,
+      "heightDip": 337.6,
+      "visibleCards": 3,
+      "ownerWindowsShown": false
+    },
+    {
+      "scene": 4,
+      "widthDip": 660,
+      "heightDip": 780,
+      "visibleCards": null,
+      "ownerWindowsShown": false
+    }
+  ]
+}
