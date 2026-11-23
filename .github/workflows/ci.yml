@@ -72,20 +72,27 @@ jobs:
         with:
           global-json-file: global.json
 
-      - name: Shared and platform logic tests
-        run: |
-          dotnet run --project tests/Vstavka.Core.Tests -c Release
-          dotnet run --project tests/Vstavka.Localization.Tests -c Release
-          dotnet run --project tests/Vstavka.Platform.MacOS.Tests -c Release
+      - name: Core tests
+        run: dotnet run --project tests/Vstavka.Core.Tests -c Release
+
+      - name: Localization tests
+        if: ${{ !cancelled() }}
+        run: dotnet run --project tests/Vstavka.Localization.Tests -c Release
+
+      - name: macOS adapter logic tests
+        if: ${{ !cancelled() }}
+        run: dotnet run --project tests/Vstavka.Platform.MacOS.Tests -c Release
 
       - name: Windows adapter tests
-        if: runner.os == 'Windows'
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
         run: dotnet run --project tests/Vstavka.Platform.Windows.Tests -c Release
 
       - name: Panel tests with headless renders
+        if: ${{ !cancelled() }}
         run: dotnet run --project tests/Vstavka.Desktop.Tests -c Release -- --render "$RUNNER_TEMP/renders"
 
       - name: Build the app
+        if: ${{ !cancelled() }}
         run: dotnet build src/Vstavka.Desktop/Vstavka.Desktop.csproj -c Release
 
       - name: Upload panel renders

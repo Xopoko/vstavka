@@ -588,6 +588,9 @@ try
         store.Settings.ExcludedApps = [@" C:\Synthetic\Example.App.EXE "];
         Check(!store.Add(new ClipItem { Text = "excluded", SourceApp = "example.app" }) && store.LastRejectionReason is not null,
             "An exclusion accepts an executable path and matches a process name with dots.");
+        store.Settings.ExcludedApps = ["/Applications/Synthetic Keeper.app/"];
+        Check(!store.Add(new ClipItem { Text = "excluded on macOS", SourceApp = "Synthetic Keeper" }) && store.LastRejectionReason is not null,
+            "A macOS app bundle path matches the app's display name.");
         Check(store.Add(new ClipItem { Text = "allowed", SourceApp = "Example.Other" }),
             "Different process names are allowed even when they have the same prefix before a dot.");
     });

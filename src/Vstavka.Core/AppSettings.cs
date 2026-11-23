@@ -41,8 +41,14 @@ public sealed class AppSettings
 
     private static ReadOnlySpan<char> ExecutableName(string? path)
     {
-        var name = Path.GetFileName(path.AsSpan().Trim());
-        return name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? name[..^4] : name;
+        // Exclusions may be Windows or Unix paths on any platform, so split on both separators.
+        // A ".app" suffix is dropped only from paths (macOS bundles); process names may contain it.
+        var name = path.AsSpan().Trim().TrimEnd(['\\', '/']);
+        var separator = name.LastIndexOfAny('\\', '/');
+        name = name[(separator + 1)..];
+        return name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) || (separator >= 0 && name.EndsWith(".app", StringComparison.OrdinalIgnoreCase))
+            ? name[..^4]
+            : name;
     }
 
     internal void Normalize()
