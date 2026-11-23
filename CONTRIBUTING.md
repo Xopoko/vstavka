@@ -2,7 +2,8 @@
 
 Build and test as described in the [README](README.md#building-from-source).
 `scripts/Build-Preview.ps1` runs every test suite and the app's self-test; a
-change is ready when that script passes.
+change is ready when that script passes. CI runs the same script, plus the Store
+screenshot harness check, on every push and pull request.
 
 Use synthetic data in tests, screenshots and issues. Never paste your real
 clipboard history, a `history.vstavka` file, or logs with personal paths.

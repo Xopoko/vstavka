@@ -13,6 +13,10 @@
   <a href="https://apps.microsoft.com/detail/9NVXW230R4PX">Get it from Microsoft Store</a>
 </p>
 
+<p align="center">
+  <a href="https://github.com/Xopoko/vstavka/actions/workflows/ci.yml"><img src="https://github.com/Xopoko/vstavka/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+</p>
+
 ![Vstavka history panel with text, link, image, color and file cards](docs/images/panel-light.png)
 
 Vstavka remembers the text, links, color values, images and file paths you copy.

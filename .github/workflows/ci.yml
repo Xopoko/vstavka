@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build, test and self-check
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Test suites, self-contained build and app self-test
+        shell: pwsh
+        run: ./scripts/Build-Preview.ps1
+
+      - name: Store screenshot harness
+        shell: pwsh
+        run: |
+          dotnet build tests/Vstavka.StoreScenes/Vstavka.StoreScenes.csproj -c Release
+          if ($LASTEXITCODE -ne 0) { throw 'Store scene harness build failed.' }
+          $exe = 'tests/Vstavka.StoreScenes/bin/Release/net10.0-windows10.0.19041.0/Vstavka.StoreScenes.exe'
+          $report = Join-Path $env:RUNNER_TEMP 'store-scenes.json'
+          $scenes = Start-Process -FilePath $exe -ArgumentList @('--verify', '--output', ('"{0}"' -f $report)) -Wait -PassThru
+          if ($scenes.ExitCode -ne 0) {
+            if (Test-Path -LiteralPath $report) { Get-Content -LiteralPath $report }
+            throw "Store scene verification failed (exit $($scenes.ExitCode))."
+          }
+
+      - name: Upload app check report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: app-checks
+          path: artifacts/app-checks.json
+          if-no-files-found: ignore
