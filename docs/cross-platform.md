@@ -21,7 +21,7 @@ Platform differences that shape the design:
 | | Windows | macOS | Ubuntu (GNOME Wayland) |
 | --- | --- | --- | --- |
 | Clipboard changes | system notification | polling `changeCount`; access may need approval (macOS 15.4+) | only through the extension; X11 sessions use XFixes |
-| Global shortcut | Ctrl+Shift+V | ⌘⇧V | Ctrl+Shift+V via the extension |
+| Global shortcut | Ctrl+Shift+V | ⌘⇧V | Ctrl+Alt+V via the extension |
 | Paste into the previous app | `SendInput` | Cmd+V, needs Accessibility | virtual keyboard in the extension |
 | Panel at the bottom | native | status window level on all Spaces | placed by the extension |
 
@@ -35,9 +35,14 @@ shortcut, paste into a GTK4 window, panel placement and the allowlist.
 Checked on real hardware: a read-only probe on macOS 27 (pasteboard state, source icon,
 shortcut registration) and the app bundle script.
 
-Not done yet: settings, collection management, the welcome window, start at login and sounds
-in the new app; trials with permissions on a real Mac and in a real GNOME session; signed
-release packages.
+The new app has a four-step first-run window (welcome, shortcut with a recorder, the
+permissions this platform needs, and a try-it step), a Settings window and start at login on
+all three systems. Shortcuts can be any combination with Ctrl, Alt/Option or Meta; the
+defaults are Ctrl+Shift+V on Windows, ⌘⇧V on macOS and Ctrl+Alt+V on Linux, where
+Ctrl+Shift+V is paste in terminals.
+
+Not done yet: managing collections and sounds in the new app; trials in a real GNOME session;
+signed release packages.
 
 ## Trying the preview
 
