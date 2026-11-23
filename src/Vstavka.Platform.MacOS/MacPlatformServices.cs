@@ -24,8 +24,8 @@ public sealed class MacPlatformServices : IPlatformServices
 
     public string Name => "macOS";
     public string DataDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "Application Support", "Vstavka");
-    public string DefaultGesture => HotkeyGesture.Default;
-    public IReadOnlyList<string> SupportedGestures => HotkeyGesture.Supported;
+    public string DefaultGesture => MacHotkeyGesture.Default;
+    public IReadOnlyList<string> SupportedGestures => MacHotkeyGesture.Supported;
     public IClipboardMonitor Clipboard { get; }
     public IClipboardWriter ClipboardWriter { get; }
     public IGlobalHotkey Hotkey { get; }

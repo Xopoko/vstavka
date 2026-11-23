@@ -20,6 +20,11 @@ public sealed class DemoPlatformServices : IPlatformServices, IClipboardMonitor,
     public IPasteService Paste => this;
     public IPanelWindow PanelWindow => this;
     public IHistoryProtector? HistoryProtector => null;
+
+    /// <summary>Permissions the demo reports; tests and previews fill it to show permission states.</summary>
+    public List<PlatformPermission> DemoPermissions { get; } = [];
+    public IReadOnlyList<PlatformPermission> Permissions => DemoPermissions;
+    public IStartupRegistration Startup { get; } = new MemoryStartup();
     public PermissionState Permission => PermissionState.NotNeeded;
 
     /// <summary>The last item the UI asked to write; demo mode never touches the real clipboard.</summary>
@@ -33,7 +38,7 @@ public sealed class DemoPlatformServices : IPlatformServices, IClipboardMonitor,
     public void Start() { }
     public void SuppressNextChange() { }
     public void Write(ClipItem item, bool plainText) => LastWritten = item;
-    public bool TryRegister(string gesture) => SupportedGestures.Contains(gesture);
+    public bool TryRegister(string gesture) => HotkeyGesture.TryParse(gesture, out _);
     public void CaptureTarget() { }
 
     public Task<bool> PasteAsync()
@@ -47,4 +52,16 @@ public sealed class DemoPlatformServices : IPlatformServices, IClipboardMonitor,
     public void Showing() { }
     public void Hidden() { }
     public void Dispose() { }
+
+    private sealed class MemoryStartup : IStartupRegistration
+    {
+        public bool IsSupported => true;
+        public bool IsEnabled { get; private set; }
+
+        public bool TrySetEnabled(bool enabled)
+        {
+            IsEnabled = enabled;
+            return true;
+        }
+    }
 }

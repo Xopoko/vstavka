@@ -125,8 +125,8 @@ internal static partial class Accessibility
 
     internal static bool PostPaste()
     {
-        var down = CGEventCreateKeyboardEvent(0, (ushort)HotkeyGesture.KeyCodeV, 1);
-        var up = CGEventCreateKeyboardEvent(0, (ushort)HotkeyGesture.KeyCodeV, 0);
+        var down = CGEventCreateKeyboardEvent(0, (ushort)MacHotkeyGesture.KeyCodeV, 1);
+        var up = CGEventCreateKeyboardEvent(0, (ushort)MacHotkeyGesture.KeyCodeV, 0);
         try
         {
             if (down == 0 || up == 0)

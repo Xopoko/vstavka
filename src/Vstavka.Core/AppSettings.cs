@@ -11,6 +11,12 @@ public sealed class AppSettings
     public int RetentionDays { get; set; } = 30;
     public int MaxItems { get; set; } = 500;
     public string Hotkey { get; set; } = DefaultHotkey;
+
+    /// <summary>Shortcut for the cross-platform app in <see cref="HotkeyGesture"/> form; null means the platform default.</summary>
+    public string? PanelShortcut { get; set; }
+
+    public bool OnboardingCompleted { get; set; }
+
     public string Language { get; set; } = "en";
     public string Theme { get; set; } = "system";
     public string Accent { get; set; } = "windows";
@@ -57,6 +63,7 @@ public sealed class AppSettings
         RetentionDays = Math.Clamp(RetentionDays, 0, 3650);
         MaxItems = Math.Clamp(MaxItems, 1, HistoryStore.MaxItemCount);
         Hotkey = NormalizeHotkey(Hotkey);
+        PanelShortcut = HotkeyGesture.TryParse(PanelShortcut, out var shortcut) ? shortcut.ToString() : null;
         Language = Localization.Strings.NormalizeLanguage(Language);
         Theme = Theme is "light" or "dark" ? Theme : "system";
         Accent = Accent is "violet" or "blue" or "teal" or "rose" or "amber" ? Accent : "windows";

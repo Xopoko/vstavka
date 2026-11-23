@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace Vstavka.Platform.MacOS;
 
-internal readonly record struct HotkeyGesture(uint Modifiers)
+internal readonly record struct MacHotkeyGesture(uint Modifiers)
 {
     private const uint Command = 1 << 8;
     private const uint Shift = 1 << 9;
@@ -12,7 +12,7 @@ internal readonly record struct HotkeyGesture(uint Modifiers)
 
     internal const uint KeyCodeV = 9; // Carbon kVK_ANSI_V, the physical key position.
     internal const string Default = "Cmd+Shift+V";
-    private static readonly Dictionary<string, HotkeyGesture> Gestures = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, MacHotkeyGesture> Gestures = new(StringComparer.OrdinalIgnoreCase)
     {
         [Default] = new(Command | Shift),
         ["Ctrl+Cmd+V"] = new(Command | Control),
@@ -21,10 +21,10 @@ internal readonly record struct HotkeyGesture(uint Modifiers)
 
     internal static IReadOnlyList<string> Supported { get; } = Array.AsReadOnly(Gestures.Keys.ToArray());
 
-    internal static bool TryParse(string gesture, out HotkeyGesture result) => Gestures.TryGetValue(gesture.Trim(), out result);
+    internal static bool TryParse(string gesture, out MacHotkeyGesture result) => Gestures.TryGetValue(gesture.Trim(), out result);
 }
 
-internal sealed class MacGlobalHotkey(Func<HotkeyGesture, Action, IDisposable?> register) : IGlobalHotkey
+internal sealed class MacGlobalHotkey(Func<MacHotkeyGesture, Action, IDisposable?> register) : IGlobalHotkey
 {
     private Binding? current;
     private bool disposed;
@@ -34,7 +34,7 @@ internal sealed class MacGlobalHotkey(Func<HotkeyGesture, Action, IDisposable?> 
     public bool TryRegister(string gesture)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        if (!HotkeyGesture.TryParse(gesture, out var selection))
+        if (!MacHotkeyGesture.TryParse(gesture, out var selection))
             return false;
         var context = SynchronizationContext.Current;
         if (current is { } existing && existing.Gesture == selection)
@@ -78,9 +78,9 @@ internal sealed class MacGlobalHotkey(Func<HotkeyGesture, Action, IDisposable?> 
         Pressed = null;
     }
 
-    private sealed class Binding(HotkeyGesture gesture, SynchronizationContext? context)
+    private sealed class Binding(MacHotkeyGesture gesture, SynchronizationContext? context)
     {
-        internal HotkeyGesture Gesture { get; } = gesture;
+        internal MacHotkeyGesture Gesture { get; } = gesture;
         internal SynchronizationContext? Context { get; set; } = context;
         internal IDisposable? Registration { get; set; }
     }
@@ -107,7 +107,7 @@ internal sealed partial class CarbonHotkey : IDisposable
 
     private CarbonHotkey(uint id) => this.id = id;
 
-    internal static unsafe CarbonHotkey? TryRegister(HotkeyGesture gesture, Action pressed, out string operation, out int status)
+    internal static unsafe CarbonHotkey? TryRegister(MacHotkeyGesture gesture, Action pressed, out string operation, out int status)
     {
         var id = unchecked((uint)Interlocked.Increment(ref nextId));
         var binding = new CarbonHotkey(id);
@@ -119,7 +119,7 @@ internal sealed partial class CarbonHotkey : IDisposable
             return null;
 
         operation = "RegisterEventHotKey";
-        status = RegisterEventHotKey(HotkeyGesture.KeyCodeV, gesture.Modifiers, new HotkeyId(Signature, id), target, Exclusive,
+        status = RegisterEventHotKey(MacHotkeyGesture.KeyCodeV, gesture.Modifiers, new HotkeyId(Signature, id), target, Exclusive,
             out binding.registration);
         if (status != 0)
         {

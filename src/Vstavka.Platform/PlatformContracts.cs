@@ -25,6 +25,35 @@ public enum PlatformCapabilities
 
 public enum PermissionState { NotNeeded, Granted, Missing }
 
+public enum PermissionRequirement { Required, Optional }
+
+/// <summary>A system permission or helper Vstavka needs on this platform, for onboarding and settings.</summary>
+/// <param name="Code">Stable identifier: <c>clipboard-access</c> and <c>accessibility</c> on macOS, <c>gnome-helper</c> on GNOME.</param>
+/// <param name="Requirement">Required for capture, or optional (Vstavka still works, with a manual step).</param>
+/// <param name="Request">Starts the system flow on a user's click: a permission prompt, a settings page or a helper
+/// install. Null when the app cannot help, for example when the permission is already granted.</param>
+public sealed record PlatformPermission(string Code, PermissionRequirement Requirement, PermissionState State, Action? Request = null);
+
+/// <summary>Starting Vstavka in the background when the user signs in.</summary>
+public interface IStartupRegistration
+{
+    bool IsSupported { get; }
+
+    bool IsEnabled { get; }
+
+    /// <returns>False when the system refused; the previous state stays.</returns>
+    bool TrySetEnabled(bool enabled);
+}
+
+/// <summary>Used until a platform implements start at login.</summary>
+public sealed class UnsupportedStartupRegistration : IStartupRegistration
+{
+    public static UnsupportedStartupRegistration Instance { get; } = new();
+    public bool IsSupported => false;
+    public bool IsEnabled => false;
+    public bool TrySetEnabled(bool enabled) => false;
+}
+
 /// <summary>Something the user should know or do, such as granting a permission or installing a helper.</summary>
 /// <param name="Code">Stable identifier, for example <c>accessibility-permission</c> or <c>gnome-extension-missing</c>.</param>
 /// <param name="Message">Plain-language explanation in English; the UI localizes known codes.</param>
@@ -58,7 +87,7 @@ public interface IGlobalHotkey : IDisposable
     /// <summary>Raised on the synchronization context that was current when <see cref="TryRegister"/> was called.</summary>
     event Action? Pressed;
 
-    /// <param name="gesture">One of <see cref="IPlatformServices.SupportedGestures"/>.</param>
+    /// <param name="gesture">Any usable <see cref="HotkeyGesture"/> in its text form, for example <c>Ctrl+Shift+V</c> or <c>Shift+Meta+V</c>.</param>
     /// <returns>False when the shortcut is taken or unsupported; the previous registration then stays active.</returns>
     bool TryRegister(string gesture);
 }
@@ -102,9 +131,16 @@ public interface IPlatformServices : IDisposable
     /// <summary>Folder for <c>history.vstavka</c>.</summary>
     string DataDirectory { get; }
 
+    /// <summary>The platform's default shortcut in <see cref="HotkeyGesture"/> text form.</summary>
     string DefaultGesture { get; }
 
+    /// <summary>Suggested shortcuts for this platform; any usable gesture can be registered.</summary>
     IReadOnlyList<string> SupportedGestures { get; }
+
+    /// <summary>Permissions and helpers, evaluated on every read. The UI re-reads them while a permission screen is visible.</summary>
+    IReadOnlyList<PlatformPermission> Permissions => [];
+
+    IStartupRegistration Startup => UnsupportedStartupRegistration.Instance;
 
     IClipboardMonitor Clipboard { get; }
 

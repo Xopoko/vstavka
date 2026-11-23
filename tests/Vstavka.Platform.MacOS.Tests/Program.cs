@@ -100,9 +100,9 @@ Run("Representations follow priority and PNG limits", () =>
 Run("Hotkey parsing, failed replacement and synchronization context", () =>
 {
     uint[] modifiers = [0x300, 0x1100, 0x900];
-    Check(HotkeyGesture.Supported.Select((name, i) => HotkeyGesture.TryParse(name, out var gesture) && gesture.Modifiers == modifiers[i]).All(x => x)
-        && HotkeyGesture.TryParse(" cmd+shift+v ", out _)
-        && !HotkeyGesture.TryParse("Ctrl+Shift+V", out _), "Only supported gestures map to the expected Carbon flags.");
+    Check(MacHotkeyGesture.Supported.Select((name, i) => MacHotkeyGesture.TryParse(name, out var gesture) && gesture.Modifiers == modifiers[i]).All(x => x)
+        && MacHotkeyGesture.TryParse(" cmd+shift+v ", out _)
+        && !MacHotkeyGesture.TryParse("Ctrl+Shift+V", out _), "Only supported gestures map to the expected Carbon flags.");
 
     var registrations = new List<FakeRegistration>();
     var context = new QueuedContext();
@@ -120,7 +120,7 @@ Run("Hotkey parsing, failed replacement and synchronization context", () =>
         });
         var pressed = 0;
         hotkey.Pressed += () => pressed++;
-        Check(hotkey.TryRegister(HotkeyGesture.Default) && hotkey.TryRegister(HotkeyGesture.Default) &&
+        Check(hotkey.TryRegister(MacHotkeyGesture.Default) && hotkey.TryRegister(MacHotkeyGesture.Default) &&
             !hotkey.TryRegister("Ctrl+Cmd+V") && registrations.Count == 1 && !registrations[0].Disposed,
             "An unavailable replacement keeps the current native registration.");
         registrations[0].Callback();

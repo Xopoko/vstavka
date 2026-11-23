@@ -632,6 +632,28 @@ try
             "Without its key the file is kept aside instead of being overwritten.");
     });
 
+    Run("Shortcut gestures parse aliases and refuse ones that would fire while typing", () =>
+    {
+        foreach (var (text, expected) in new[]
+        {
+            ("Ctrl+Shift+V", "Ctrl+Shift+V"), (" shift + ctrl + v ", "Ctrl+Shift+V"), ("Cmd+Shift+V", "Shift+Meta+V"),
+            ("Command+Option+k", "Alt+Meta+K"), ("control+alt+f5", "Ctrl+Alt+F5"), ("Super+Space", "Meta+Space"), ("Win+1", "Meta+1"),
+        })
+            Check(HotkeyGesture.TryParse(text, out var gesture) && gesture.ToString() == expected, $"{text} parses as {expected}.");
+        foreach (var text in new[] { null, "", "V", "Shift+V", "Ctrl+Ctrl+V", "Ctrl+Escape", "Ctrl+F0", "Ctrl+F25", "Hyper+V", "Ctrl+" })
+            Check(!HotkeyGesture.TryParse(text, out _), $"'{text}' is refused.");
+
+        var settings = JsonSerializer.Deserialize<AppSettings>("{\"PanelShortcut\":\"option+cmd+v\"}")!;
+        var store = Store("shortcut-settings");
+        store.Settings = settings;
+        store.Add(Text("synthetic shortcut probe"));
+        Check(store.Settings.PanelShortcut == "Alt+Meta+V" && !store.Settings.OnboardingCompleted,
+            "A stored shortcut is normalized and onboarding starts as not completed.");
+        store.Settings.PanelShortcut = "Shift+V";
+        store.Add(Text("another synthetic shortcut probe"));
+        Check(store.Settings.PanelShortcut is null, "An unusable stored shortcut falls back to the platform default.");
+    });
+
     Run("100 MiB image budget evicts old images and protects pins and collection items", () =>
     {
         var store = Store("image-budget");
