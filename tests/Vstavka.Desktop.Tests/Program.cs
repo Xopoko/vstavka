@@ -621,6 +621,33 @@ Run("Copy can fall back to the Avalonia headless clipboard", () =>
     finally { window.Close(); }
 });
 
+Run("Key frame animations move and scale controls", () =>
+{
+    // The other tests turn motion off, so this one runs the shared animation helper directly.
+    var target = new Border();
+    var window = new Window { Content = target };
+    window.Show();
+    try
+    {
+        using var stop = new CancellationTokenSource();
+        var motion = SetupVisuals.Animate(target, 10_000, stop.Token, (0, 1, "translateY(8px) scale(.9)"), (1, 1, "translateY(0px)"));
+        PumpUntil(() =>
+        {
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+            return motion.IsFaulted || target.RenderTransform?.Value.M32 > 1;
+        }, "The animation moves the control.");
+        Check(!motion.IsFaulted, motion.Exception?.GetBaseException().Message ?? "");
+        stop.Cancel();
+        PumpUntil(() =>
+        {
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+            return motion.IsCompleted;
+        }, "Cancelling stops the animation.");
+        Check(!motion.IsFaulted, "Cancelling an animation does not fault it.");
+    }
+    finally { window.Close(); }
+});
+
 if (args.Length == 2)
 {
     Run("Render light, dark, RTL, empty and platform notice PNGs", () =>

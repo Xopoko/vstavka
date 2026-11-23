@@ -1,8 +1,10 @@
 using System.Buffers.Binary;
 using Avalonia;
+using Avalonia.Animation;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
@@ -16,7 +18,11 @@ public sealed partial class App : Application
     private Window? _feedback;
     private DispatcherTimer? _feedbackTimer;
 
-    public override void Initialize() => AvaloniaXamlLoader.Load(this);
+    public override void Initialize()
+    {
+        Animation.RegisterCustomAnimator<ITransform, TransformKeyFrameAnimator>();
+        AvaloniaXamlLoader.Load(this);
+    }
 
     public override void OnFrameworkInitializationCompleted()
     {

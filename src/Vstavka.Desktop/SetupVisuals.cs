@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Animation;
+using Avalonia.Animation.Animators;
 using Avalonia.Animation.Easings;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -118,6 +119,17 @@ internal static class SetupVisuals
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
         finally { control.Opacity = 1; }
     }
+}
+
+/// <summary>
+/// Interpolates <see cref="Visual.RenderTransform"/> between key frames. Avalonia ships this only for
+/// transitions; without it, key frame animations that move or scale a control throw.
+/// </summary>
+internal sealed class TransformKeyFrameAnimator : InterpolatingAnimator<ITransform>
+{
+    public override ITransform Interpolate(double progress, ITransform oldValue, ITransform newValue) =>
+        TransformOperations.Interpolate(oldValue as TransformOperations ?? TransformOperations.Identity,
+            newValue as TransformOperations ?? TransformOperations.Identity, progress);
 }
 
 internal static class DesktopMotion
