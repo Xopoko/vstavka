@@ -87,6 +87,10 @@ jobs:
         if: ${{ !cancelled() && runner.os == 'Windows' }}
         run: dotnet run --project tests/Vstavka.Platform.Windows.Tests -c Release
 
+      - name: Linux adapter tests
+        if: ${{ !cancelled() }}
+        run: dotnet run --project tests/Vstavka.Platform.Linux.Tests -c Release
+
       - name: Panel tests with headless renders
         if: ${{ !cancelled() }}
         run: dotnet run --project tests/Vstavka.Desktop.Tests -c Release -- --render "$RUNNER_TEMP/renders"
@@ -102,3 +106,23 @@ jobs:
           name: panel-renders-${{ runner.os }}
           path: ${{ runner.temp }}/renders
           if-no-files-found: ignore
+
+  gnome-headless:
+    name: GNOME Shell integration (Wayland)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Run GNOME Shell integration
+        env:
+          VSTAVKA_GNOME_LOG_DIR: ${{ runner.temp }}/gnome-headless
+        run: bash gnome-extension/tests/run-headless.sh
+
+      - name: Upload GNOME Shell log
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: gnome-shell-log
+          path: ${{ runner.temp }}/gnome-headless/gnome-shell.log
+          if-no-files-found: warn

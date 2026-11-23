@@ -1,0 +1,6 @@
+{
+  "uuid": "probe@vstavka.test",
+  "name": "Vstavka headless test probe",
+  "description": "Inspects compositor state in the disposable test session.",
+  "shell-version": ["46"]
+}

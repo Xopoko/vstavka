@@ -16,6 +16,7 @@
     <PackageReference Include="FluentIcons.Avalonia" Version="2.1.345" />
     <ProjectReference Include="../Vstavka.Core/Vstavka.Core.csproj" />
     <ProjectReference Include="../Vstavka.Platform/Vstavka.Platform.csproj" />
+    <ProjectReference Include="../Vstavka.Platform.Linux/Vstavka.Platform.Linux.csproj" />
     <ProjectReference Include="../Vstavka.Platform.MacOS/Vstavka.Platform.MacOS.csproj" />
     <ProjectReference Include="../Vstavka.Platform.Windows/Vstavka.Platform.Windows.csproj" />
     <InternalsVisibleTo Include="Vstavka.Desktop.Tests" />

@@ -1,0 +1,29 @@
+<node>
+  <interface name="io.github.xopoko.Vstavka.Shell1">
+    <method name="SubscribeClipboard"/>
+    <method name="UnsubscribeClipboard"/>
+    <method name="SetClipboard">
+      <arg name="mime" type="s" direction="in"/>
+      <arg name="data" type="ay" direction="in"/>
+      <arg name="success" type="b" direction="out"/>
+    </method>
+    <method name="SetAccelerator">
+      <arg name="accelerator" type="s" direction="in"/>
+      <arg name="success" type="b" direction="out"/>
+    </method>
+    <method name="ReleaseHotkey"/>
+    <method name="CaptureTarget"/>
+    <method name="Paste">
+      <arg name="success" type="b" direction="out"/>
+    </method>
+    <method name="PreparePanel"/>
+    <signal name="ClipboardChanged">
+      <arg name="mime" type="s"/>
+      <arg name="data" type="ay"/>
+      <arg name="desktop_id" type="s"/>
+      <arg name="display_name" type="s"/>
+      <arg name="icon_path" type="s"/>
+    </signal>
+    <signal name="HotkeyPressed"/>
+  </interface>
+</node>

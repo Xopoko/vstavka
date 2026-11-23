@@ -1,0 +1,8 @@
+{
+  "uuid": "vstavka@xopoko.github.io",
+  "name": "Vstavka",
+  "description": "Connects Vstavka to the GNOME clipboard, shortcut and panel on Wayland.",
+  "url": "https://github.com/Xopoko/Vstavka",
+  "settings-schema": "io.github.xopoko.Vstavka.Shell",
+  "shell-version": ["46", "47", "48", "49", "50", "51"]
+}

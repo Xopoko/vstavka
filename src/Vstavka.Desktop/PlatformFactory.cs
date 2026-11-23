@@ -1,5 +1,6 @@
 using Vstavka.Core;
 using Vstavka.Platform;
+using Vstavka.Platform.Linux;
 using Vstavka.Platform.MacOS;
 using Vstavka.Platform.Windows;
 
@@ -15,6 +16,8 @@ internal static class PlatformFactory
             return new WindowsPlatformServices(settings);
         if (OperatingSystem.IsMacOS())
             return new MacPlatformServices();
+        if (OperatingSystem.IsLinux())
+            return new LinuxPlatformServices();
         return new AdapterUnavailable(new DemoPlatformServices());
     }
 

@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Vstavka Test Editor
+Exec=gjs -m /vstavka/tests/client.js
+Icon=vstavka-test-editor
+NoDisplay=true

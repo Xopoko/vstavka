@@ -456,6 +456,7 @@ internal sealed class PanelWindow : Window
             "pasteboard-access-denied" => Strings.Get("PasteboardAccessDenied"),
             "keychain-unavailable" => Strings.Get("KeychainUnavailable"),
             "gnome-extension-missing" => Strings.Get("GnomeExtensionMissing"),
+            "gnome-extension-not-allowed" => notice.Message,
             _ => notice?.Message ?? _history.Warning ?? Strings.Get(_history.Paused ? "Paused"
                 : _platform is DemoPlatformServices ? "DemoStatus" : "LocalHistory")
         };

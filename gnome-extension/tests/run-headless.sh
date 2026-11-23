@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+extension_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+image=${VSTAVKA_TEST_IMAGE:-ubuntu:24.04}
+log_mount=()
+if [[ -n "${VSTAVKA_GNOME_LOG_DIR:-}" ]]; then
+    mkdir -p -- "$VSTAVKA_GNOME_LOG_DIR"
+    log_dir=$(cd -- "$VSTAVKA_GNOME_LOG_DIR" && pwd)
+    log_mount=(--mount "type=bind,src=$log_dir,dst=/vstavka-test-logs")
+fi
+docker run --rm --label io.github.xopoko.vstavka.test=headless --cpus 2 --memory 2g \
+    --mount "type=bind,src=$extension_dir,dst=/vstavka,readonly" "${log_mount[@]}" "$image" bash -ec '
+        if ! command -v gnome-shell >/dev/null || ! command -v gjs >/dev/null; then
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update -qq
+            apt-get install -y -qq --no-install-recommends gnome-shell gjs gir1.2-gtk-4.0 \
+                dbus dbus-x11 dconf-gsettings-backend libgl1-mesa-dri >/tmp/install.log 2>&1 ||
+                { tail -80 /tmp/install.log; exit 1; }
+        fi
+        exec dbus-run-session -- bash /vstavka/tests/session.sh
+    '
