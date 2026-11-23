@@ -11,54 +11,86 @@ internal sealed class GnomeHelper(string dataHome, string bundledRoot, string? e
     private const string HelperSchema = "io.github.xopoko.Vstavka.Shell";
     private const string EnabledKey = "enabled-extensions";
     private const string AllowedKey = "allowed-executables";
-    private readonly string _extensions = Path.Combine(dataHome, "gnome-shell", "extensions");
-
-    public bool NeedsRestart { get; private set; }
+    private const string SessionManager = "org.gnome.SessionManager";
+    private readonly string _userExtension = Path.Combine(dataHome, "gnome-shell", "extensions", Uuid);
+    private readonly object _setupLock = new();
 
     public PlatformPermission Permission(GnomeConnection shell)
     {
-        var allowed = shell.Desktop is not null || shell.Access == GnomeAccess.Busy;
-        if (allowed || shell.Access == GnomeAccess.Denied)
-            NeedsRestart = false;
-        Action? request = allowed || NeedsRestart || executable is null ? null : () => Request(shell.Access == GnomeAccess.Denied);
-        return new("gnome-helper", PermissionRequirement.Required,
-            allowed ? PermissionState.Granted : PermissionState.Missing, request);
+        if (shell.Desktop is not null || shell.Access == GnomeAccess.Busy)
+            return Result(PermissionState.Granted);
+        if (shell.Access == GnomeAccess.Denied)
+            return Result(PermissionState.Missing, executable is null ? null : () => Configure(allowOnly: true));
+        if (shell.Access == GnomeAccess.SessionUnavailable)
+            return Result(PermissionState.Missing);
+        if (FindInstalled() is null)
+            return Result(PermissionState.Missing, executable is null ? null : () => Configure(allowOnly: false));
+
+        var enabled = run("gsettings", "get", ShellSchema, EnabledKey);
+        if (enabled is null || !GVariantStringArray.TryAppend(enabled, Uuid, out var updated) || updated is not null)
+            return Result(PermissionState.Missing, () => Configure(allowOnly: false));
+        if (shell.Access != GnomeAccess.Unavailable)
+            return Result(PermissionState.Missing);
+
+        var hasOwner = run("gdbus", "call", "--session", "--dest", "org.freedesktop.DBus", "--object-path",
+            "/org/freedesktop/DBus", "--method", "org.freedesktop.DBus.NameHasOwner", SessionManager);
+        return Result(PermissionState.RestartRequired, hasOwner?.Trim() == "(true,)" ? SignOut : null);
     }
 
-    private void Request(bool active)
+    private static PlatformPermission Result(PermissionState state, Action? request = null) =>
+        new("gnome-helper", PermissionRequirement.Required, state, request);
+
+    private void SignOut() => run("gdbus", "call", "--session", "--dest", SessionManager, "--object-path",
+        "/org/gnome/SessionManager", "--method", SessionManager + ".Logout", "0");
+
+    private void Configure(bool allowOnly)
     {
-        if (NeedsRestart || executable is null)
-            return;
-        try
+        lock (_setupLock)
         {
-            var userExtension = Path.Combine(_extensions, Uuid);
-            var installed = FindInstalled(userExtension);
-            var copied = installed is null;
-            if (copied)
+            try
             {
-                CopyFiles(Path.Combine(bundledRoot, "gnome-extension", Uuid), userExtension);
-                installed = userExtension;
-            }
+                var installed = FindInstalled();
+                if (allowOnly)
+                {
+                    if (installed is not null && executable is not null)
+                        AllowExecutable(installed, executable);
+                    return;
+                }
 
-            var schemas = Path.Combine(installed!, "schemas");
-            if (installed == userExtension && (copied || !File.Exists(Path.Combine(schemas, "gschemas.compiled"))) &&
-                run("glib-compile-schemas", "--strict", schemas) is null)
-                return;
-            if (!Append(schemas, HelperSchema, AllowedKey, executable))
-                return;
-            if (!active && Append(null, ShellSchema, EnabledKey, Uuid))
-                NeedsRestart = true;
-        }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
-        {
-            System.Diagnostics.Trace.TraceWarning("Could not set up the Vstavka GNOME helper: {0}", error.Message);
+                if (installed is null)
+                {
+                    if (executable is null)
+                        return;
+                    var source = Path.Combine(bundledRoot, "gnome-extension", Uuid);
+                    CopyFiles(source, _userExtension);
+                    if (!AllowExecutable(_userExtension, executable, newInstall: true))
+                        return;
+                    // The manifest marks a prepared install and is copied last so setup can be retried.
+                    File.Copy(Path.Combine(source, "metadata.json"), Path.Combine(_userExtension, "metadata.json"));
+                }
+
+                Append(null, ShellSchema, EnabledKey, Uuid);
+            }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+            {
+                System.Diagnostics.Trace.TraceWarning("Could not set up the Vstavka GNOME helper: {0}", error.Message);
+            }
         }
     }
 
-    private string? FindInstalled(string userExtension)
+    private bool AllowExecutable(string installed, string path, bool newInstall = false)
     {
-        if (File.Exists(Path.Combine(userExtension, "metadata.json")))
-            return userExtension;
+        var schemas = Path.Combine(installed, "schemas");
+        if (installed == _userExtension && (newInstall || !File.Exists(Path.Combine(schemas, "gschemas.compiled"))) &&
+            run("glib-compile-schemas", "--strict", schemas) is null)
+            return false;
+        return Append(schemas, HelperSchema, AllowedKey, path);
+    }
+
+    private string? FindInstalled()
+    {
+        if (File.Exists(Path.Combine(_userExtension, "metadata.json")))
+            return _userExtension;
         foreach (var directory in (dataDirs ?? "/usr/local/share:/usr/share").Split(':'))
         {
             if (!Path.IsPathFullyQualified(directory))
@@ -91,7 +123,6 @@ internal sealed class GnomeHelper(string dataHome, string bundledRoot, string? e
             File.Copy(file, target, overwrite: true);
         }
         Directory.CreateDirectory(destination);
-        File.Copy(manifest, Path.Combine(destination, "metadata.json"));
     }
 }
 

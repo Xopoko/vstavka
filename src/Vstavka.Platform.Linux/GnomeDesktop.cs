@@ -19,7 +19,7 @@ internal sealed class GnomeDesktop : ILinuxDesktop
     public static GnomeConnection TryConnect()
     {
         if (!OperatingSystem.IsLinux() || DBusAddress.Session is not { } address)
-            return default;
+            return new(null, GnomeAccess.Unknown);
         var connection = new DBusConnection(address);
         try
         {
@@ -44,7 +44,7 @@ internal sealed class GnomeDesktop : ILinuxDesktop
         catch (Exception error) when (IsBusFailure(error))
         {
             connection.Dispose();
-            return default;
+            return new(null, GnomeAccess.Unknown);
         }
     }
 
@@ -74,7 +74,7 @@ internal sealed class GnomeDesktop : ILinuxDesktop
         }
         catch (Exception error) when (IsBusFailure(error))
         {
-            return default;
+            return new(null, GnomeAccess.Unknown);
         }
     }
 
@@ -83,7 +83,8 @@ internal sealed class GnomeDesktop : ILinuxDesktop
         BusName + ".AccessDenied" => GnomeAccess.Denied,
         BusName + ".ClipboardBusy" => GnomeAccess.Busy,
         BusName + ".SessionUnavailable" => GnomeAccess.SessionUnavailable,
-        _ => GnomeAccess.Unavailable,
+        BusDaemon + ".Error.NameHasNoOwner" or BusDaemon + ".Error.ServiceUnknown" => GnomeAccess.Unavailable,
+        _ => GnomeAccess.Unknown,
     };
 
     public PlatformCapabilities Capabilities => PlatformCapabilities.WatchClipboard |

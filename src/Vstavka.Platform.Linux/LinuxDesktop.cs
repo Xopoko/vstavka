@@ -60,7 +60,7 @@ internal sealed record LinuxGesture(string Accelerator, nuint XKeySym, uint XMod
 }
 
 internal enum LinuxSession { Unknown, X11, Wayland }
-internal enum GnomeAccess { Unavailable, Denied, Busy, SessionUnavailable }
+internal enum GnomeAccess { Unavailable, Denied, Busy, SessionUnavailable, Unknown }
 internal readonly record struct GnomeConnection(ILinuxDesktop? Desktop, GnomeAccess Access = GnomeAccess.Unavailable);
 
 internal static class LinuxDesktop

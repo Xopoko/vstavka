@@ -55,7 +55,8 @@ public sealed class LinuxPlatformServices : IPlatformServices
     {
         GnomeAccess.Denied => [new("gnome-extension-not-allowed", "Allow the Vstavka executable to use the GNOME Shell extension.")],
         GnomeAccess.Busy => [new("gnome-extension-busy", "Another Vstavka process is using the GNOME clipboard.")],
-        _ when _helper?.NeedsRestart == true => [new("gnome-helper-restart", "Sign out and back in to finish.")],
+        _ when _helper?.Permission(_shell) is { State: PermissionState.RestartRequired } helper =>
+            [new("gnome-helper-restart", "Sign out and back in to finish.", helper.Request)],
         _ when _desktop is not null => [],
         _ when _session == LinuxSession.Wayland => [new("gnome-extension-missing", "Install and enable the Vstavka GNOME Shell extension.")],
         _ => [new("linux-desktop-unavailable", "Vstavka could not connect to a GNOME Shell extension or an X11 desktop.")],

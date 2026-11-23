@@ -7,7 +7,7 @@ Run("Session selects the extension first and never uses Xwayland as the clipboar
 Run("Clipboard maps supported formats, caps data and skips private selections", TestClipboardFormats);
 Run("Clipboard and shortcut use their registration contexts and keep external copies after a write", TestCallbacks);
 Run("Linux shortcuts map usable gestures to GNOME accelerators and X11 keysyms", TestGestures);
-Run("GNOME helper installs the bundled files, preserves settings and grants access without restarting when active", TestGnomeHelper);
+Run("GNOME helper reflects installation, enablement and access, and offers GNOME sign-out only when available", TestGnomeHelper);
 Run("XDG autostart follows the configured executable and honors Hidden", TestStartup);
 
 static void TestModes()
@@ -160,7 +160,11 @@ static void TestGnomeHelper()
         var destination = Path.Combine(home.FullName, ".local", "share", "gnome-shell", "extensions", uuid);
         var schemas = Path.Combine(destination, "schemas");
         var allowed = original;
-        var enabled = "['first@example.org', 'second@example.org']";
+        const string disabled = "['first@example.org', 'second@example.org']";
+        var enabled = disabled;
+        var enabledWithHelper = $"['first@example.org', 'second@example.org', '{uuid}']";
+        var sessionManagerAvailable = true;
+        var compilerAvailable = false;
         var commands = new List<string[]>();
         var shell = default(GnomeConnection);
         string? RunCommand(string program, params string[] arguments)
@@ -170,35 +174,79 @@ static void TestGnomeHelper()
             {
                 Check(File.Exists(Path.Combine(schemas, $"{schema}.gschema.xml")));
                 Check(!File.Exists(Path.Combine(schemas, "gschemas.compiled")));
+                if (!compilerAvailable)
+                    return null;
                 File.WriteAllText(Path.Combine(schemas, "gschemas.compiled"), "fake cache");
                 return "";
             }
+            if (program == "gdbus")
+            {
+                if (arguments[^2] == "org.gnome.SessionManager.Logout")
+                    return "()";
+                Check(arguments.SequenceEqual(["call", "--session", "--dest", "org.freedesktop.DBus", "--object-path",
+                    "/org/freedesktop/DBus", "--method", "org.freedesktop.DBus.NameHasOwner", "org.gnome.SessionManager"]));
+                return sessionManagerAvailable ? "(true,)\n" : "(false,)\n";
+            }
+            Check(program == "gsettings");
             if (arguments[0] == "--schemadir")
                 return arguments[2] == "get" ? allowed : allowed = arguments[^1];
             return arguments[0] == "get" ? enabled : enabled = arguments[^1];
         }
 
-        using var platform = new LinuxPlatformServices(name => name switch
+        LinuxPlatformServices CreatePlatform() => new(name => name switch
         {
             "XDG_SESSION_TYPE" => "wayland",
             "XDG_CURRENT_DESKTOP" => "ubuntu:GNOME",
             _ => null,
         }, home.FullName, () => shell, () => throw new InvalidOperationException("X11 fallback"), () => null,
             executable, AppContext.BaseDirectory, RunCommand);
+        using var platform = CreatePlatform();
         var missing = platform.Permissions.Single();
         Check(missing is { Code: "gnome-helper", Requirement: PermissionRequirement.Required, State: PermissionState.Missing, Request: not null });
         platform.Clipboard.Start();
         missing.Request!();
+        Check(!File.Exists(Path.Combine(destination, "metadata.json")) && commands.Count == 1);
+        Check(platform.Permissions.Single() is { State: PermissionState.Missing, Request: not null });
+        commands.Clear();
+        compilerAvailable = true;
+        Task.WhenAll(Task.Run(missing.Request!), Task.Run(missing.Request!)).GetAwaiter().GetResult();
         Check(File.Exists(Path.Combine(destination, "metadata.json")) && File.Exists(Path.Combine(destination, "extension.js")));
-        Check(commands.Count == 5);
+        Check(commands.Count == 6 && enabled == enabledWithHelper);
         Check(commands[0].SequenceEqual(["glib-compile-schemas", "--strict", schemas]));
         Check(commands[1].SequenceEqual(["gsettings", "--schemadir", schemas, "get", schema, "allowed-executables"]));
         Check(commands[2].SequenceEqual(["gsettings", "--schemadir", schemas, "set", schema, "allowed-executables", appended]));
         Check(commands[3].SequenceEqual(["gsettings", "get", "org.gnome.shell", "enabled-extensions"]));
-        Check(commands[4].SequenceEqual(["gsettings", "set", "org.gnome.shell", "enabled-extensions",
-            $"['first@example.org', 'second@example.org', '{uuid}']"]));
+        Check(commands[4].SequenceEqual(["gsettings", "set", "org.gnome.shell", "enabled-extensions", enabledWithHelper]));
+        Check(commands[5].SequenceEqual(commands[3]));
+
+        var notice = platform.Notices.Single();
+        var restart = platform.Permissions.Single();
+        Check(restart is { State: PermissionState.RestartRequired, Request: not null });
+        Check(notice.Code == "gnome-helper-restart" && notice.Resolve == restart.Request);
+        commands.Clear();
+        restart.Request!();
+        Check(commands.Single().SequenceEqual(["gdbus", "call", "--session", "--dest", "org.gnome.SessionManager",
+            "--object-path", "/org/gnome/SessionManager", "--method", "org.gnome.SessionManager.Logout", "0"]));
+
+        using (var reopened = CreatePlatform())
+            Check(reopened.Permissions.Single() is { State: PermissionState.RestartRequired, Request: not null });
+        sessionManagerAvailable = false;
+        Check(platform.Permissions.Single() is { State: PermissionState.RestartRequired, Request: null });
+        Check(platform.Notices.Single() is { Code: "gnome-helper-restart", Resolve: null });
+
+        sessionManagerAvailable = true;
+        enabled = disabled;
+        var enable = platform.Permissions.Single();
+        Check(enable is { State: PermissionState.Missing, Request: not null });
+        commands.Clear();
+        enable.Request!();
+        Check(commands.Count == 2 && enabled == enabledWithHelper);
+        Check(commands[0].SequenceEqual(["gsettings", "get", "org.gnome.shell", "enabled-extensions"]));
+        Check(commands[1].SequenceEqual(["gsettings", "set", "org.gnome.shell", "enabled-extensions", enabledWithHelper]));
+        Check(platform.Permissions.Single() is { State: PermissionState.RestartRequired, Request: not null });
+
+        shell = new(null, GnomeAccess.SessionUnavailable);
         Check(platform.Permissions.Single() is { State: PermissionState.Missing, Request: null });
-        Check(platform.Notices.Single().Code == "gnome-helper-restart");
 
         shell = new(null, GnomeAccess.Denied);
         var allow = platform.Permissions.Single();
