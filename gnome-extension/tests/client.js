@@ -9,6 +9,7 @@ const PROBE = 'io.github.xopoko.Vstavka.TestProbe';
 const PATH = '/io/github/xopoko/Vstavka/';
 const TEXT = 'text/plain;charset=utf-8';
 const EDITOR_TITLE = 'Vstavka Test Editor';
+const TERMINAL_TITLE = 'Vstavka Test Terminal';
 const clipboardEvents = [];
 let shortcutCount = 0;
 const bus = Gio.DBus.session;
@@ -173,6 +174,34 @@ async function test(editor, entry) {
     check(call(SHELL, 'Paste'), 'Paste accepted with the panel focused');
     await until('pasted editor entry', () => entry.text === value);
     check(windowState(EDITOR_TITLE).focused, 'Paste refocused GTK editor and inserted expected text');
+
+    const terminalApp = new Gtk.Application({application_id: 'io.github.xopoko.VstavkaTestTerminal'});
+    terminalApp.register(null);
+    const terminalEntry = new Gtk.Entry();
+    const terminal = new Gtk.ApplicationWindow({application: terminalApp, title: TERMINAL_TITLE,
+        default_width: 500, default_height: 220, child: terminalEntry});
+    const keys = new Gtk.EventControllerKey({propagation_phase: Gtk.PropagationPhase.CAPTURE});
+    const modifiers = Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK;
+    let terminalPasted = false;
+    keys.connect('key-pressed', (_controller, keyval, _keycode, state) => {
+        if (Gdk.keyval_to_lower(keyval) !== Gdk.KEY_v || (state & modifiers) !== modifiers)
+            return false;
+        terminalPasted = true;
+        return true;
+    });
+    terminal.add_controller(keys);
+    terminal.set_visible(true);
+    await until('terminal mapped', () => windowState(TERMINAL_TITLE));
+    call(PROBE, 'Focus', '(s)', [TERMINAL_TITLE]);
+    await until('terminal focused', () => windowState(TERMINAL_TITLE)?.focused);
+    terminalEntry.grab_focus();
+    call(SHELL, 'CaptureTarget');
+    call(PROBE, 'Focus', '(s)', ['Vstavka']);
+    await until('panel focused for terminal paste', () => windowState('Vstavka')?.focused);
+    check(call(SHELL, 'Paste'), 'Paste accepted for the captured terminal');
+    await until('terminal received Ctrl+Shift+V', () => terminalPasted);
+    check(windowState(TERMINAL_TITLE).focused, 'Paste refocused the terminal and sent Ctrl+Shift+V');
+    terminal.destroy();
 
     panel.destroy();
     await until('panel removed from Mutter', () => !windowState('Vstavka'));

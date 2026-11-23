@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Vstavka Test Terminal
+Exec=gjs -m /vstavka/tests/client.js
+Categories=System;TerminalEmulator;
+NoDisplay=true

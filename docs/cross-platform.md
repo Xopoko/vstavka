@@ -44,8 +44,7 @@ defaults are Ctrl+Shift+V on Windows, ⇧⌘V on macOS and Ctrl+Alt+V on Linux, 
 Ctrl+Shift+V is paste in terminals. Inside the panel, macOS uses ⌘ where Windows and Linux
 use Ctrl.
 
-Not done yet: managing collections and sounds in the new app; automatic paste into Linux
-terminals, which expect Ctrl+Shift+V; signed release packages.
+Not done yet: managing collections and sounds in the new app, and signed release packages.
 
 ## Trying the app
 

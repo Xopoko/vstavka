@@ -14,6 +14,7 @@ internal sealed partial class X11Desktop : ILinuxDesktop
     private readonly bool _hasXTest;
     private readonly byte _v;
     private readonly byte _control;
+    private readonly byte _shift;
     private readonly uint _numLock;
     private readonly Thread _thread;
     private readonly AutoResetEvent _wakeup = new(false);
@@ -23,7 +24,7 @@ internal sealed partial class X11Desktop : ILinuxDesktop
     private volatile bool _closed;
     private bool _watching;
     private (byte Keycode, uint[] Masks)? _hotkey;
-    private nuint _pasteTarget;
+    private (nuint Window, bool IsTerminal) _pasteTarget;
 
     private X11Desktop(nint display, int fixesEvent, bool hasXTest)
     {
@@ -35,6 +36,7 @@ internal sealed partial class X11Desktop : ILinuxDesktop
         _window = CreateHiddenWindow();
         _v = XKeysymToKeycode(display, 'v');
         _control = XKeysymToKeycode(display, 0xffe3); // Control_L
+        _shift = XKeysymToKeycode(display, 0xffe1); // Shift_L
         _numLock = ModifierMask(0xff7f, 0); // Num_Lock
         _thread = new Thread(Run) { Name = "Vstavka X11", IsBackground = true };
         _thread.Start();
@@ -176,14 +178,19 @@ internal sealed partial class X11Desktop : ILinuxDesktop
         }
     }
 
-    public void CaptureTarget() => Invoke(() => { XGetInputFocus(_display, out _pasteTarget, out _); });
+    public void CaptureTarget() => Invoke(() =>
+    {
+        XGetInputFocus(_display, out var window, out _);
+        _pasteTarget = (window, _xcb != 0 && LinuxTerminals.IsTerminalClass(ActiveWindowClass()));
+    });
     public void PreparePanel() { }
 
     public Task<bool> PasteAsync() => Enqueue(() =>
     {
-        var target = _pasteTarget;
-        _pasteTarget = 0;
-        if (!Capabilities.HasFlag(PlatformCapabilities.AutoPaste) || target <= 1 || target == _root || target == _window)
+        var (target, isTerminal) = _pasteTarget;
+        _pasteTarget = default;
+        if (!Capabilities.HasFlag(PlatformCapabilities.AutoPaste) || target <= 1 || target == _root || target == _window ||
+            (isTerminal && _shift == 0))
             return false;
         XGetInputFocus(_display, out var focus, out _);
         if (focus != target &&
@@ -191,8 +198,12 @@ internal sealed partial class X11Desktop : ILinuxDesktop
              XGetInputFocus(_display, out focus, out _) == 0 || focus != target))
             return false;
         var success = XTestFakeKeyEvent(_display, _control, 1, 0) != 0;
+        if (isTerminal)
+            success &= XTestFakeKeyEvent(_display, _shift, 1, 0) != 0;
         success &= XTestFakeKeyEvent(_display, _v, 1, 0) != 0;
         success &= XTestFakeKeyEvent(_display, _v, 0, 0) != 0;
+        if (isTerminal)
+            success &= XTestFakeKeyEvent(_display, _shift, 0, 0) != 0;
         success &= XTestFakeKeyEvent(_display, _control, 0, 0) != 0;
         XFlush(_display);
         return success;

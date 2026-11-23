@@ -12,6 +12,10 @@ const isApp = window => {
     return [window.get_wm_class(), window.get_wm_class_instance(), window.get_gtk_application_id(), app?.get_id()]
         .some(id => id?.toLowerCase().replace(/\.desktop$/, '') === APP_ID);
 };
+const isTerminal = window => {
+    const app = Shell.WindowTracker.get_default().get_window_app(window);
+    return app?.get_app_info()?.get_categories()?.split(';').includes('TerminalEmulator') ?? false;
+};
 
 export class Windows {
     constructor() {
@@ -131,10 +135,15 @@ export class Windows {
             ?.create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
         if (!this.keyboard)
             return false;
+        const terminal = isTerminal(target);
         const send = (key, state) => this.keyboard.notify_keyval(GLib.get_monotonic_time(), key, state);
         send(Clutter.KEY_Control_L, Clutter.KeyState.PRESSED);
+        if (terminal)
+            send(Clutter.KEY_Shift_L, Clutter.KeyState.PRESSED);
         send(Clutter.KEY_v, Clutter.KeyState.PRESSED);
         send(Clutter.KEY_v, Clutter.KeyState.RELEASED);
+        if (terminal)
+            send(Clutter.KEY_Shift_L, Clutter.KeyState.RELEASED);
         send(Clutter.KEY_Control_L, Clutter.KeyState.RELEASED);
         return true;
     }

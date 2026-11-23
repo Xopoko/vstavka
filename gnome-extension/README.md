@@ -73,7 +73,7 @@ The service owns `io.github.xopoko.Vstavka.Shell1` on the session bus while enab
 - Attribution uses the focused app at the time of the owner change. Unavailable metadata is an empty string. The theme lookup prefers a PNG at 32 pixels. The adapter accepts PNG paths up to 32 × 32 and 64 KiB.
 - `SetClipboard` accepts `text/plain;charset=utf-8`, `text/uri-list`, and `image/png`. The extension suppresses its own owner change. The app's clipboard writer sends file paths as newline-delimited plain text.
 - The default is Ctrl+Alt+V. Suggestions include Ctrl+Shift+V and Alt+V. `SetAccelerator` accepts `<Control>`, `<Alt>`, `<Shift>` and `<Super>` in any order, once each, followed by `a`–`z`, `0`–`9`, `F1`–`F24` or `space`. At least one of Control, Alt or Super is required. A successful call registers the keybinding for that caller and saves its accelerator. An unavailable accelerator returns false and preserves the previous binding.
-- `Paste` returns true after the extension has focused the target and queued Ctrl+V. The receiving application decides how to handle the shortcut.
+- `Paste` returns true after the extension has focused the target and queued Ctrl+V, or Ctrl+Shift+V for apps with the `TerminalEmulator` desktop entry category. The receiving application decides how to handle the shortcut.
 
 ### Access
 

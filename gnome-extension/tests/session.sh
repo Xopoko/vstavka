@@ -20,7 +20,7 @@ extensions=$XDG_DATA_HOME/gnome-shell/extensions
 mkdir -m 700 "$XDG_RUNTIME_DIR"
 mkdir -p "$extensions" "$XDG_DATA_HOME/applications" /run/dbus
 cp -r "/vstavka/$uuid" /vstavka/tests/probe@vstavka.test "$extensions"
-cp /vstavka/tests/io.github.xopoko.VstavkaTest.desktop "$XDG_DATA_HOME/applications/"
+cp /vstavka/tests/io.github.xopoko.VstavkaTest{,Terminal}.desktop "$XDG_DATA_HOME/applications/"
 icons=$XDG_DATA_HOME/icons/hicolor/32x32/apps
 mkdir -p "$icons"
 printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGMQMgn7DwAClAGcHVtGXwAAAABJRU5ErkJggg==' |

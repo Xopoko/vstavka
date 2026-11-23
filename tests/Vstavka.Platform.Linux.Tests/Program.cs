@@ -7,6 +7,7 @@ Run("Session selects the extension first and never uses Xwayland as the clipboar
 Run("Clipboard maps supported formats, caps data and skips private selections", TestClipboardFormats);
 Run("Clipboard and shortcut use their registration contexts and keep external copies after a write", TestCallbacks);
 Run("Linux shortcuts map usable gestures to GNOME accelerators and X11 keysyms", TestGestures);
+Run("X11 recognizes terminal instance and class names for Ctrl+Shift+V", TestTerminalClasses);
 Run("GNOME helper reflects installation, enablement and access, and offers GNOME sign-out only when available", TestGnomeHelper);
 Run("XDG autostart follows the configured executable and honors Hidden", TestStartup);
 
@@ -145,6 +146,15 @@ static void TestGestures()
         Check(LinuxGesture.Parse(text) == new LinuxGesture(accelerator, keysym, modifiers));
     foreach (var invalid in new[] { "v", "Shift+V", "Ctrl+Ctrl+V", "Ctrl+F25", "Ctrl+Return", "Ctrl+Я" })
         Check(LinuxGesture.Parse(invalid) is null);
+}
+
+static void TestTerminalClasses()
+{
+    Check(LinuxTerminals.IsTerminalClass("gnome-terminal-server\0Gnome-terminal\0"));
+    Check(LinuxTerminals.IsTerminalClass("custom-instance\0KiTtY\0"));
+    Check(LinuxTerminals.IsTerminalClass("kitty\0custom-class\0"));
+    foreach (var wmClass in new[] { "code\0Code\0", "xterm\0XTerm\0", "urxvt\0URxvt\0", "", null })
+        Check(!LinuxTerminals.IsTerminalClass(wmClass));
 }
 
 static void TestGnomeHelper()

@@ -352,14 +352,16 @@ internal sealed partial class X11Desktop
         return formats.ToArray();
     }
 
-    private string? FocusedApp()
+    private string? FocusedApp() =>
+        ActiveWindowClass()?.Split('\0', StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
+
+    private string? ActiveWindowClass()
     {
         var active = ReadProperty(_root, Atom("_NET_ACTIVE_WINDOW"), 4);
         var window = active is { Format: 32, Data.Length: 4 } ? BitConverter.ToUInt32(active.Data) : 0;
         if (window == 0)
             return null;
         var wmClass = ReadProperty(window, Atom("WM_CLASS"), 1024);
-        return wmClass is { Format: 8 } ? Encoding.Latin1.GetString(wmClass.Data)
-            .Split('\0', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() : null;
+        return wmClass is { Format: 8 } ? Encoding.Latin1.GetString(wmClass.Data) : null;
     }
 }
