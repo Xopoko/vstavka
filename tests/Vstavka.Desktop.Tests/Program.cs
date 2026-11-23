@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.IO.Compression;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -18,9 +20,9 @@ using Vstavka.Core.Localization;
 using Vstavka.Desktop;
 using Vstavka.Platform;
 
-if (args.Length != 0 && (args.Length != 2 || args[0] != "--render"))
+if (args.Length != 0 && (args.Length != 2 || args[0] is not ("--render" or "--readme")))
 {
-    Console.Error.WriteLine("Usage: Vstavka.Desktop.Tests [--render <directory>]");
+    Console.Error.WriteLine("Usage: Vstavka.Desktop.Tests [--render <directory> | --readme <directory>]");
     return 2;
 }
 
@@ -30,6 +32,12 @@ AppBuilder.Configure<App>()
     .SetupWithoutStarting();
 
 var failures = 0;
+if (args.Length == 2 && args[0] == "--readme")
+{
+    Run("Render README images", () => RenderReadme(Path.GetFullPath(args[1])));
+    return failures == 0 ? 0 : 1;
+}
+
 Run("Category filters, search and empty results", () =>
 {
     using var demo = new DemoPlatformServices();
@@ -797,6 +805,169 @@ static void Check(bool condition, string message)
 {
     if (!condition)
         throw new InvalidOperationException(message);
+}
+
+static void RenderReadme(string directory)
+{
+    Directory.CreateDirectory(directory);
+    using var context = AvaloniaSynchronizationContext.Ensure(DispatcherPriority.Normal);
+    Strings.SetLanguage("en");
+    var scratch = Directory.CreateTempSubdirectory("vstavka-readme-");
+    using var demo = new SetupDemo("macOS")
+    {
+        DataDirectory = Path.Combine(scratch.FullName, "history"),
+        HistoryProtector = new AesGcmHistoryProtector(new TestKeyStore())
+    };
+    demo.DemoPermissions.AddRange(MacPermissions());
+    demo.Startup.TrySetEnabled(true);
+    var history = CreateHistory(demo, seed: true);
+    try
+    {
+        RenderStills();
+        history.Store.Settings.OnboardingStep = 0;
+        RenderReadmeAnimation(new OnboardingWindow(demo, history) { RequestedThemeVariant = ThemeVariant.Light }, directory,
+            scratch.CreateSubdirectory("frames").FullName);
+    }
+    finally
+    {
+        try { history.Stop(); }
+        finally { scratch.Delete(recursive: true); }
+    }
+
+    void RenderStills()
+    {
+        var samples = history.Store.Items;
+        var note = samples.Single(item => item.IsPinned);
+        note.Text = Strings.Get("WelcomeSampleText") + "\nBring the printed trail map and the field notebook.";
+        history.Store.Add(new ClipItem
+        {
+            Text = "const route = [\n  'North path',\n  'Old bridge',\n  'River loop',\n];",
+            SourceApp = "Code",
+            CapturedAt = samples.Min(item => item.CapturedAt).AddMinutes(-7)
+        });
+        history.Store.SetSourceIcon("Code", DemoSamples.SourceIcon("Code"));
+        Check(history.Store.Items.All(item => !history.Store.GetSourceIcon(item.SourceApp).IsEmpty),
+            "Every README card shows its source app icon.");
+
+        foreach (var (variant, name) in new[] { (ThemeVariant.Light, "light"), (ThemeVariant.Dark, "dark") })
+        {
+            var panel = OpenPanel(demo, history, variant);
+            try
+            {
+                var cards = Find<ListBox>(panel, "Cards");
+                Check(cards.Items.Count == 6 && ReferenceEquals(cards.SelectedItem, note), "The selected note and all six demo items are in the panel.");
+                var scroll = (ScrollViewer)cards.Scroll!;
+                var margin = cards.ContainerFromIndex(0)!.Margin;
+                var width = Math.Floor(scroll.Viewport.Width / cards.Items.Count - margin.Left - margin.Right);
+                cards.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>()) { Setters = { new Setter(Layoutable.WidthProperty, width) } });
+                Flush(panel);
+                Check(scroll.Extent.Width <= scroll.Viewport.Width, "All six cards fit in the README panel.");
+                SaveStill(panel, "panel-" + name);
+            }
+            finally { panel.Close(); }
+        }
+
+        var guide = new OnboardingWindow(demo, history, animate: false) { RequestedThemeVariant = ThemeVariant.Light };
+        guide.Show();
+        try
+        {
+            Advance(guide, 2);
+            SaveStill(guide, "onboarding-permissions");
+        }
+        finally { guide.Close(); }
+
+        history.Store.Settings.Theme = "light";
+        var settings = new SettingsWindow(demo, history, animate: false) { RequestedThemeVariant = ThemeVariant.Light };
+        settings.Show();
+        try
+        {
+            Flush(settings);
+            var scroll = Find<ScrollViewer>(settings, "SettingsScroll");
+            settings.Height += Math.Max(0, Math.Ceiling(scroll.Extent.Height - scroll.Viewport.Height));
+            Flush(settings);
+            Check(scroll.Extent.Height <= scroll.Viewport.Height, "All settings fields fit in the README window.");
+            SaveStill(settings, "settings");
+        }
+        finally { settings.Close(); }
+    }
+
+    void SaveStill(Window window, string name)
+    {
+        window.MouseMove(new Point(0, 0));
+        window.FocusManager?.Focus(null);
+        Flush(window);
+        var pixels = PixelSize.FromSize(window.ClientSize, 2);
+        using var frame = new RenderTargetBitmap(pixels, new Vector(192, 192));
+        frame.Render(window);
+        frame.Save(Path.Combine(directory, name + ".png"), PngBitmapEncoderOptions.Default);
+    }
+}
+
+static void RenderReadmeAnimation(OnboardingWindow guide, string directory, string frames)
+{
+    const int framesPerSecond = 25;
+    const int shortcutFrame = 50;
+    const int frameCount = 195;
+    Check(DesktopMotion.Enabled, "Enable system animations before recording onboarding.");
+    guide.Show();
+    try
+    {
+        var clock = Stopwatch.StartNew();
+        Flush(guide);
+        var size = PixelSize.FromSize(guide.ClientSize, 1);
+        Check(size.Width == 640, "The animation uses the onboarding window's 640-pixel width.");
+        using var frame = new RenderTargetBitmap(size);
+        var png = new PngBitmapEncoderOptions { CompressionLevel = CompressionLevel.Fastest };
+        Border[] keycaps = [];
+        var keypresses = new List<Border>();
+        Border? previous = null;
+        for (var index = 0; index < frameCount; index++)
+        {
+            var remaining = TimeSpan.FromSeconds((double)index / framesPerSecond) - clock.Elapsed;
+            if (remaining > TimeSpan.Zero)
+            {
+                // Pump the UI dispatcher while the guide's real Task.Delay calls and animations advance.
+                var wait = new DispatcherFrame();
+                using var timer = DispatcherTimer.RunOnce(() => wait.Continue = false, remaining);
+                Dispatcher.UIThread.PushFrame(wait);
+            }
+
+            if (index == shortcutFrame)
+            {
+                Advance(guide, 1);
+                guide.MouseMove(new Point(0, 0));
+                guide.FocusManager?.Focus(null);
+                keycaps = Find<StackPanel>(guide, "ShortcutKeycaps").Children.OfType<Border>().ToArray();
+            }
+
+            Flush(guide);
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+            var pressed = keycaps.FirstOrDefault(cap => cap.RenderTransform?.Value.M32 > 0.05);
+            if (pressed is not null && pressed != previous)
+                keypresses.Add(pressed);
+            previous = pressed;
+            frame.Render(guide);
+            frame.Save(Path.Combine(frames, FormattableString.Invariant($"frame-{index:D3}.png")), png);
+        }
+        Check(keycaps.Length == 3 && keypresses.SequenceEqual(keycaps.Concat(keycaps)),
+            "The GIF captures two full runs of the shortcut animation.");
+    }
+    finally { guide.Close(); }
+
+    var gif = Path.Combine(directory, "onboarding.gif");
+    var ffmpeg = new ProcessStartInfo("ffmpeg") { UseShellExecute = false, CreateNoWindow = true };
+    foreach (var argument in new[]
+    {
+        "-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-framerate", FormattableString.Invariant($"{framesPerSecond}"),
+        "-i", Path.Combine(frames, "frame-%03d.png"), "-filter_complex_threads", "1", "-filter_complex",
+        "split[frames][colors];[colors]palettegen=stats_mode=diff[palette];[frames][palette]paletteuse=dither=bayer:bayer_scale=3:diff_mode=rectangle",
+        "-loop", "0", gif
+    })
+        ffmpeg.ArgumentList.Add(argument);
+    using var process = Process.Start(ffmpeg) ?? throw new InvalidOperationException("Could not start ffmpeg.");
+    process.WaitForExit();
+    Check(process.ExitCode == 0, $"ffmpeg exited with code {process.ExitCode}.");
+    Check(new FileInfo(gif).Length <= 3_000_000, "The onboarding GIF must be under 3 MB.");
 }
 
 static DesktopHistory CreateHistory(IPlatformServices demo, bool seed)
