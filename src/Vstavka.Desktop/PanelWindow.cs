@@ -665,6 +665,8 @@ internal sealed class PanelWindow : Window
         if (_pasting || !TryWrite(item, plain))
             return;
         var practice = PracticeTarget?.Invoke();
+        if (practice is null)
+            _history.CountStoreReviewUse();
         _pasting = true;
         try
         {

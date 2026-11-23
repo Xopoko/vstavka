@@ -48,6 +48,47 @@ try
         Check(new ClipItem { Kind = ClipKind.Link, Text = "https://example.com/path" }.Title == "example.com", "URL title uses host.");
     });
 
+    Run("Store review counts successful uses and allows one request per version after three days", () =>
+    {
+        var first = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var eligibleAt = first.AddDays(3);
+        StoreReviewState state = default;
+        state = state.CountUse(first);
+        for (var use = 2; use <= 9; use++)
+            state = state.CountUse(first.AddDays(1));
+        Check(state.UseCount == 9 && state.FirstUsedUtc == first && !state.ShouldRequest("1.0.0", eligibleAt),
+            "Nine uses are insufficient and the first-use time is retained.");
+        state = state.CountUse(eligibleAt);
+        Check(!state.ShouldRequest("1.0.0", eligibleAt.AddTicks(-1)) && state.ShouldRequest("1.0.0", eligibleAt),
+            "The tenth use and exactly three days meet the thresholds.");
+        Check(state.CountUse(eligibleAt.AddDays(1)) == state && !state.ShouldRequest(null, eligibleAt),
+            "Counting stops at the threshold and a version is required.");
+        state = state.MarkRequested("1.0.0");
+        Check(!state.ShouldRequest("1.0.0", eligibleAt) && state.ShouldRequest("1.1.0", eligibleAt),
+            "The same version is suppressed and a new version is eligible.");
+    });
+
+    Run("Store review defaults in legacy settings and round-trips through encrypted history", () =>
+    {
+        var directory = Path.Combine(testRoot, "store-review");
+        Directory.CreateDirectory(directory);
+        File.WriteAllBytes(Path.Combine(directory, "history.vstavka"),
+            protector.Protect("""{"Version":1,"Settings":{"Volume":0.63},"Items":[]}"""u8.ToArray()));
+        var store = NewStore(directory);
+        store.Load();
+        Check(store.LoadWarning is null && store.Settings.Volume == 0.63 && store.Settings.StoreReview == default,
+            "Old settings load with an empty review state.");
+        store.Save();
+        store.Load();
+        Check(store.LoadWarning is null && store.Settings.StoreReview == default, "The default state survives a save and reload.");
+
+        var state = new StoreReviewState(10, new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero), "1.0.0");
+        store.Settings.StoreReview = state;
+        store.Save();
+        store.Load();
+        Check(store.LoadWarning is null && store.Settings.StoreReview == state, "All review fields survive a save and reload.");
+    });
+
     Run("Legacy encrypted settings migrate without losing history or preferences", () =>
     {
         var cases = new (string? Saved, string Expected)[]

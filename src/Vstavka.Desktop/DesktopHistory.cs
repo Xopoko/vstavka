@@ -77,6 +77,7 @@ internal sealed class DesktopHistory
 
     public void ApplySettings(AppSettings settings)
     {
+        settings.StoreReview = Store.Settings.StoreReview;
         Store.Settings = settings;
         Store.ApplyRetention();
         RegisterSettingsShortcut();
@@ -102,6 +103,30 @@ internal sealed class DesktopHistory
         {
             return false;
         }
+    }
+
+    public void CountStoreReviewUse()
+    {
+        if (_platform.StoreReview is null)
+            return;
+        var state = Store.Settings.StoreReview;
+        var updated = state.CountUse(DateTimeOffset.UtcNow);
+        if (updated == state)
+            return;
+        Store.Settings.StoreReview = updated;
+        ScheduleSave();
+    }
+
+    public void TryRequestStoreReview()
+    {
+        if (_platform.StoreReview is not { } review || !Store.IsPersistent || Store.SavingBlocked)
+            return;
+        var state = Store.Settings.StoreReview;
+        if (review.AppVersion is not { } version || !state.ShouldRequest(version, DateTimeOffset.UtcNow) || !review.TryRequest())
+            return;
+        Store.Settings.StoreReview = state.MarkRequested(version);
+        _saveTimer.Stop();
+        Save();
     }
 
     public async Task InstallGnomeHelperAsync(Action install)

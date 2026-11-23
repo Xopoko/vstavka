@@ -124,6 +124,14 @@ public interface IPanelWindow
     void Hidden();
 }
 
+public interface IStoreReview
+{
+    string? AppVersion { get; }
+
+    /// <summary>Calls the system review API on the UI thread. The result reports whether the call was made.</summary>
+    bool TryRequest();
+}
+
 public interface IPlatformServices : IDisposable
 {
     string Name { get; }
@@ -145,6 +153,8 @@ public interface IPlatformServices : IDisposable
     IReadOnlyList<PlatformPermission> Permissions => [];
 
     IStartupRegistration Startup => UnsupportedStartupRegistration.Instance;
+
+    IStoreReview? StoreReview => null;
 
     IClipboardMonitor Clipboard { get; }
 

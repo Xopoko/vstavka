@@ -305,6 +305,74 @@ Run("Toolbar actions and the Settings save and clear flows", () =>
     }
 });
 
+Run("Settings requests a store review once while closing and saves the version", () =>
+{
+    var directory = Path.Combine(Path.GetTempPath(), "Vstavka.ReviewTests." + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(directory);
+    var protector = new AesGcmHistoryProtector(new TestKeyStore());
+    var review = new ReviewDemo();
+    using var demo = new SetupDemo("macOS") { DataDirectory = directory, HistoryProtector = protector, StoreReview = review };
+    var history = CreateHistory(demo, seed: true);
+    var windows = new DesktopWindows(demo, history, animate: false, positionPanel: false);
+    var first = DateTimeOffset.UtcNow.AddDays(-4);
+    review.Requesting = () => Check(Dispatcher.UIThread.CheckAccess() && windows.Settings is { IsVisible: true } && !windows.Panel.IsVisible,
+        "The service is called on the UI thread before Settings disappears, with the panel hidden.");
+    try
+    {
+        history.Store.Settings.StoreReview = new(9, first, null);
+        windows.OpenSettings();
+        var settings = windows.Settings!;
+        Flush(settings);
+        Click(settings, Find<Button>(settings, "CancelSettings"));
+        Check(windows.Settings is null && review.Calls == 0, "Cancel below the threshold does not request a review.");
+
+        history.Store.Settings.StoreReview = new(10, first, null);
+        windows.OpenSettings();
+        windows.OpenPanel();
+        Flush(windows.Panel);
+        Check(windows.Panel.IsVisible, "The panel is visible when Settings starts closing.");
+        windows.Settings!.Close();
+        Check(windows.Settings is null && review.Calls == 0, "An open panel prevents a review request.");
+        windows.Panel.Dismiss();
+
+        history.Store.Settings.StoreReview = new(9, first, null);
+        windows.OpenSettings();
+        settings = windows.Settings!;
+        windows.OpenPanel();
+        Flush(windows.Panel);
+        Press(windows.Panel, Key.Enter, PhysicalKey.Enter);
+        Check(review.Calls == 0 && history.Store.Settings.StoreReview.UseCount == 10, "A pick reaches the threshold without asking.");
+        Flush(settings);
+        Click(settings, Find<Button>(settings, "SaveSettings"));
+        var expected = new StoreReviewState(10, first, review.AppVersion);
+        Check(windows.Settings is null && review.Calls == 1 && history.Store.Settings.StoreReview == expected,
+            "Save preserves the latest use and records the version immediately.");
+        windows.OpenSettings();
+        windows.Settings!.Close();
+        Check(review.Calls == 1, "Closing Settings again does not request a review for the same version.");
+        history.Stop();
+        Check(CreateHistory(demo, seed: false).Store.Settings.StoreReview == expected, "Review state is available after reopening the history.");
+
+        using var unsupported = new SetupDemo("macOS") { DataDirectory = directory, HistoryProtector = protector };
+        var unsupportedHistory = CreateHistory(unsupported, seed: false);
+        var unsupportedWindows = new DesktopWindows(unsupported, unsupportedHistory, animate: false, positionPanel: false);
+        var eligible = expected with { LastRequestedVersion = null };
+        unsupportedHistory.Store.Settings.StoreReview = eligible;
+        unsupportedWindows.OpenSettings();
+        unsupportedWindows.Settings!.Close();
+        Check(unsupportedWindows.Settings is null && unsupportedHistory.Store.Settings.StoreReview == eligible,
+            "Settings closes with eligible state on a platform without the review service.");
+        unsupportedWindows.Panel.Close();
+    }
+    finally
+    {
+        windows.Settings?.Close();
+        windows.Panel.Close();
+        history.Stop();
+        Directory.Delete(directory, recursive: true);
+    }
+});
+
 Run("Welcome changes language immediately and Skip completes setup", () =>
 {
     using var demo = new DemoPlatformServices();
@@ -554,7 +622,7 @@ Run("Try it reflects missing permissions, pending restart and adapter capabiliti
 
 Run("Try it uses the real panel and completes setup with an in-app paste", () =>
 {
-    using var demo = new SetupDemo("Windows");
+    using var demo = new SetupDemo("Windows") { StoreReview = new ReviewDemo() };
     var history = CreateHistory(demo, seed: true);
     var windows = new DesktopWindows(demo, history, animate: false, positionPanel: false);
     history.Start();
@@ -574,6 +642,7 @@ Run("Try it uses the real panel and completes setup with an in-app paste", () =>
         Flush(window);
         Check(!windows.Panel.IsVisible && Find<TextBox>(window, "PracticeBox").Text == text && demo.PasteRequests == 0
             && window.PracticeCompleted && HasLabel(window, "PracticeComplete"), "Return inserts the sample without injecting input.");
+        Check(history.Store.Settings.StoreReview == default, "The practice pick does not count toward a store review.");
         Find<TextBox>(window, "PracticeBox").Text += " Edited.";
         Click(window, Find<Button>(window, "StepDot2"));
         Click(window, Find<Button>(window, "StepDot4"));
@@ -1103,6 +1172,7 @@ sealed class SetupDemo(string profile) : IPlatformServices, IGlobalHotkey
     public List<PlatformPermission> DemoPermissions => _demo.DemoPermissions;
     public IReadOnlyList<PlatformPermission> Permissions => _demo.Permissions;
     public IStartupRegistration Startup => _demo.Startup;
+    public IStoreReview? StoreReview { get; init; }
     public IClipboardMonitor Clipboard => _demo.Clipboard;
     public IClipboardWriter? Writer { get; init; }
     public IClipboardWriter ClipboardWriter => Writer ?? _demo.ClipboardWriter;
@@ -1127,6 +1197,20 @@ sealed class SetupDemo(string profile) : IPlatformServices, IGlobalHotkey
     }
 
     public void Dispose() => _demo.Dispose();
+}
+
+sealed class ReviewDemo : IStoreReview
+{
+    public string AppVersion => "1.0.0";
+    public int Calls { get; private set; }
+    public Action? Requesting { get; set; }
+
+    public bool TryRequest()
+    {
+        Calls++;
+        Requesting?.Invoke();
+        return true;
+    }
 }
 
 sealed class TestKeyStore : IHistoryKeyStore

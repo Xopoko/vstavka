@@ -20,6 +20,8 @@ Call `CaptureTarget()` before showing the panel and `PasteAsync()` after hiding 
 
 The Mac App Store build (`-p:VstavkaMacAppStore=true`) puts the chosen item on the clipboard and returns focus to the previous app for a manual Cmd+V. Its onboarding asks only for clipboard access. Start at login is opt-in, and Settings contains a link to the privacy policy.
 
+The Mac App Store build asks StoreKit for a rating when Settings closes with the panel hidden, after at least ten successful clipboard picks outside onboarding and three days since the first pick. A request requires persistent history so Vstavka can save the requested app version and ask at most once per version. StoreKit decides whether to show the prompt.
+
 ## Start at login
 
 Packaged apps on macOS 13 and later use `SMAppService.mainAppService`. Only `Enabled` counts as enabled. `RequiresApproval` means the user needs to enable the item in System Settings → General → Login Items & Extensions before it can run at sign-in. [Apple's Service Management documentation](https://developer.apple.com/documentation/servicemanagement/smappservice?language=objc)

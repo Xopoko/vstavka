@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Vstavka.Core;
 
 public sealed class AppSettings
@@ -19,6 +21,9 @@ public sealed class AppSettings
 
     /// <summary>The onboarding step to resume at (0–3), for example after signing out to finish a permission.</summary>
     public int OnboardingStep { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public StoreReviewState StoreReview { get; set; }
 
     public string Language { get; set; } = "en";
     public string Theme { get; set; } = "system";

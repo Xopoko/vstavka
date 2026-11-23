@@ -1,3 +1,4 @@
+using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Vstavka.Core.Localization;
@@ -43,6 +44,11 @@ internal sealed class DesktopWindows
         }
         var window = new SettingsWindow(_platform, _history, _animate);
         Settings = window;
+        window.Closing += (_, e) =>
+        {
+            if (!e.Cancel && (e.CloseReason is WindowCloseReason.WindowClosing or WindowCloseReason.Undefined) && !Panel.IsVisible)
+                _history.TryRequestStoreReview();
+        };
         window.Closed += (_, _) => Settings = null;
         window.Show();
     }

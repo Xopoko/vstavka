@@ -34,6 +34,9 @@ public sealed class MacPlatformServices : IPlatformServices
     public IReadOnlyList<string> SupportedGestures => MacGlobalHotkey.SupportedGestures;
     public IReadOnlyList<PlatformPermission> Permissions => MacPermissions.System.GetPermissions();
     public IStartupRegistration Startup => MacStartupRegistration.System;
+#if VSTAVKA_MAC_APP_STORE
+    public IStoreReview StoreReview { get; } = new MacStoreReview();
+#endif
     public IClipboardMonitor Clipboard { get; }
     public IClipboardWriter ClipboardWriter { get; }
     public IGlobalHotkey Hotkey { get; }
