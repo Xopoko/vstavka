@@ -568,7 +568,8 @@ internal sealed class PanelWindow : Window
             return;
 
         var plain = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
-        var control = e.KeyModifiers.HasFlag(KeyModifiers.Control);
+        // Command on macOS, Ctrl elsewhere, for search (F) and quick paste (1–9).
+        var command = e.KeyModifiers.HasFlag(OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control);
         var searchFocused = _search.IsKeyboardFocusWithin;
         var selected = _cards.SelectedItem as ClipItem;
         var focused = FocusManager?.GetFocusedElement();
@@ -580,7 +581,7 @@ internal sealed class PanelWindow : Window
             case Key.Escape:
                 Dismiss();
                 break;
-            case Key.F when control:
+            case Key.F when command:
                 _search.Focus(NavigationMethod.Tab);
                 _search.SelectAll();
                 break;
@@ -594,11 +595,11 @@ internal sealed class PanelWindow : Window
             case Key.Enter when focused is not Button && selected is not null:
                 _ = PasteAsync(selected, plain);
                 break;
-            case Key.Delete when !searchFocused && selected is not null:
+            case Key.Delete or Key.Back when (e.Key == Key.Delete || OperatingSystem.IsMacOS()) && !searchFocused && selected is not null:
                 Delete(selected);
                 break;
             default:
-                if (!control || index < 0 || index >= _visible.Count)
+                if (!command || index < 0 || index >= _visible.Count)
                     return;
                 _ = PasteAsync(_visible[index], plain);
                 break;

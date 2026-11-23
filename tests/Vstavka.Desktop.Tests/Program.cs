@@ -43,7 +43,7 @@ Run("Category filters, search and empty results", () =>
         Click(panel, Find<Button>(panel, "TextChip"));
         Check(cards.Items.Cast<ClipItem>().Select(item => item.Kind).ToHashSet().SetEquals([ClipKind.Text, ClipKind.Color]),
             "Text includes colors as in the WPF panel.");
-        Press(panel, Key.F, PhysicalKey.F, RawInputModifiers.Control);
+        Press(panel, Key.F, PhysicalKey.F, CommandModifier());
         var search = Find<TextBox>(panel, "SearchBox");
         Check(search.IsFocused, "Ctrl+F focuses search.");
         panel.KeyTextInput("246ac5");
@@ -66,7 +66,7 @@ Run("Keyboard selection, Enter fallback, quick paste, and Escape", () =>
         Check(cards.SelectedIndex == 0 && cards.IsKeyboardFocusWithin, "The first card starts selected and focused.");
         Press(panel, Key.Right, PhysicalKey.ArrowRight);
         Check(cards.SelectedIndex == 1, "Right selects the next card.");
-        Press(panel, Key.F, PhysicalKey.F, RawInputModifiers.Control);
+        Press(panel, Key.F, PhysicalKey.F, CommandModifier());
         Press(panel, Key.Down, PhysicalKey.ArrowDown);
         Check(cards.IsKeyboardFocusWithin && cards.SelectedIndex == 1, "Down moves from search to the selected card.");
         var expected = cards.SelectedItem;
@@ -78,7 +78,7 @@ Run("Keyboard selection, Enter fallback, quick paste, and Escape", () =>
         Check(feedback == Strings.Get("ManualPaste"), "Failed automatic paste provides manual paste feedback.");
         panel.Open(positionOnScreen: false);
         Flush(panel);
-        Press(panel, Key.D1, PhysicalKey.Digit1, RawInputModifiers.Control);
+        Press(panel, Key.D1, PhysicalKey.Digit1, CommandModifier());
         Check(ReferenceEquals(demo.LastWritten, cards.Items[0]) && demo.PasteRequests == 2 && !panel.IsVisible,
             "Ctrl+1 pastes the first filtered card.");
         panel.Open(positionOnScreen: false);
@@ -833,6 +833,7 @@ static PlatformPermission[] MacPermissions() =>
 static PlatformPermission GnomePermission(PermissionState state, Action? request = null) =>
     new("gnome-helper", PermissionRequirement.Required, state, request);
 
+static RawInputModifiers CommandModifier() => OperatingSystem.IsMacOS() ? RawInputModifiers.Meta : RawInputModifiers.Control;
 static T Find<T>(Visual root, string name) where T : Control =>
     root.GetVisualDescendants().OfType<T>().Single(control => control.Name == name);
 
