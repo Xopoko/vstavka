@@ -23,7 +23,11 @@ public enum PlatformCapabilities
     PanelPlacement = 1 << 5,
 }
 
-public enum PermissionState { NotNeeded, Granted, Missing }
+/// <summary>
+/// <see cref="RestartRequired"/>: granted or installed, but it takes effect only after the user signs out and back in
+/// (for example a new GNOME Shell extension). Its <see cref="PlatformPermission.Request"/>, when set, starts signing out.
+/// </summary>
+public enum PermissionState { NotNeeded, Granted, Missing, RestartRequired }
 
 public enum PermissionRequirement { Required, Optional }
 

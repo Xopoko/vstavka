@@ -17,6 +17,9 @@ public sealed class AppSettings
 
     public bool OnboardingCompleted { get; set; }
 
+    /// <summary>The onboarding step to resume at (0–3), for example after signing out to finish a permission.</summary>
+    public int OnboardingStep { get; set; }
+
     public string Language { get; set; } = "en";
     public string Theme { get; set; } = "system";
     public string Accent { get; set; } = "windows";
@@ -64,6 +67,7 @@ public sealed class AppSettings
         MaxItems = Math.Clamp(MaxItems, 1, HistoryStore.MaxItemCount);
         Hotkey = NormalizeHotkey(Hotkey);
         PanelShortcut = HotkeyGesture.TryParse(PanelShortcut, out var shortcut) ? shortcut.ToString() : null;
+        OnboardingStep = Math.Clamp(OnboardingStep, 0, 3);
         Language = Localization.Strings.NormalizeLanguage(Language);
         Theme = Theme is "light" or "dark" ? Theme : "system";
         Accent = Accent is "violet" or "blue" or "teal" or "rose" or "amber" ? Accent : "windows";
