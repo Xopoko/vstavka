@@ -10,6 +10,8 @@ internal static class X11Native
     private const string Xtst = "libXtst.so.6";
 
     public const int KeyPress = 2, PropertyNotify = 28, SelectionRequest = 30, SelectionNotify = 31;
+    public const uint ShiftMask = 1 << 0, LockMask = 1 << 1, ControlMask = 1 << 2, Mod1Mask = 1 << 3, Mod4Mask = 1 << 6;
+    public const uint KeyboardModifierMask = 0xff;
     public const uint PropertyChangeMask = 1 << 22;
     public const uint EventMaskAttribute = 1 << 11;
     public const int PropertyNewValue = 0, PropertyDelete = 1;

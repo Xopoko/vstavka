@@ -9,7 +9,7 @@ const BUS = 'io.github.xopoko.Vstavka.TestProbe';
 const XML = `<node><interface name="${BUS}">
     <method name="Window"><arg type="s" direction="in"/><arg type="s" direction="out"/></method>
     <method name="Focus"><arg type="s" direction="in"/></method>
-    <method name="Shortcut"/>
+    <method name="Shortcut"><arg type="b" direction="in"/></method>
     <method name="CopyKey"/>
     <method name="InitInput"/>
     <method name="Ready"><arg type="b" direction="out"/></method>
@@ -62,8 +62,10 @@ export default class TestProbe extends Extension {
             .create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
     }
 
-    Shortcut() {
-        this.sendKeys([Clutter.KEY_Control_L, Clutter.KEY_Shift_L, Clutter.KEY_v]);
+    Shortcut(custom) {
+        this.sendKeys(custom
+            ? [Clutter.KEY_Control_L, Clutter.KEY_Shift_L, Clutter.KEY_F8]
+            : [Clutter.KEY_Control_L, Clutter.KEY_Alt_L, Clutter.KEY_v]);
     }
 
     CopyKey() {

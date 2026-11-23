@@ -6,6 +6,9 @@ using Vstavka.Platform.Linux;
 Run("Session selects the extension first and never uses Xwayland as the clipboard fallback", TestModes);
 Run("Clipboard maps supported formats, caps data and skips private selections", TestClipboardFormats);
 Run("Clipboard and shortcut use their registration contexts and keep external copies after a write", TestCallbacks);
+Run("Linux shortcuts map usable gestures to GNOME accelerators and X11 keysyms", TestGestures);
+Run("GNOME helper installs the bundled files, preserves settings and grants access without restarting when active", TestGnomeHelper);
+Run("XDG autostart follows the configured executable and honors Hidden", TestStartup);
 
 static void TestModes()
 {
@@ -34,6 +37,7 @@ static void TestModes()
     using (var platform = Create(() => default, () => null))
     {
         Check(platform.Notices.Single().Code == "gnome-extension-missing");
+        Check(platform.Permissions.Count == 0);
         Check(platform.Capabilities == PlatformCapabilities.None && platform.HistoryProtector is null);
         Check(platform.Paste.Permission == PermissionState.Missing && !platform.Paste.PasteAsync().Result);
         Check(platform.DataDirectory == Path.Combine(home, ".local", "share", "vstavka"));
@@ -50,8 +54,10 @@ static void TestModes()
     }
     Check(x11Attempts == 0);
     environment.Remove("XDG_SESSION_TYPE");
+    environment["XDG_CURRENT_DESKTOP"] = "GNOME";
     using var fallback = Create(() => default, () => null);
     Check(x11Attempts == 1 && fallback.Capabilities == x11.Capabilities);
+    Check(fallback.Permissions.Count == 0);
 }
 
 static void TestClipboardFormats()
@@ -97,13 +103,13 @@ static void TestCallbacks()
         platform.Clipboard.Start();
         platform.Clipboard.Start();
         SynchronizationContext.SetSynchronizationContext(shortcutContext);
-        Check(platform.DefaultGesture == "Ctrl+Shift+V");
-        Check(platform.SupportedGestures.SequenceEqual(["Ctrl+Shift+V", "Ctrl+Alt+V", "Alt+V"]));
-        Check(platform.Hotkey.TryRegister("Ctrl+Alt+V") && desktop.Accelerator == "<Control><Alt>v");
+        Check(platform.DefaultGesture == "Ctrl+Alt+V");
+        Check(platform.SupportedGestures.SequenceEqual(["Ctrl+Alt+V", "Ctrl+Shift+V", "Alt+V"]));
+        Check(platform.Hotkey.TryRegister("Shift+Meta+F12") && desktop.Accelerator == "<Shift><Super>F12");
         SynchronizationContext.SetSynchronizationContext(clipboardContext);
         desktop.AcceptHotkey = false;
-        Check(!platform.Hotkey.TryRegister("Alt+V") && desktop.Accelerator == "<Control><Alt>v");
-        Check(!platform.Hotkey.TryRegister("Ctrl+V"));
+        Check(!platform.Hotkey.TryRegister("Alt+V") && desktop.Accelerator == "<Shift><Super>F12");
+        Check(!platform.Hotkey.TryRegister("Shift+V"));
     }
     finally
     {
@@ -124,6 +130,133 @@ static void TestCallbacks()
     Check(clips.SequenceEqual(["external copy"]) && presses == 0);
     shortcutContext.Drain();
     Check(presses == 1 && desktop.Written == (LinuxClipboard.Text, "/tmp/a\n/tmp/b"));
+}
+
+static void TestGestures()
+{
+    foreach (var (text, accelerator, keysym, modifiers) in new (string, string, nuint, uint)[]
+    {
+        ("Ctrl+Alt+V", "<Control><Alt>v", 'v', 0x0c),
+        ("Super+Shift+Space", "<Shift><Super>space", ' ', 0x41),
+        ("Alt+0", "<Alt>0", '0', 0x08),
+        ("Control+F1", "<Control>F1", 0xffbe, 0x04),
+        ("Meta+Ctrl+Alt+Shift+F24", "<Control><Alt><Shift><Super>F24", 0xffd5, 0x4d),
+    })
+        Check(LinuxGesture.Parse(text) == new LinuxGesture(accelerator, keysym, modifiers));
+    foreach (var invalid in new[] { "v", "Shift+V", "Ctrl+Ctrl+V", "Ctrl+F25", "Ctrl+Return", "Ctrl+Я" })
+        Check(LinuxGesture.Parse(invalid) is null);
+}
+
+static void TestGnomeHelper()
+{
+    const string uuid = "vstavka@xopoko.github.io";
+    const string schema = "io.github.xopoko.Vstavka.Shell";
+    const string executable = "/opt/Vstavka's clips/Vstavka.Desktop";
+    const string original = """["/opt/Other's app", '/opt/with\\backslash']""";
+    const string appended = """["/opt/Other's app", '/opt/with\\backslash', '/opt/Vstavka\'s clips/Vstavka.Desktop']""";
+    var home = Directory.CreateTempSubdirectory("vstavka-helper-test-");
+    try
+    {
+        var destination = Path.Combine(home.FullName, ".local", "share", "gnome-shell", "extensions", uuid);
+        var schemas = Path.Combine(destination, "schemas");
+        var allowed = original;
+        var enabled = "['first@example.org', 'second@example.org']";
+        var commands = new List<string[]>();
+        var shell = default(GnomeConnection);
+        string? RunCommand(string program, params string[] arguments)
+        {
+            commands.Add([program, .. arguments]);
+            if (program == "glib-compile-schemas")
+            {
+                Check(File.Exists(Path.Combine(schemas, $"{schema}.gschema.xml")));
+                Check(!File.Exists(Path.Combine(schemas, "gschemas.compiled")));
+                File.WriteAllText(Path.Combine(schemas, "gschemas.compiled"), "fake cache");
+                return "";
+            }
+            if (arguments[0] == "--schemadir")
+                return arguments[2] == "get" ? allowed : allowed = arguments[^1];
+            return arguments[0] == "get" ? enabled : enabled = arguments[^1];
+        }
+
+        using var platform = new LinuxPlatformServices(name => name switch
+        {
+            "XDG_SESSION_TYPE" => "wayland",
+            "XDG_CURRENT_DESKTOP" => "ubuntu:GNOME",
+            _ => null,
+        }, home.FullName, () => shell, () => throw new InvalidOperationException("X11 fallback"), () => null,
+            executable, AppContext.BaseDirectory, RunCommand);
+        var missing = platform.Permissions.Single();
+        Check(missing is { Code: "gnome-helper", Requirement: PermissionRequirement.Required, State: PermissionState.Missing, Request: not null });
+        platform.Clipboard.Start();
+        missing.Request!();
+        Check(File.Exists(Path.Combine(destination, "metadata.json")) && File.Exists(Path.Combine(destination, "extension.js")));
+        Check(commands.Count == 5);
+        Check(commands[0].SequenceEqual(["glib-compile-schemas", "--strict", schemas]));
+        Check(commands[1].SequenceEqual(["gsettings", "--schemadir", schemas, "get", schema, "allowed-executables"]));
+        Check(commands[2].SequenceEqual(["gsettings", "--schemadir", schemas, "set", schema, "allowed-executables", appended]));
+        Check(commands[3].SequenceEqual(["gsettings", "get", "org.gnome.shell", "enabled-extensions"]));
+        Check(commands[4].SequenceEqual(["gsettings", "set", "org.gnome.shell", "enabled-extensions",
+            $"['first@example.org', 'second@example.org', '{uuid}']"]));
+        Check(platform.Permissions.Single() is { State: PermissionState.Missing, Request: null });
+        Check(platform.Notices.Single().Code == "gnome-helper-restart");
+
+        shell = new(null, GnomeAccess.Denied);
+        var allow = platform.Permissions.Single();
+        Check(allow is { State: PermissionState.Missing, Request: not null });
+        commands.Clear();
+        allowed = original;
+        allow.Request!();
+        Check(commands.Count == 2 && allowed == appended);
+        allow.Request!();
+        Check(commands.Count == 3 && commands[^1].SequenceEqual(commands[0]));
+
+        var desktop = new FakeDesktop();
+        shell = new(desktop);
+        Check(platform.Permissions.Single() is { State: PermissionState.Granted, Request: null });
+        Check(platform.Notices.Count == 0 && platform.Capabilities == desktop.Capabilities && desktop.Starts == 1);
+        shell = new(null, GnomeAccess.Busy);
+        Check(platform.Permissions.Single() is { State: PermissionState.Granted, Request: null });
+    }
+    finally
+    {
+        home.Delete(recursive: true);
+    }
+}
+
+static void TestStartup()
+{
+    var home = Directory.CreateTempSubdirectory("vstavka-autostart-test-");
+    try
+    {
+        var configHome = Path.Combine(home.FullName, "xdg");
+        const string executable = "/opt/Vstavka Clips/Vstavka.Desktop";
+        using var platform = new LinuxPlatformServices(name => name == "XDG_CONFIG_HOME" ? configHome : null,
+            home.FullName, () => default, () => null, () => null, executable);
+        var startup = platform.Startup;
+        var entry = Path.Combine(configHome, "autostart", "io.github.xopoko.Vstavka.desktop");
+        Check(startup.IsSupported && !startup.IsEnabled);
+        Check(startup.TrySetEnabled(true) && startup.IsEnabled);
+        Check(File.ReadAllLines(entry).SequenceEqual([
+            "[Desktop Entry]", "Type=Application", "Name=Vstavka",
+            $"""Exec="{executable}" --background""", "X-GNOME-Autostart-enabled=true",
+        ]));
+        File.AppendAllText(entry, "Hidden=true\n");
+        Check(!startup.IsEnabled);
+        File.WriteAllText(entry, $"[Desktop Entry]\nExec={executable} --background\n");
+        Check(!startup.IsEnabled);
+        File.WriteAllText(entry, $"""
+            [Desktop Entry]
+            Exec="{executable}.other" --background
+            [Desktop Action Another]
+            Exec="{executable}" --background
+            """);
+        Check(!startup.IsEnabled);
+        Check(startup.TrySetEnabled(false) && !startup.IsEnabled && !File.Exists(entry));
+    }
+    finally
+    {
+        home.Delete(recursive: true);
+    }
 }
 
 static void Run(string name, Action test)

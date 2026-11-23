@@ -12,6 +12,7 @@ internal sealed class GnomeDesktop : ILinuxDesktop
     private readonly string _owner;
     private IDisposable? _clipboardMatch;
     private IDisposable? _hotkeyMatch;
+    private bool _supportsCheckAccess = true;
 
     private GnomeDesktop(DBusConnection connection, string owner) => (_connection, _owner) = (connection, owner);
 
@@ -35,11 +36,10 @@ internal sealed class GnomeDesktop : ILinuxDesktop
             Wait(connection.CallMethodAsync(desktop.CreateCall("SubscribeClipboard")));
             return new(desktop);
         }
-        catch (DBusErrorReplyException error) when (error.ErrorName == BusName + ".AccessDenied" ||
-                                                    error.ErrorName == BusName + ".ClipboardBusy")
+        catch (DBusErrorReplyException error)
         {
             connection.Dispose();
-            return new(null, error.ErrorName == BusName + ".AccessDenied" ? GnomeAccess.Denied : GnomeAccess.Busy);
+            return new(null, AccessError(error));
         }
         catch (Exception error) when (IsBusFailure(error))
         {
@@ -47,6 +47,44 @@ internal sealed class GnomeDesktop : ILinuxDesktop
             return default;
         }
     }
+
+    public GnomeConnection RefreshAccess()
+    {
+        try
+        {
+            if (_supportsCheckAccess)
+            {
+                try
+                {
+                    Wait(_connection.CallMethodAsync(CreateCall("CheckAccess")));
+                    return new(this);
+                }
+                catch (DBusErrorReplyException error) when (error.ErrorName == BusDaemon + ".Error.UnknownMethod")
+                {
+                    _supportsCheckAccess = false;
+                }
+            }
+            Wait(_connection.CallMethodAsync(CreateCall("SubscribeClipboard")));
+            return new(this);
+        }
+        catch (DBusErrorReplyException error)
+        {
+            var access = AccessError(error);
+            return new(access == GnomeAccess.SessionUnavailable ? this : null, access);
+        }
+        catch (Exception error) when (IsBusFailure(error))
+        {
+            return default;
+        }
+    }
+
+    private static GnomeAccess AccessError(DBusErrorReplyException error) => error.ErrorName switch
+    {
+        BusName + ".AccessDenied" => GnomeAccess.Denied,
+        BusName + ".ClipboardBusy" => GnomeAccess.Busy,
+        BusName + ".SessionUnavailable" => GnomeAccess.SessionUnavailable,
+        _ => GnomeAccess.Unavailable,
+    };
 
     public PlatformCapabilities Capabilities => PlatformCapabilities.WatchClipboard |
         PlatformCapabilities.GlobalHotkey | PlatformCapabilities.AutoPaste |

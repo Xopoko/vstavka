@@ -10,5 +10,9 @@
     <ProjectReference Include="../Vstavka.Platform/Vstavka.Platform.csproj" />
     <PackageReference Include="Tmds.DBus.Protocol" Version="0.94.1" />
     <InternalsVisibleTo Include="Vstavka.Platform.Linux.Tests" />
+    <Content Include="../../gnome-extension/vstavka@xopoko.github.io/**/*"
+             Exclude="../../gnome-extension/vstavka@xopoko.github.io/**/gschemas.compiled"
+             Link="gnome-extension/vstavka@xopoko.github.io/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

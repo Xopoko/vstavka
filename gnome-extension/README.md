@@ -4,7 +4,9 @@ The extension lets Vstavka read clipboard changes, set the clipboard, register a
 
 ## Installation
 
-From the repository root in a GNOME session:
+On GNOME Wayland, use the GNOME helper button in Vstavka's setup. It installs the bundled extension for your account, compiles its settings schema with `glib-compile-schemas`, adds the Vstavka executable to the allowlist and enables the extension. Sign out and back in to load a newly installed extension. If the extension is already active, granting access takes effect immediately.
+
+To install from source, run these commands from the repository root in a GNOME session:
 
 ~~~sh
 uuid=vstavka@xopoko.github.io
@@ -17,14 +19,15 @@ gnome-extensions enable "$uuid"
 
 If GNOME does not see the newly installed extension, log out and back in, then run the enable command. When updating an installed copy, recompile the schema and log out and back in to load the new code. Git ignores the generated `gschemas.compiled`.
 
-Authorize the installed app before launching it. Use the absolute path printed by `readlink -f /path/to/Vstavka.Desktop` and replace the example path in this command:
+Authorize the installed app before launching it. Use the absolute path printed by `readlink -f /path/to/Vstavka.Desktop`. Keep existing entries when setting the list:
 
 ~~~sh
+gsettings --schemadir "$dest/schemas" get io.github.xopoko.Vstavka.Shell allowed-executables
 gsettings --schemadir "$dest/schemas" set io.github.xopoko.Vstavka.Shell allowed-executables \
     "['/absolute/path/to/Vstavka.Desktop']"
 ~~~
 
-Launch the dedicated Vstavka executable. Adding a shared interpreter such as `dotnet` would give every program started through it the extension's permissions. Restart Vstavka after changing the extension or allowlist.
+Launch the dedicated Vstavka executable. Adding a shared interpreter such as `dotnet` would give every program started through it the extension's permissions.
 
 The panel must use title `Vstavka` and WM_CLASS or Wayland app ID `io.github.xopoko.Vstavka`. The extension places it at the bottom center of the active monitor's work area. The app calls `CaptureTarget` and `PreparePanel` before showing it, and calls `Paste` after hiding it.
 
@@ -35,6 +38,7 @@ The service owns `io.github.xopoko.Vstavka.Shell1` on the session bus while enab
 ~~~xml
 <node>
   <interface name="io.github.xopoko.Vstavka.Shell1">
+    <method name="CheckAccess"/>
     <method name="SubscribeClipboard"/>
     <method name="UnsubscribeClipboard"/>
     <method name="SetClipboard">
@@ -64,11 +68,11 @@ The service owns `io.github.xopoko.Vstavka.Shell1` on the session bus while enab
 </node>
 ~~~
 
-- A client uses one connection for subscription and signal handling. The first allowed clipboard subscriber reserves the slot until it disconnects or its authorization is revoked. `UnsubscribeClipboard` turns off notifications for that connection. A second allowed connection gets `io.github.xopoko.Vstavka.Shell1.ClipboardBusy`. Disconnecting also releases the shortcut.
+- `CheckAccess` checks whether the caller is allowed without acquiring the clipboard slot. A client uses one connection for subscription and signal handling. The first allowed clipboard subscriber reserves the slot until it disconnects or its authorization is revoked. `UnsubscribeClipboard` turns off notifications for that connection. A second allowed connection gets `io.github.xopoko.Vstavka.Shell1.ClipboardBusy`. Disconnecting also releases the shortcut.
 - Clipboard notifications report new `CLIPBOARD` owners. In priority order the extension reads `text/uri-list`, `image/png`, UTF-8 text, and legacy X11 `STRING`. The cap is 10 MiB for PNG and 4 MiB for text and URI lists. The Linux adapter converts local `file:` URIs to paths and applies the Core limits for text, paths and images.
 - Attribution uses the focused app at the time of the owner change. Unavailable metadata is an empty string. The theme lookup prefers a PNG at 32 pixels. The adapter accepts PNG paths up to 32 × 32 and 64 KiB.
 - `SetClipboard` accepts `text/plain;charset=utf-8`, `text/uri-list`, and `image/png`. The extension suppresses its own owner change. The app's clipboard writer sends file paths as newline-delimited plain text.
-- `SetAccelerator` accepts `<Control><Shift>v`, `<Control><Alt>v`, and `<Alt>v`. The schema defaults to Ctrl+Shift+V. A successful call registers the keybinding for that caller and saves its accelerator. An unavailable accelerator returns false and preserves the previous binding.
+- The default is Ctrl+Alt+V. Suggestions include Ctrl+Shift+V and Alt+V. `SetAccelerator` accepts `<Control>`, `<Alt>`, `<Shift>` and `<Super>` in any order, once each, followed by `a`–`z`, `0`–`9`, `F1`–`F24` or `space`. At least one of Control, Alt or Super is required. A successful call registers the keybinding for that caller and saves its accelerator. An unavailable accelerator returns false and preserves the previous binding.
 - `Paste` returns true after the extension has focused the target and queued Ctrl+V. The receiving application decides how to handle the shortcut.
 
 ### Access
@@ -87,7 +91,7 @@ An offered `x-kde-passwordManagerHint` with value `secret` is skipped. Missing, 
 
 ### Linux adapter
 
-An X11 session without the extension uses a separate hidden X11 window, XFixes owner notifications, selection conversions, keyboard grabs and XTest. The X11 backend reports the focused window's class when its window manager exposes it. Without the extension on Wayland, Vstavka exposes the install notice. Encrypted history uses an unlocked default Secret Service collection and an entry in the `io.github.xopoko.Vstavka.HistoryKey` schema. Data lives under `$XDG_DATA_HOME/vstavka`, or `~/.local/share/vstavka`.
+An X11 session without the extension uses a separate hidden X11 window, XFixes owner notifications, selection conversions, keyboard grabs and XTest. The X11 backend reports the focused window's class when its window manager exposes it. Start at login uses `io.github.xopoko.Vstavka.desktop` under `$XDG_CONFIG_HOME/autostart`, or `~/.config/autostart`. Encrypted history uses an unlocked default Secret Service collection and an entry in the `io.github.xopoko.Vstavka.HistoryKey` schema. Data lives under `$XDG_DATA_HOME/vstavka`, or `~/.local/share/vstavka`.
 
 ## Checks
 
@@ -96,4 +100,4 @@ dotnet run --project tests/Vstavka.Platform.Linux.Tests -c Debug
 bash gnome-extension/tests/run-headless.sh
 ~~~
 
-The .NET tests use fakes and run on Windows, Linux, and macOS. The second command works on a Linux Docker host and runs in the independent GNOME job in CI. It starts GNOME Shell 46 on Ubuntu 24.04 with a software renderer, a virtual monitor and a private D-Bus session. The checks exercise the allowed native Wayland GTK client, refusal and signal isolation for a second executable path, and subscription ownership. The job prints the Shell log and fails on JavaScript, extension or critical errors. Set `VSTAVKA_GNOME_LOG_DIR` to also write `gnome-shell.log` to a host directory. CI uploads that file on failure. The minimal session can emit messages about absent desktop services such as GDM and the calendar service.
+The .NET tests use fakes and run on Windows, Linux, and macOS. The second command works on a Linux Docker host and runs in the independent GNOME job in CI. It starts GNOME Shell 46 on Ubuntu 24.04 with a software renderer, a virtual monitor and a private D-Bus session. The checks exercise the allowed native Wayland GTK client, refusal and signal isolation for a second executable path, subscription ownership, and the default and custom shortcuts. The previous binding must still fire when a replacement is invalid or already taken. The job prints the Shell log and fails on JavaScript, extension or critical errors. Set `VSTAVKA_GNOME_LOG_DIR` to also write `gnome-shell.log` to a host directory. CI uploads that file on failure. The minimal session can emit messages about absent desktop services such as GDM and the calendar service.

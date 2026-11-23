@@ -15,7 +15,6 @@ internal sealed partial class X11Desktop : ILinuxDesktop
     private readonly byte _v;
     private readonly byte _control;
     private readonly uint _numLock;
-    private readonly uint _alt;
     private readonly Thread _thread;
     private readonly AutoResetEvent _wakeup = new(false);
     private readonly ConcurrentQueue<Action> _commands = new();
@@ -23,7 +22,7 @@ internal sealed partial class X11Desktop : ILinuxDesktop
     private readonly Dictionary<string, nuint> _atoms = new(StringComparer.Ordinal);
     private volatile bool _closed;
     private bool _watching;
-    private uint? _hotkey;
+    private (byte Keycode, uint[] Masks)? _hotkey;
     private nuint _pasteTarget;
 
     private X11Desktop(nint display, int fixesEvent, bool hasXTest)
@@ -37,7 +36,6 @@ internal sealed partial class X11Desktop : ILinuxDesktop
         _v = XKeysymToKeycode(display, 'v');
         _control = XKeysymToKeycode(display, 0xffe3); // Control_L
         _numLock = ModifierMask(0xff7f, 0); // Num_Lock
-        _alt = ModifierMask(0xffe9, 1 << 3); // Alt_L
         _thread = new Thread(Run) { Name = "Vstavka X11", IsBackground = true };
         _thread.Start();
     }
@@ -83,7 +81,7 @@ internal sealed partial class X11Desktop : ILinuxDesktop
 
     public PlatformCapabilities Capabilities =>
         (_fixesEvent >= 0 ? PlatformCapabilities.WatchClipboard : PlatformCapabilities.None) |
-        (_v != 0 ? PlatformCapabilities.GlobalHotkey : PlatformCapabilities.None) |
+        (_xcb != 0 ? PlatformCapabilities.GlobalHotkey : PlatformCapabilities.None) |
         (_hasXTest && _control != 0 && _v != 0 ? PlatformCapabilities.AutoPaste : PlatformCapabilities.None);
 
     public event Action<LinuxClipboardData>? ClipboardChanged;
@@ -114,26 +112,27 @@ internal sealed partial class X11Desktop : ILinuxDesktop
 
     public bool RegisterHotkey(LinuxGesture gesture) => Invoke(() =>
     {
-        const uint mod1 = 1 << 3;
-        var modifiers = (gesture.XModifiers & mod1) == 0 ? gesture.XModifiers : (gesture.XModifiers & ~mod1) | _alt;
-        if (_hotkey == modifiers)
-            return true;
+        var keycode = XKeysymToKeycode(_display, gesture.XKeySym);
+        if (keycode == 0)
+            return false;
+        var masks = LockMasks(gesture.XModifiers);
+        var previous = _hotkey;
+        var shared = previous is { } current && current.Keycode == keycode ? current.Masks.Intersect(masks).ToArray() : [];
         var grabbed = new List<uint>();
-        foreach (var mask in LockMasks(modifiers))
+        foreach (var mask in masks.Except(shared))
         {
             // X11 GrabKey with a checked reply so a competing shortcut cannot
             // trigger Xlib's process-wide error handler.
-            if (!Checked(xcb_grab_key_checked(_xcb, 0, (uint)_root, (ushort)mask, _v, 1, 1)))
+            if (!Checked(xcb_grab_key_checked(_xcb, 0, (uint)_root, (ushort)mask, keycode, 1, 1)))
             {
-                foreach (var old in grabbed)
-                    XUngrabKey(_display, _v, old, _root);
-                XFlush(_display);
+                UngrabKeys(keycode, grabbed);
                 return false;
             }
             grabbed.Add(mask);
         }
-        Ungrab();
-        _hotkey = modifiers;
+        if (previous is { } old)
+            UngrabKeys(old.Keycode, old.Masks.Except(shared));
+        _hotkey = (keycode, masks);
         return true;
     });
 
@@ -141,19 +140,21 @@ internal sealed partial class X11Desktop : ILinuxDesktop
 
     private void Ungrab()
     {
-        if (_hotkey is not { } modifiers)
+        if (_hotkey is not { } binding)
             return;
-        foreach (var mask in LockMasks(modifiers))
-            XUngrabKey(_display, _v, mask, _root);
-        XFlush(_display);
+        UngrabKeys(binding.Keycode, binding.Masks);
         _hotkey = null;
     }
 
-    private IEnumerable<uint> LockMasks(uint mods)
+    private void UngrabKeys(byte keycode, IEnumerable<uint> masks)
     {
-        const uint caps = 1 << 1;
-        return new[] { mods, mods | caps, mods | _numLock, mods | caps | _numLock }.Distinct();
+        foreach (var mask in masks)
+            XUngrabKey(_display, keycode, mask, _root);
+        XFlush(_display);
     }
+
+    private uint[] LockMasks(uint mods) =>
+        new[] { mods, mods | LockMask, mods | _numLock, mods | LockMask | _numLock }.Distinct().ToArray();
 
     private uint ModifierMask(nuint keysym, uint fallback)
     {
@@ -209,8 +210,8 @@ internal sealed partial class X11Desktop : ILinuxDesktop
                 for (var count = 0; count < 64 && XPending(_display) > 0; count++)
                 {
                     XNextEvent(_display, out var xevent);
-                    if (xevent.Header.Type == KeyPress && _hotkey is { } mods && xevent.Key.Keycode == _v &&
-                        (xevent.Key.State & ~(_numLock | (1u << 1))) == mods)
+                    if (xevent.Header.Type == KeyPress && _hotkey is { } binding && xevent.Key.Keycode == binding.Keycode &&
+                        binding.Masks.Contains(xevent.Key.State & KeyboardModifierMask))
                         HotkeyPressed?.Invoke();
                     else
                         HandleClipboardEvent(xevent);

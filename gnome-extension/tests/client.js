@@ -126,10 +126,18 @@ async function test(editor, entry) {
     await delay(350);
     check(clipboardEvents.length === 0, 'private clipboard marker suppressed');
 
-    check(call(SHELL, 'SetAccelerator', '(s)', ['<Control><Shift>v']), 'schema shortcut registered');
-    call(PROBE, 'Shortcut');
+    call(SHELL, 'CheckAccess');
+    check(call(SHELL, 'SetAccelerator', '(s)', ['<Control><Alt>v']), 'Ctrl+Alt+V registered');
+    call(PROBE, 'Shortcut', '(b)', [false]);
     await until('HotkeyPressed', () => shortcutCount === 1);
-    print('PASS compositor shortcut emits HotkeyPressed');
+    print('PASS Ctrl+Alt+V emits HotkeyPressed');
+    check(call(SHELL, 'SetAccelerator', '(s)', ['<Shift><Control>F8']), 'custom Ctrl+Shift+F8 registered');
+    for (const invalid of ['v', '<Shift>v', '<Shift><Shift>v', '<Control>F25', '<Control>v\n'])
+        check(!call(SHELL, 'SetAccelerator', '(s)', [invalid]), 'invalid accelerator refused: ' + JSON.stringify(invalid));
+    check(!call(SHELL, 'SetAccelerator', '(s)', ['<Alt>F4']), 'occupied Alt+F4 refused');
+    call(PROBE, 'Shortcut', '(b)', [true]);
+    await until('custom HotkeyPressed', () => shortcutCount === 2);
+    print('PASS custom shortcut emits HotkeyPressed after refused replacements');
     GLib.file_set_contents(home + '/authorized-traffic', new Uint8Array([1]));
     await waitPeer(denied);
 

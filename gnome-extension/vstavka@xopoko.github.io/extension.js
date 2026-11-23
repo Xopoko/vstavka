@@ -11,13 +11,28 @@ import {Windows} from './windows.js';
 const BUS = 'io.github.xopoko.Vstavka.Shell1';
 const PATH = '/io/github/xopoko/Vstavka/Shell';
 const KEY = 'vstavka-hotkey';
-const ACCELERATORS = new Set(['<Control><Shift>v', '<Control><Alt>v', '<Alt>v']);
+const MODIFIERS = ['<Control>', '<Alt>', '<Shift>', '<Super>'];
+const ACCELERATOR = /^(?<modifiers>(?:<(?:Control|Alt|Shift|Super)>){1,4})(?<key>[a-z0-9]|F(?:[1-9]|1[0-9]|2[0-4])|space)(?![\s\S])/;
+
+function normalizeAccelerator(accelerator) {
+    const match = ACCELERATOR.exec(accelerator);
+    if (!match)
+        return null;
+    const modifiers = match.groups.modifiers.match(/<[^>]+>/g);
+    if (new Set(modifiers).size !== modifiers.length || modifiers.every(modifier => modifier === '<Shift>'))
+        return null;
+    return MODIFIERS.filter(modifier => modifiers.includes(modifier)).join('') + match.groups.key;
+}
 
 export default class VstavkaExtension extends Extension {
     enable() {
         try {
             this.settings = this.getSettings();
             this.authorization = new AuthorizedClients(this.settings, sender => this.revoke(sender));
+            this.hotkeySignal = global.display.connect('accelerator-activated', (_display, action) => {
+                if (action === this.hotkeyAction && this.sessionAvailable() && this.authorization.isAllowed(this.hotkeySender))
+                    Gio.DBus.session.emit_signal(this.hotkeySender, PATH, BUS, 'HotkeyPressed', null);
+            });
             this.windows = new Windows();
             this.clipboard = new Clipboard(
                 (sender, args) => this.clipboardChanged(sender, args),
@@ -45,6 +60,9 @@ export default class VstavkaExtension extends Extension {
         this.clipboardSender = null;
         this.clipboardActive = false;
         this.releaseHotkey();
+        if (this.hotkeySignal)
+            global.display.disconnect(this.hotkeySignal);
+        this.hotkeySignal = null;
         this.clipboard?.dispose();
         this.clipboard = null;
         this.windows?.dispose();
@@ -78,6 +96,11 @@ export default class VstavkaExtension extends Extension {
         }
         if (this.hotkeySender === sender)
             this.releaseHotkey();
+    }
+
+    async CheckAccessAsync(_params, invocation) {
+        if (await this.authorizedSender(invocation))
+            invocation.return_value(null);
     }
 
     async SubscribeClipboardAsync(_params, invocation) {
@@ -123,7 +146,8 @@ export default class VstavkaExtension extends Extension {
         const sender = await this.authorizedSender(invocation);
         if (!sender)
             return;
-        const success = ACCELERATORS.has(accelerator) && this.registerHotkey(sender, accelerator);
+        const normalized = normalizeAccelerator(accelerator);
+        const success = normalized !== null && this.registerHotkey(sender, normalized);
         invocation.return_value(new GLib.Variant('(b)', [success]));
     }
 
@@ -132,32 +156,19 @@ export default class VstavkaExtension extends Extension {
             return false;
         if (this.hotkeySender && this.accelerator === accelerator)
             return true;
-        const probe = global.display.grab_accelerator(accelerator, Meta.KeyBindingFlags.NONE);
-        if (probe === Meta.KeyBindingAction.NONE)
+        const action = global.display.grab_accelerator(accelerator, Meta.KeyBindingFlags.IGNORE_AUTOREPEAT);
+        if (action === Meta.KeyBindingAction.NONE)
             return false;
-        global.display.ungrab_accelerator(probe);
-
-        const previous = this.settings.get_strv(KEY);
-        const wasRegistered = !!this.hotkeySender;
-        if (wasRegistered)
-            Main.wm.removeKeybinding(KEY);
-        if (!this.settings.set_strv(KEY, [accelerator]) || !this.addKeybinding()) {
-            this.settings.set_strv(KEY, previous);
-            if (wasRegistered)
-                this.addKeybinding();
+        if (!this.settings.set_strv(KEY, [accelerator])) {
+            global.display.ungrab_accelerator(action);
             return false;
         }
+        this.releaseHotkey();
+        Main.wm.allowKeybinding(Meta.external_binding_name_for_action(action), Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW);
+        this.hotkeyAction = action;
         this.hotkeySender = sender;
         this.accelerator = accelerator;
         return true;
-    }
-
-    addKeybinding() {
-        return Main.wm.addKeybinding(KEY, this.settings, Meta.KeyBindingFlags.IGNORE_AUTOREPEAT,
-            Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW, () => {
-                if (this.sessionAvailable() && this.authorization.isAllowed(this.hotkeySender))
-                    Gio.DBus.session.emit_signal(this.hotkeySender, PATH, BUS, 'HotkeyPressed', null);
-            }) !== Meta.KeyBindingAction.NONE;
     }
 
     async ReleaseHotkeyAsync(_params, invocation) {
@@ -170,8 +181,11 @@ export default class VstavkaExtension extends Extension {
     }
 
     releaseHotkey() {
-        if (this.hotkeySender)
-            Main.wm.removeKeybinding(KEY);
+        if (this.hotkeyAction) {
+            Main.wm.allowKeybinding(Meta.external_binding_name_for_action(this.hotkeyAction), Shell.ActionMode.NONE);
+            global.display.ungrab_accelerator(this.hotkeyAction);
+        }
+        this.hotkeyAction = null;
         this.hotkeySender = null;
         this.accelerator = null;
     }

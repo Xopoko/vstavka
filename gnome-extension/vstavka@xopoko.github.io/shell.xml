@@ -1,5 +1,6 @@
 <node>
   <interface name="io.github.xopoko.Vstavka.Shell1">
+    <method name="CheckAccess"/>
     <method name="SubscribeClipboard"/>
     <method name="UnsubscribeClipboard"/>
     <method name="SetClipboard">

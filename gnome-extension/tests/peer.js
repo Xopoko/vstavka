@@ -27,6 +27,7 @@ if (mode === 'blank') {
     expectError('AccessDenied', 'SubscribeClipboard');
     print('PASS empty allowlist denies the subscriber');
 } else if (mode === 'busy') {
+    call('CheckAccess');
     expectError('ClipboardBusy', 'SubscribeClipboard');
     print('PASS a second allowed connection cannot take the subscription');
 } else if (mode === 'acquire') {
@@ -38,14 +39,14 @@ if (mode === 'blank') {
         connection.signal_subscribe(BUS, BUS, name, PATH, null, Gio.DBusSignalFlags.NONE, () => signals++);
     }
     for (const request of [
-        ['SubscribeClipboard'], ['UnsubscribeClipboard'],
+        ['CheckAccess'], ['SubscribeClipboard'], ['UnsubscribeClipboard'],
         ['SetClipboard', '(say)', ['text/plain;charset=utf-8', new Uint8Array([65])]],
         ['SetAccelerator', '(s)', ['<Alt>v']], ['ReleaseHotkey'],
         ['CaptureTarget'], ['Paste'], ['PreparePanel'],
     ]) {
         expectError('AccessDenied', ...request);
     }
-    print('PASS unlisted executable is denied for all eight D-Bus methods');
+    print('PASS unlisted executable is denied for all nine D-Bus methods');
     const home = GLib.get_home_dir();
     GLib.file_set_contents(home + '/unlisted-ready', new Uint8Array([1]));
     const loop = new GLib.MainLoop(null, false);
