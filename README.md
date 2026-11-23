@@ -29,7 +29,8 @@ collections so they stay out of your everyday history. History is stored only
 on your PC and encrypted for your Windows account. Vstavka has no accounts,
 analytics or network features.
 
-The Microsoft Store build can lag behind `main`.
+The Microsoft Store build can lag behind `main`. Versions for macOS and Ubuntu are in an early
+preview built with Avalonia; see [cross-platform notes](docs/cross-platform.md).
 
 ## Using Vstavka
 
@@ -113,12 +114,14 @@ boundaries; none of them reads your clipboard.
 | Path | Contents |
 | --- | --- |
 | `src/Vstavka.Core` | History model, search, encrypted storage, collections and the 24 language catalogs |
-| `src/Vstavka` | WPF app: panel, settings, clipboard and shortcut services, theme |
+| `src/Vstavka` | WPF app shipped in the Microsoft Store: panel, settings, clipboard and shortcut services, theme |
+| `src/Vstavka.Desktop`, `src/Vstavka.Platform*` | Cross-platform preview: Avalonia app and its Windows, macOS and Linux adapters |
+| `gnome-extension` | GNOME Shell helper the Linux preview needs on Wayland |
 | `tests` | Test suites, performance probes and the Store screenshot harness |
-| `scripts` | Build, local install and MSIX packaging scripts |
+| `scripts` | Build, local install, MSIX and macOS app bundle scripts |
 | `packaging` | MSIX manifest template and package assets, see [packaging/README.md](packaging/README.md) |
 | `store` | Store listing text and screenshots |
-| `docs` | [Localization notes](docs/localization.md) and the [manual acceptance checklist](docs/acceptance.md) |
+| `docs` | [Cross-platform notes](docs/cross-platform.md), [localization notes](docs/localization.md) and the [manual acceptance checklist](docs/acceptance.md) |
 
 ## Support and contributing
 
