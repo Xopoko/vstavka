@@ -117,6 +117,7 @@ jobs:
       - name: Run GNOME Shell integration
         env:
           VSTAVKA_GNOME_LOG_DIR: ${{ runner.temp }}/gnome-headless
+          VSTAVKA_APT_MIRROR: http://azure.archive.ubuntu.com/ubuntu
         run: bash gnome-extension/tests/run-headless.sh
 
       - name: Upload GNOME Shell log
