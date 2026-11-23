@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AssemblyName>Vstavka.Desktop</AssemblyName>
+    <Product>Vstavka</Product>
+    <RestoreSources>https://api.nuget.org/v3/index.json</RestoreSources>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.6" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.6" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.6" />
+    <PackageReference Include="FluentIcons.Avalonia" Version="2.1.345" />
+    <ProjectReference Include="../Vstavka.Core/Vstavka.Core.csproj" />
+    <ProjectReference Include="../Vstavka.Platform/Vstavka.Platform.csproj" />
+    <InternalsVisibleTo Include="Vstavka.Desktop.Tests" />
+    <EmbeddedResource Include="DesktopStrings.json" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,140 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Styles.Resources>
+    <ControlTheme x:Key="HistoryCard" TargetType="ListBoxItem">
+      <Setter Property="Width" Value="246" />
+      <Setter Property="Margin" Value="0,0,10,0" />
+      <Setter Property="Padding" Value="2" />
+      <Setter Property="VerticalContentAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="FocusAdorner" Value="{x:Null}" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Grid>
+            <Border Name="CardSurface" Background="{DynamicResource SurfaceBrush}"
+                    BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="14" />
+            <ContentPresenter Name="PART_ContentPresenter" Padding="{TemplateBinding Padding}"
+                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                              Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" />
+            <Border Name="SelectionRing" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="2"
+                    CornerRadius="14" IsHitTestVisible="False" IsVisible="False" />
+          </Grid>
+        </ControlTemplate>
+      </Setter>
+      <Style Selector="^:pointerover /template/ Border#CardSurface">
+        <Setter Property="BorderBrush" Value="{DynamicResource HoverLineBrush}" />
+      </Style>
+      <Style Selector="^:selected /template/ Border#CardSurface">
+        <Setter Property="Background" Value="{DynamicResource SelectedSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
+      </Style>
+      <Style Selector="^:selected /template/ Border#SelectionRing, ^:focus-visible /template/ Border#SelectionRing">
+        <Setter Property="IsVisible" Value="True" />
+      </Style>
+    </ControlTheme>
+  </Styles.Resources>
+
+  <Style Selector="Button.panel-button">
+    <Setter Property="MinHeight" Value="36" />
+    <Setter Property="Padding" Value="11,0" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource MutedBrush}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="FocusAdorner" Value="{x:Null}" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Grid>
+          <ContentPresenter Name="PART_ContentPresenter"
+                            Background="{TemplateBinding Background}" Foreground="{TemplateBinding Foreground}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}"
+                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                            Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" />
+          <Border Name="FocusRing" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="2"
+                  CornerRadius="{TemplateBinding CornerRadius}" IsHitTestVisible="False" IsVisible="False" />
+        </Grid>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="Button.panel-button:pointerover">
+    <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource InkBrush}" />
+  </Style>
+  <Style Selector="Button.panel-button:pressed">
+    <Setter Property="Background" Value="{DynamicResource PressedBrush}" />
+  </Style>
+  <Style Selector="Button.panel-button:focus-visible /template/ Border#FocusRing">
+    <Setter Property="IsVisible" Value="True" />
+  </Style>
+  <Style Selector="Button.panel-button:disabled">
+    <Setter Property="Opacity" Value=".45" />
+  </Style>
+  <Style Selector="Button.icon-button">
+    <Setter Property="Width" Value="36" />
+    <Setter Property="Height" Value="36" />
+    <Setter Property="Padding" Value="0" />
+  </Style>
+  <Style Selector="Button.chip">
+    <Setter Property="Foreground" Value="{DynamicResource InkBrush}" />
+    <Setter Property="CornerRadius" Value="17" />
+    <Setter Property="MinHeight" Value="34" />
+  </Style>
+  <Style Selector="Button.chip.active">
+    <Setter Property="Background" Value="{DynamicResource SelectionBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="Button.permission">
+    <Setter Property="MinHeight" Value="26" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
+  </Style>
+
+  <Style Selector="TextBox.panel-search">
+    <Setter Property="Foreground" Value="{DynamicResource InkBrush}" />
+    <Setter Property="PlaceholderForeground" Value="{DynamicResource MutedBrush}" />
+    <Setter Property="CaretBrush" Value="{DynamicResource InkBrush}" />
+    <Setter Property="Background" Value="{DynamicResource InputBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="MinHeight" Value="36" />
+    <Setter Property="Padding" Value="7,0,10,0" />
+    <Setter Property="CornerRadius" Value="9" />
+    <Setter Property="SelectionBrush" Value="{DynamicResource SelectionBrush}" />
+    <Setter Property="FocusAdorner" Value="{x:Null}" />
+  </Style>
+  <Style Selector="TextBox.panel-search:pointerover /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="{DynamicResource InputBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource HoverLineBrush}" />
+  </Style>
+  <Style Selector="TextBox.panel-search:focus /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="{DynamicResource InputBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource HoverLineBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="TextBox.panel-search:focus-visible /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="BorderThickness" Value="2" />
+  </Style>
+  <Style Selector="TextBox.panel-search /template/ TextBlock#PART_Placeholder">
+    <Setter Property="Opacity" Value="1" />
+  </Style>
+
+  <Style Selector="ListBox.cards">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0,0,0,5" />
+    <Setter Property="ItemContainerTheme" Value="{StaticResource HistoryCard}" />
+    <Setter Property="ItemsPanel">
+      <ItemsPanelTemplate><VirtualizingStackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+    </Setter>
+  </Style>
+</Styles>
