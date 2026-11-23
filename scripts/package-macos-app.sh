@@ -81,6 +81,7 @@ else
         ln -s "../Frameworks/$name" "$macos/$name"
     done
     cp "$script_dir/../LICENSE" "$resources/License.txt"
+    cp "$script_dir/../packaging/MacThirdPartyNotices.txt" "$resources/ThirdPartyNotices.txt"
 fi
 chmod +x "$bundle/Contents/MacOS/$executable"
 
@@ -122,6 +123,11 @@ $icon_key
 </dict>
 </plist>
 PLIST
+
+if [[ -n "$mode" ]]; then
+    # On macOS the history encryption uses the system CryptoKit implementation.
+    /usr/libexec/PlistBuddy -c 'Add :ITSAppUsesNonExemptEncryption bool false' "$bundle/Contents/Info.plist"
+fi
 
 if [[ -z "$mode" ]]; then
     codesign --force --deep --sign - "$bundle"
