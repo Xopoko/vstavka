@@ -9,4 +9,10 @@
   <ItemGroup>
     <ProjectReference Include="../../src/Vstavka.Platform.Linux/Vstavka.Platform.Linux.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="../../gnome-extension/vstavka@xopoko.github.io/**/*"
+             Exclude="../../gnome-extension/vstavka@xopoko.github.io/**/gschemas.compiled"
+             Link="gnome-extension/vstavka@xopoko.github.io/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
