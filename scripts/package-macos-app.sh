@@ -59,26 +59,26 @@ fi
 
 mkdir -p "$bundle/Contents/MacOS" "$bundle/Contents/Resources"
 macos="$bundle/Contents/MacOS"
+resources="$bundle/Contents/Resources"
 minimum_macos="13.0"
 if [[ -z "$mode" ]]; then
     cp -R "$publish_dir/." "$macos/"
 else
     minimum_macos="14.0"
-    # The .NET host resolves its runtime and assemblies next to the executable.
-    # Keep code and resources in their bundle locations with relative links for the host.
+    # The apphost follows the entry assembly link and probes that directory for .NET.
+    # Expose the signed native libraries there while keeping them in Frameworks.
     mkdir -p "$bundle/Contents/Frameworks"
     shopt -s nullglob
     cp "$publish_dir/$executable" "$macos/"
     for library in "$publish_dir"/*.dylib; do
         name="${library##*/}"
         cp "$library" "$bundle/Contents/Frameworks/$name"
-        ln -s "../Frameworks/$name" "$macos/$name"
+        ln -s "../Frameworks/$name" "$resources/$name"
     done
     for dependency in "$publish_dir"/*.dll "$publish_dir"/*.json; do
-        name="${dependency##*/}"
-        cp "$dependency" "$bundle/Contents/Resources/$name"
-        ln -s "../Resources/$name" "$macos/$name"
+        cp "$dependency" "$resources/"
     done
+    ln -s "../Resources/$executable.dll" "$macos/$executable.dll"
 fi
 chmod +x "$bundle/Contents/MacOS/$executable"
 
