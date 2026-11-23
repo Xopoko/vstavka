@@ -40,22 +40,31 @@ var legacy=JsonSerializer.Deserialize<AppSettings>("{\"Volume\":0.63,\"Hotkey\":
 Check(legacy.Language=="en" && legacy.Theme=="system" && legacy.Accent=="windows" && legacy.Volume==0.63,"Old settings keep existing values and gain defaults.");
 var directory=Path.Combine(Path.GetTempPath(),"Vstavka.LocaleTests."+Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(directory);
+// DPAPI on Windows; elsewhere the AES-GCM protector that macOS and Linux use, with an in-memory key.
+IHistoryProtector protector=OperatingSystem.IsWindows()?new WindowsHistoryProtector():new AesGcmHistoryProtector(new MemoryKeyStore());
 try
 {
-    var store=new HistoryStore(directory);store.Load();
+    var store=new HistoryStore(directory,protector);store.Load();
     const string original="Notes: café, 日本語, العربية, русский";
     store.Add(new ClipItem {Text=original,Kind=ClipKind.Text,SourceApp="Synthetic test"});
     store.Settings.Language="ar";store.Settings.Theme="dark";store.Settings.Accent="teal";
     var save=store.SaveAsync();
     store.Settings.Language="en";store.Settings.Theme="light";store.Settings.Accent="amber";
     await save;
-    var restored=new HistoryStore(directory);restored.Load();
+    var restored=new HistoryStore(directory,protector);restored.Load();
     Check(restored.Settings.Language=="ar"&&restored.Settings.Theme=="dark"&&restored.Settings.Accent=="teal","Language/theme/accent captured in background save snapshot.");
     foreach(var lang in Strings.AvailableLanguages){Strings.SetLanguage(lang.Code);Check(restored.Items.Single().Text==original,"Locale change must never alter stored clipboard content.");}
-    restored.Save();var reloaded=new HistoryStore(directory);reloaded.Load();
+    restored.Save();var reloaded=new HistoryStore(directory,protector);reloaded.Load();
     Check(reloaded.Items.Single().Text==original&&reloaded.Settings.Language=="ar","Encrypted history and selected locale survive restart.");
 }
 finally {Directory.Delete(directory,true);Strings.SetLanguage("en");}
 foreach(var failure in failures)Console.Error.WriteLine("FAIL "+failure);
 Console.WriteLine($"Localization validation: {Strings.AvailableLanguages.Count*source.Count} strings; {failures.Count} failures. Synthetic history only.");
 return failures.Count==0?0:1;
+
+sealed class MemoryKeyStore:IHistoryKeyStore
+{
+    private byte[]? key;
+    public byte[]? TryLoadKey()=>key?.ToArray();
+    public void SaveKey(byte[] value)=>key=value.ToArray();
+}
