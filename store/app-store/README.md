@@ -52,4 +52,16 @@ Apple's current table:
   localizations that already exist, but refuses new localizations and new
   screenshots.
 
+## Search positions
+
+These texts were written on 2026-11-23, before the first release, so the
+starting point is "not listed". Two weeks after a release, look for app ID
+`6838294627` in the first 100 results of the public search API, for example
+<https://itunes.apple.com/search?term=clipboard+manager&country=us&entity=macSoftware&limit=100>.
+
+Terms to follow: `clipboard manager`, `clipboard history`, `copy paste`,
+`pasteboard` (us, gb); `буфер обмена`, `менеджер буфера обмена` (ru, kz);
+`zwischenablage` (de); `presse-papiers` (fr); `portapapeles` (es, mx);
+`área de transferência` (br); `クリップボード` (jp); `剪贴板` (cn); `클립보드` (kr).
+
 The translations were not reviewed by native speakers.
