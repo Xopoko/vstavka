@@ -22,4 +22,11 @@
     <ProjectReference Include="../Vstavka.Platform.Windows/Vstavka.Platform.Windows.csproj" />
     <InternalsVisibleTo Include="Vstavka.Desktop.Tests" />
   </ItemGroup>
+  <!-- The GNOME Shell helper ships only with Linux builds; macOS code signing rejects it inside an app bundle. -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == '' Or $(RuntimeIdentifier.StartsWith('linux'))">
+    <Content Include="../../gnome-extension/vstavka@xopoko.github.io/**/*"
+             Exclude="../../gnome-extension/vstavka@xopoko.github.io/**/gschemas.compiled"
+             Link="gnome-extension/vstavka@xopoko.github.io/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
