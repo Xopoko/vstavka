@@ -1,0 +1,1 @@
+geçmiş,kopyalama,yapıştırma,metin,kısayol,dosya,clipboard,manager,copy,paste,history,pasteboard,pin

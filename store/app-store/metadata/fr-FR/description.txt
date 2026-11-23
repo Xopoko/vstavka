@@ -1,0 +1,28 @@
+Vstavka conserve l’historique de ce que vous copiez et l’affiche sous forme de cartes dans un panneau en bas de l’écran. Appuyez sur Maj–Commande–V, choisissez une carte, puis appuyez sur Retour. L’élément revient dans le presse-papiers et vous pouvez le coller avec Commande–V.
+
+CE QUE VSTAVKA CONSERVE
+• Texte, liens, couleurs, images et fichiers
+• Chaque carte affiche un aperçu et indique de quelle application provient l’élément
+• Par défaut, Vstavka conserve les 500 éléments les plus récents parmi ceux copiés au cours des 30 derniers jours. Vous choisissez combien d’éléments garder et pendant combien de temps
+
+RETROUVEZ VOS COPIES
+• Recherchez dans l’historique
+• Filtrez par type avec « Texte », « Liens », « Images » ou « Fichiers »
+• Épinglez les éléments que vous utilisez souvent. Ils restent dans « Épinglés » jusqu’à ce que vous les retiriez
+• Passez d’une carte à l’autre avec les touches fléchées ou utilisez un raccourci de Commande–1 à Commande–9 pour choisir une carte selon sa position
+
+VOTRE HISTORIQUE RESTE À VOUS
+• L’historique est chiffré avant d’être enregistré et reste uniquement sur votre Mac
+• Vstavka ne comporte ni comptes, ni publicités, ni suivi d’utilisation, ni fonctions réseau
+• Les gestionnaires de mots de passe sont exclus par défaut. Vous pouvez ajouter d’autres applications à la liste « Applications exclues »
+• Choisissez « Suspendre l’enregistrement » avant de copier un contenu confidentiel. Vous pouvez supprimer des éléments un par un ou choisir « Effacer l’historique »
+
+PERSONNALISEZ VSTAVKA
+• Modifiez le raccourci clavier dans « Paramètres »
+• Choisissez un « Thème » clair ou sombre et une « Couleur d’accentuation »
+• Interface en 24 langues
+• Vstavka est accessible dans la barre des menus. Vous pouvez activer « Ouvrir à la connexion »
+
+Notez que le texte est enregistré sans mise en forme. La carte d’un fichier conserve son chemin d’accès. Pour coller le fichier, il doit toujours se trouver au même endroit.
+
+Vstavka est gratuite et open source, sans abonnement ni achat intégré.

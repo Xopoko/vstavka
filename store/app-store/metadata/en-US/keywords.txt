@@ -1,0 +1,1 @@
+pasteboard,clip,clips,multi,snippets,pin,search,shortcut,free,tool,buffer,text,image,link,menu,bar

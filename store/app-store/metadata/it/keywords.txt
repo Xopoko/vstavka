@@ -1,0 +1,1 @@
+testo,tastiera,scorciatoie,collegamenti,immagini,file,clipboard,manager,copy,paste,history,clip,pin

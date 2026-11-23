@@ -1,0 +1,1 @@
+剪切板,粘贴板,快捷键,搜索,固定,文本,图片,文件,clipboard,copy,paste,manager,history,quick,saver,recent,secure,offline

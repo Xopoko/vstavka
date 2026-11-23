@@ -1,0 +1,1 @@
+剪貼板,快速鍵,搜尋,釘選,儲存,文字,圖片,檔案,clipboard,copy,paste,manager,history,quick,saver,recent,secure,offline

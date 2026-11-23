@@ -1,0 +1,28 @@
+Vstavka lưu lại nội dung bạn đã sao chép và hiển thị từng mục dưới dạng thẻ trong bảng ở cuối màn hình. Nhấn Shift-Command-V để mở bảng, chọn một thẻ rồi nhấn phím Return để đưa mục đó trở lại bộ nhớ tạm. Sau đó, nhấn Command-V để dán.
+
+Nội dung được lưu
+• Văn bản, liên kết, màu, hình ảnh và tệp
+• Mỗi thẻ hiển thị bản xem trước nội dung và cho biết bạn đã sao chép từ ứng dụng nào
+• Mặc định lưu tối đa 500 mục mới nhất trong 30 ngày qua. Bạn có thể đổi số mục và thời gian lưu
+
+Tìm nhanh nội dung cần dùng
+• Tìm trong lịch sử
+• Lọc theo loại: văn bản, liên kết, hình ảnh hoặc tệp
+• Ghim những mục thường dùng. Các mục đã ghim được giữ lại cho đến khi bạn xóa chúng
+• Dùng các phím mũi tên để di chuyển giữa các thẻ hoặc nhấn từ Command-1 đến Command-9 để chọn thẻ theo vị trí
+
+Lịch sử chỉ lưu trên máy Mac của bạn
+• Lịch sử được mã hóa trước khi lưu và chỉ được lưu trên máy Mac của bạn
+• Không có tài khoản, quảng cáo, phân tích dữ liệu sử dụng hay tính năng mạng
+• Các ứng dụng quản lý mật khẩu được loại trừ mặc định. Bạn có thể thêm ứng dụng khác vào danh sách “Ứng dụng bị loại trừ”
+• Dùng “Tạm dừng lưu” trước khi sao chép nội dung riêng tư. Bạn có thể xóa từng mục hoặc chọn “Xóa lịch sử” để xóa toàn bộ
+
+Tùy chỉnh theo cách bạn dùng
+• Đổi phím tắt trong “Cài đặt”
+• Chọn chủ đề Sáng hoặc Tối và màu nhấn theo ý bạn
+• Giao diện hỗ trợ 24 ngôn ngữ
+• Ứng dụng nằm trên thanh menu và có thể mở khi bạn đăng nhập
+
+Lưu ý: Văn bản được lưu mà không giữ định dạng. Thẻ tệp lưu đường dẫn đến tệp, nên khi bạn dán, tệp vẫn phải nằm ở vị trí ban đầu.
+
+Vstavka là ứng dụng mã nguồn mở miễn phí, không có gói đăng ký hay giao dịch mua trong ứng dụng.

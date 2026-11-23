@@ -1,0 +1,28 @@
+Vstavka guarda el historial de lo que copias y lo muestra en tarjetas, en un panel en la parte inferior de la pantalla. Presiona Mayúsculas–Comando–V, elige una tarjeta y presiona Retorno. El elemento vuelve al portapapeles y puedes pegarlo con Comando–V.
+
+QUÉ GUARDA
+• Texto, enlaces, colores, imágenes y archivos
+• Cada tarjeta muestra una vista previa y la aplicación de la que se copió el elemento
+• Por defecto, conserva los 500 elementos más recientes de los últimos 30 días. Tú eliges cuántos conservar y durante cuánto tiempo
+
+ENCUENTRA LO QUE BUSCAS
+• Busca en el historial
+• Filtra por tipo con «Texto», «Enlaces», «Imágenes» o «Archivos»
+• Fija lo que usas a menudo. Los elementos de «Fijados» se conservan hasta que los quites
+• Muévete entre las tarjetas con las flechas del teclado o usa un atajo de Comando–1 a Comando–9 para elegir una tarjeta por su posición
+
+TU HISTORIAL ES TUYO
+• El historial se cifra antes de guardarse y solo se almacena en tu Mac
+• Vstavka no tiene cuentas, anuncios, funciones de analítica ni funciones de red
+• Los gestores de contraseñas están excluidos por defecto. Puedes agregar otras aplicaciones a «Aplicaciones excluidas»
+• Usa «Pausar guardado» antes de copiar algo privado. Puedes eliminar elementos por separado o usar «Borrar historial» para eliminarlos todos
+
+A TU GUSTO
+• Cambia el atajo de teclado en «Configuración»
+• Elige un «Tema» claro u oscuro y un «Color de énfasis»
+• Interfaz en 24 idiomas
+• Vstavka está en la barra de menús. Puedes elegir «Abrir al iniciar sesión»
+
+Ten en cuenta que el texto se guarda sin formato. La tarjeta de un archivo conserva su ruta. Para poder pegarlo, el archivo tiene que seguir en el mismo sitio.
+
+Vstavka es gratis y de código abierto, sin suscripciones ni compras dentro de la app.

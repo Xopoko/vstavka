@@ -1,0 +1,1 @@
+gestor,teclado,atajos,copia,pega,copias,texto,clipboard,manager,copy,paste,history,pasteboard,pin

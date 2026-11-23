@@ -1,0 +1,28 @@
+Vstavka zapisuje historię schowka i pokazuje skopiowane elementy jako karty w panelu u dołu ekranu. Naciśnij Shift–Command–V, wybierz kartę i naciśnij Return (⏎). Jej zawartość wróci do schowka i możesz ją wkleić za pomocą Command–V.
+
+CO ZAPISUJE VSTAVKA
+• Tekst, linki, kolory, obrazy i pliki
+• Każda karta pokazuje podgląd i aplikację, z której skopiowano dany element
+• Domyślnie Vstavka zachowuje 500 najnowszych pozycji z ostatnich 30 dni. Możesz ustawić limit pozycji i czas ich przechowywania
+
+ZNAJDŹ TO, CO KOPIUJESZ
+• Szukaj w historii
+• Filtruj według typu, wybierając „Tekst”, „Linki”, „Obrazy” lub „Pliki”
+• Przypinaj często używane pozycje. Pozycje w kategorii „Przypięte” pozostają zapisane, dopóki ich nie usuniesz
+• Przechodź między kartami klawiszami strzałek lub wybierz kartę według jej pozycji za pomocą jednego ze skrótów od Command–1 do Command–9
+
+HISTORIA ZOSTAJE NA MACU
+• Vstavka szyfruje historię przed zapisem i przechowuje ją tylko na Macu
+• Vstavka działa bez kont, reklam, analityki i funkcji sieciowych
+• Menedżery haseł są domyślnie wykluczone. Możesz dodać inne aplikacje do listy „Wykluczone aplikacje”
+• Wybierz „Wstrzymaj zapisywanie”, zanim skopiujesz coś prywatnego. Możesz usuwać pojedyncze pozycje lub wybrać „Wyczyść historię”, aby usunąć wszystkie
+
+DOSTOSUJ APLIKACJĘ
+• Zmień skrót klawiszowy w sekcji „Ustawienia”
+• Wybierz jasny lub ciemny „Motyw” oraz „Kolor wiodący”
+• Interfejs w 24 językach
+• Vstavka jest dostępna na pasku menu. Możesz włączyć opcję „Otwieraj przy logowaniu”
+
+Warto wiedzieć, że tekst jest zapisywany bez formatowania. Karta pliku przechowuje ścieżkę do pliku. Aby go wkleić, plik musi nadal znajdować się w tym samym miejscu.
+
+Vstavka jest darmowa i ma otwarty kod źródłowy. Nie ma subskrypcji ani zakupów w aplikacji.

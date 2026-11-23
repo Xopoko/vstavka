@@ -1,0 +1,1 @@
+복붙,매니저,단축키,검색,고정,저장,텍스트,이미지,clipboard,copy,paste,manager,history,quick,saver,recent,secure,offline

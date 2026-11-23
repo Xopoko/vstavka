@@ -1,0 +1,28 @@
+Vstavka merkt sich, was du kopierst, und zeigt den Verlauf als Karten in einem Bereich am unteren Bildschirmrand. Drücke Umschalt–Befehl–V, wähle eine Karte aus und drücke die Eingabetaste (⏎). Der Eintrag liegt wieder in der Zwischenablage und du kannst ihn mit Befehl–V einfügen.
+
+WAS VSTAVKA SPEICHERT
+• Text, Links, Farben, Bilder und Dateien
+• Jede Karte zeigt eine Vorschau und die App, aus der der Eintrag kopiert wurde
+• Standardmäßig bleiben die 500 neuesten Einträge der letzten 30 Tage erhalten. Du kannst festlegen, wie viele Einträge du wie lange aufbewahrst
+
+SCHNELL WIEDERFINDEN
+• Durchsuche den Verlauf
+• Filtere nach „Text“, „Links“, „Bilder“ oder „Dateien“
+• Hefte Einträge an, die du oft verwendest. Einträge unter „Angeheftet“ bleiben erhalten, bis du sie entfernst
+• Wechsle mit den Pfeiltasten zwischen den Karten oder wähle mit Befehl–1 bis Befehl–9 eine Karte anhand ihrer Position aus
+
+DEIN VERLAUF BLEIBT BEI DIR
+• Der Verlauf wird vor dem Speichern verschlüsselt und nur auf deinem Mac gespeichert
+• Vstavka hat keine Konten, keine Werbung, keine Nutzungsanalyse und keine Netzwerkfunktionen
+• Passwortmanager sind standardmäßig ausgeschlossen. Unter „Ausgeschlossene Apps“ kannst du weitere Apps hinzufügen
+• Wähle „Speichern pausieren“, bevor du vertrauliche Inhalte kopierst. Du kannst einzelne Einträge löschen oder den gesamten Verlauf über „Verlauf leeren“ entfernen
+
+PASS VSTAVKA AN
+• Ändere das Tastenkürzel in den „Einstellungen“
+• Wähle unter „Design“ zwischen Hell und Dunkel und lege die „Akzentfarbe“ fest
+• Oberfläche in 24 Sprachen
+• Vstavka sitzt in der Menüleiste. Auf Wunsch kannst du „Bei der Anmeldung öffnen“ aktivieren
+
+Beachte, dass Text ohne Formatierung gespeichert wird. Eine Dateikarte speichert den Pfad zur Datei. Zum Einfügen muss die Datei noch am selben Ort liegen.
+
+Vstavka ist kostenlos und quelloffen. Es gibt keine Abos und keine In-App-Käufe.

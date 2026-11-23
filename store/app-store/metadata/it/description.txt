@@ -1,0 +1,28 @@
+Vstavka conserva la cronologia di ciò che copi e la mostra sotto forma di schede in un pannello nella parte inferiore dello schermo. Premi Maiuscole–Comando–V, scegli una scheda e premi Invio. L’elemento torna negli appunti e puoi incollarlo con Comando–V.
+
+COSA CONSERVA
+• Testo, collegamenti, colori, immagini e file
+• Ogni scheda mostra un’anteprima e l’app da cui hai copiato l’elemento
+• Per impostazione predefinita vengono conservati i 500 elementi più recenti tra quelli copiati negli ultimi 30 giorni. Decidi tu quanti tenerne e per quanto tempo
+
+TROVA QUELLO CHE HAI COPIATO
+• Cerca nella cronologia
+• Filtra per tipo con «Testo», «Collegamenti», «Immagini» o «File»
+• Fissa gli elementi che usi spesso. Gli elementi in «Fissati» restano salvati finché non li rimuovi
+• Passa da una scheda all’altra con i tasti freccia oppure usa una scorciatoia da Comando–1 a Comando–9 per scegliere una scheda in base alla sua posizione
+
+LA CRONOLOGIA RESTA TUA
+• La cronologia viene cifrata prima di essere salvata e resta solo sul tuo Mac
+• Vstavka non ha account, pubblicità, analisi dell’utilizzo o funzionalità di rete
+• I gestori di password sono esclusi per impostazione predefinita. Puoi aggiungere altre app a «App escluse»
+• Scegli «Sospendi salvataggio» prima di copiare qualcosa di privato. Puoi eliminare singoli elementi o usare «Cancella cronologia» per eliminarli tutti
+
+PERSONALIZZA VSTAVKA
+• Cambia la scorciatoia in «Impostazioni»
+• Scegli un «Tema» chiaro o scuro e un «Colore principale»
+• Interfaccia in 24 lingue
+• Vstavka è nella barra dei menu. Puoi attivare «Apri all’accesso»
+
+Tieni presente che il testo viene salvato senza formattazione. La scheda di un file conserva il percorso del file. Per poterlo incollare, il file deve trovarsi ancora nella stessa posizione.
+
+Vstavka è gratuita e open source, senza abbonamenti né acquisti in-app.

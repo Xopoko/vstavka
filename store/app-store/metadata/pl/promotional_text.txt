@@ -1,0 +1,1 @@
+Naciśnij Shift–Command–V, by przeszukać historię i przypiąć wybrane pozycje. Vstavka ma otwarty kod, jest darmowa i przechowuje zaszyfrowaną historię na Macu.

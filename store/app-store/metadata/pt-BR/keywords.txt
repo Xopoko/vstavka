@@ -1,0 +1,1 @@
+gerenciador,atalhos,cópias,texto,teclado,clipboard,copy,paste,manager,history,offline,secure,color

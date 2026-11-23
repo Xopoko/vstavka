@@ -1,0 +1,28 @@
+O Vstavka guarda o histórico do que você copia e o exibe em cartões em um painel na parte inferior da tela. Pressione Shift–Command–V, escolha um cartão e pressione Retorno (⏎). O item volta para a área de transferência e você pode colá-lo com Command–V.
+
+O QUE O VSTAVKA GUARDA
+• Texto, links, cores, imagens e arquivos
+• Cada cartão mostra uma prévia e o aplicativo de onde o item foi copiado
+• Por padrão, são mantidos os 500 itens mais recentes dos últimos 30 dias. Você decide quantos itens guardar e por quanto tempo
+
+ENCONTRE O QUE VOCÊ COPIOU
+• Pesquise no histórico
+• Filtre por tipo com “Texto”, “Links”, “Imagens” ou “Arquivos”
+• Fixe os itens que você usa com frequência. Os itens em “Fixados” ficam salvos até você removê-los
+• Use as setas para navegar entre os cartões ou use um atalho de Command–1 a Command–9 para escolher um cartão pela posição
+
+SEU HISTÓRICO FICA NO SEU MAC
+• O histórico é criptografado antes de ser salvo e fica armazenado apenas no seu Mac
+• O Vstavka não tem contas, anúncios, análise de uso nem recursos de rede
+• Gerenciadores de senhas são excluídos por padrão. Você pode adicionar outros aplicativos à lista “Aplicativos excluídos”
+• Use “Pausar salvamento” antes de copiar algo privado. Você pode excluir itens individualmente ou usar “Limpar histórico” para excluir todos
+
+DO SEU JEITO
+• Mude o atalho em “Configurações”
+• Escolha um “Tema” claro ou escuro e uma “Cor de destaque”
+• Interface em 24 idiomas
+• O Vstavka fica na barra de menus. Você pode ativar “Abrir ao iniciar sessão”
+
+Vale saber que o texto é salvo sem formatação. O cartão de um arquivo guarda o caminho até ele. Para colar o arquivo, ele precisa continuar no mesmo local.
+
+O Vstavka é grátis e de código aberto, sem assinaturas nem compras no app.

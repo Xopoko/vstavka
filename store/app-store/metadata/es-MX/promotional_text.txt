@@ -1,0 +1,1 @@
+Abre el historial con Mayúsculas–Comando–V para buscar y fijar lo que copiaste. Vstavka es gratis y de código abierto y guarda tu historial cifrado en tu Mac.

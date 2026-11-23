@@ -1,0 +1,1 @@
+papier,raccourcis,clavier,texte,images,liens,clipboard,copy,paste,manager,history,secure,offline

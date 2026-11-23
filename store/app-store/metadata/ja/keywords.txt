@@ -1,0 +1,1 @@
+コピペ,貼り付け,検索,保存,ピン留め,ショートカット,テキスト,画像,ファイル,clipboard,manager,copy,paste,history,pasteboard,clip,multi

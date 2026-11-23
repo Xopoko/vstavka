@@ -1,0 +1,28 @@
+Vstavka kopyaladıklarınızın geçmişini tutar ve ekranın altındaki bir panelde kartlar hâlinde gösterir. Shift–Komut–V tuşlarına basın, bir kart seçin ve Return tuşuna basın. Öğe yeniden panoya kopyalanır. Ardından Komut–V ile yapıştırabilirsiniz.
+
+NELERİ SAKLAR?
+• Metin, bağlantılar, renkler, görseller ve dosyalar
+• Her kart, öğenin önizlemesini ve kopyalandığı uygulamayı gösterir
+• Varsayılan olarak son 30 günde kopyalanan en yeni 500 öğe saklanır. Kaç öğenin ne kadar süreyle saklanacağını siz belirleyin
+
+ARADIĞINIZI HEMEN BULUN
+• Geçmişte arayın
+• Türe göre filtrelemek için “Metin”, “Bağlantılar”, “Görseller” veya “Dosyalar”ı seçin
+• Sık kullandığınız öğeleri sabitleyin. “Sabitlenenler” bölümündeki öğeler siz kaldırana kadar saklanır
+• Ok tuşlarıyla kartlar arasında gezinin veya Komut–1 ile Komut–9 arasındaki kısayollarla kartı sırasına göre seçin
+
+GEÇMİŞİNİZ SİZE AİT
+• Geçmiş kaydedilmeden önce şifrelenir ve yalnızca Mac’inizde saklanır
+• Vstavka’da hesap, reklam, kullanım analizi veya ağ özelliği yoktur
+• Parola yöneticileri varsayılan olarak hariç tutulur. Diğer uygulamaları “Hariç tutulan uygulamalar” listesine ekleyebilirsiniz
+• Özel bir şey kopyalamadan önce “Kaydetmeyi duraklat” seçeneğini kullanın. Tek tek öğeleri silebilir veya “Geçmişi temizle” ile tüm geçmişi silebilirsiniz
+
+KENDİNİZE GÖRE AYARLAYIN
+• “Ayarlar”dan kısayolu değiştirin
+• Açık veya koyu “Tema”yı ve “Vurgu rengi”ni seçin
+• 24 dilde arayüz
+• Vstavka menü çubuğunda yer alır. “Oturum açıldığında başlat” seçeneğini etkinleştirebilirsiniz
+
+Metin biçimlendirme olmadan kaydedilir. Dosya kartı, dosyanın yolunu saklar. Dosyayı yapıştırabilmeniz için dosyanın aynı konumda durması gerekir.
+
+Vstavka ücretsiz ve açık kaynaklıdır. Abonelik veya uygulama içi satın alma yoktur.
