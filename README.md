@@ -42,12 +42,11 @@ into 24 languages.
 | Status | Stable | Preview | Preview |
 | Panel shortcut | Ctrl+Shift+V | ⇧⌘V | Ctrl+Alt+V |
 
-The Microsoft Store version is a WPF app for Windows. The macOS and Ubuntu
-versions come from a newer cross-platform app built with
-[Avalonia](https://avaloniaui.net/), which runs on Windows too and will replace
-the WPF app once it catches up; it does not manage collections or play sounds
-yet. There are no prebuilt macOS or Ubuntu downloads yet. On Linux, Vstavka
-supports GNOME 46 to 51 on Wayland, and X11 sessions.
+The desktop app uses [Avalonia](https://avaloniaui.net/) on all three platforms.
+The Avalonia package for Microsoft Store upgrades earlier Windows installs in
+place. Windows builds also play optional clipboard sounds. There are no prebuilt
+macOS or Ubuntu downloads yet. On Linux, Vstavka supports GNOME 46 to 51 on
+Wayland, and X11 sessions.
 
 ## Using Vstavka
 
@@ -60,7 +59,7 @@ works.
 
 ![First-run guide on macOS: the welcome screen, then the shortcut step with animated keys](docs/images/onboarding.gif)
 
-- **Windows** needs no permissions.
+- **Windows** asks before saving clipboard history on a new Store installation.
 - **macOS** asks whether Vstavka may read the clipboard (recent macOS
   versions ask this of every app that does) and for **Accessibility**, which
   lets Vstavka press ⌘V for you. Without Accessibility, Vstavka copies the
@@ -219,7 +218,7 @@ system boundaries; none of them reads your clipboard. See
 | Path | Contents |
 | --- | --- |
 | `src/Vstavka.Core` | History, search, pins, collections, encrypted storage and the 24 language catalogs, shared by both apps |
-| `src/Vstavka` | Windows app shipped in the Microsoft Store (WPF) |
+| `src/Vstavka` | Original Windows app (WPF) |
 | `src/Vstavka.Desktop` | Cross-platform app (Avalonia): panel, first-run guide, settings and tray icon |
 | `src/Vstavka.Platform*` | Clipboard, shortcut, paste and window adapters for Windows, macOS and Linux |
 | `gnome-extension` | GNOME Shell helper for Wayland |

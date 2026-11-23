@@ -8,7 +8,7 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <AssemblyName>Vstavka</AssemblyName>
     <RootNamespace>Vstavka</RootNamespace>
-    <Version>0.2.5</Version>
+    <Version>0.2.4</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\Vstavka.ico</ApplicationIcon>
   </PropertyGroup>

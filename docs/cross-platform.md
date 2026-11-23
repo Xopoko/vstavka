@@ -1,8 +1,8 @@
 # Cross-platform Vstavka (preview)
 
-Vstavka is moving from the Windows-only WPF app to one Avalonia app for Windows, macOS and
-Ubuntu. The Microsoft Store build keeps shipping from `src/Vstavka` (WPF) until the new app
-reaches feature parity.
+Vstavka uses Avalonia for Windows, macOS and Ubuntu. The Windows Store profile upgrades the
+existing WPF package and uses its history, settings and startup registration. See
+[MSIX preparation](../packaging/README.md) for the Windows Store build.
 
 ## How it is built
 
@@ -44,9 +44,9 @@ defaults are Ctrl+Shift+V on Windows, ⇧⌘V on macOS and Ctrl+Alt+V on Linux, 
 Ctrl+Shift+V is paste in terminals. Inside the panel, macOS uses ⌘ where Windows and Linux
 use Ctrl.
 
-Not done yet: managing collections and sounds in the new app, and signed release packages.
+Collections work in the Avalonia panel. Windows also supports separate copy and paste sounds.
 
 ## Trying the app
 
-See [Building from source](../README.md#building-from-source) in the README. The new app
-keeps its own history and never touches the Store app's data.
+See [Building from source](../README.md#building-from-source) in the README. The unpackaged
+Windows preview keeps its history separate from the Store app.

@@ -10,6 +10,7 @@ using Avalonia.Platform;
 using Avalonia.Threading;
 using Vstavka.Core;
 using Vstavka.Core.Localization;
+using Vstavka.Platform.Windows;
 
 namespace Vstavka.Desktop;
 
@@ -35,7 +36,11 @@ public sealed partial class App : Application
         DesktopHistory? history = null;
         var defaultSettings = new AppSettings();
         var platform = PlatformFactory.Create(args, () => history?.Store.Settings ?? defaultSettings);
-        var instance = TryLock(platform.DataDirectory);
+        var storeProfile = (platform as WindowsPlatformServices)?.StoreProfile;
+        var background = args.Contains("--startup") || args.Contains("--background");
+        Action? activate = null;
+        var instance = storeProfile is null ? TryLock(platform.DataDirectory) :
+            storeProfile.TryAcquireInstance(() => Dispatcher.UIThread.Post(() => activate?.Invoke()), !background);
         if (instance is null)
         {
             platform.Dispose();
@@ -44,9 +49,23 @@ public sealed partial class App : Application
         }
 
         history = new DesktopHistory(platform);
+        if (history.ClipboardConsentRequired && background)
+        {
+            platform.Dispose();
+            instance.Dispose();
+            Dispatcher.UIThread.Post(() => desktop.Shutdown());
+            return;
+        }
         if (PlatformFactory.IsDemo(args))
             DemoSamples.Seed(history.Store);
         var windows = new DesktopWindows(platform, history, ShowFeedback);
+        activate = () =>
+        {
+            if (history.ClipboardConsentRequired)
+                windows.OpenOnboarding();
+            else
+                windows.OpenPanel();
+        };
 
         var open = new NativeMenuItem(Strings.Get("TrayOpen"));
         var pause = new NativeMenuItem(Strings.Get("Pause"));
@@ -91,8 +110,11 @@ public sealed partial class App : Application
             }
         };
         history.Start();
-        if (!history.Store.Settings.OnboardingCompleted && (!PlatformFactory.IsDemo(args) || args.Contains("--onboarding")))
+        if ((history.ClipboardConsentRequired || !history.Store.Settings.OnboardingCompleted) &&
+            (!PlatformFactory.IsDemo(args) || args.Contains("--onboarding")))
             Dispatcher.UIThread.Post(windows.OpenOnboarding);
+        else if (storeProfile is not null && !background)
+            Dispatcher.UIThread.Post(windows.OpenPanel);
     }
 
     private void ShowFeedback(string text, PanelWindow panel)

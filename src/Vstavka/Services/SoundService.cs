@@ -1,9 +1,11 @@
 using System;
 using System.IO;
 using System.Media;
+using System.Runtime.Versioning;
 
 namespace Vstavka.Services;
 
+[SupportedOSPlatform("windows")]
 internal sealed class SoundService : IDisposable
 {
     private SoundPlayer? copy,paste;

@@ -73,7 +73,6 @@ internal interface IWindowsRunKey
 [SupportedOSPlatform("windows")]
 internal sealed class WindowsRunKey : IWindowsRunKey
 {
-    // A future MSIX build will use the package's StartupTask instead.
     private const string RunPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
 
     public string? Read(string name)

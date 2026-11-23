@@ -10,10 +10,11 @@ using Vstavka.Core;
 using Vstavka.Core.Localization;
 using Vstavka.Platform;
 using Vstavka.Platform.MacOS;
+using Vstavka.Platform.Windows;
 
 namespace Vstavka.Desktop;
 
-internal sealed class SettingsWindow : Window
+internal sealed partial class SettingsWindow : Window
 {
     private readonly IPlatformServices _platform;
     private readonly DesktopHistory _history;
@@ -30,12 +31,14 @@ internal sealed class SettingsWindow : Window
     private bool _startupChoiceChanged;
     private bool _saved;
 
+    private bool UsesSystemStartupState => _platform is MacPlatformServices { IsAppStoreBuild: true }
+        or WindowsPlatformServices { StoreProfile: not null };
+
     public SettingsWindow(IPlatformServices platform, DesktopHistory history, bool animate = true)
     {
         _platform = platform;
         _history = history;
         _draft = history.Store.Settings.Copy();
-        var appStoreBuild = platform is MacPlatformServices { IsAppStoreBuild: true };
         animate &= DesktopMotion.Enabled;
         Title = Strings.Get("Settings");
         Width = 650;
@@ -60,9 +63,11 @@ internal sealed class SettingsWindow : Window
             shortcut => _draft.PanelShortcut = shortcut, animate, large: false) { Name = "ShortcutRecorder" };
         var shortcut = Section("Shortcut", Card(_recorder));
         var contents = new StackPanel { Spacing = 14, Margin = new Thickness(30, 19, 30, 18), Children = { appearance, shortcut } };
+        if (platform.ClipboardSounds is { } sounds)
+            contents.Children.Add(SoundSection(sounds));
         if (platform.Startup.IsSupported)
         {
-            if (appStoreBuild)
+            if (UsesSystemStartupState)
                 _draft.StartAtLogin = platform.Startup.IsEnabled;
             _startup = new StartupRow(platform.Name, _draft.StartAtLogin, value =>
             {
@@ -106,7 +111,7 @@ internal sealed class SettingsWindow : Window
         };
         var description = SetupVisuals.Text(Strings.Get(history.Store.IsPersistent ? "PrivacySummary" : "PrivacyMemory"), 12, "MutedBrush");
         Control privacy = description;
-        if (appStoreBuild)
+        if (UsesSystemStartupState)
         {
             var policy = new HyperlinkButton
             {
@@ -219,7 +224,7 @@ internal sealed class SettingsWindow : Window
             _recorder.BringIntoView();
             return;
         }
-        if (_startup is not null && (_startupChoiceChanged || _platform is not MacPlatformServices { IsAppStoreBuild: true }) &&
+        if (_startup is not null && (_startupChoiceChanged || !UsesSystemStartupState) &&
             _platform.Startup.IsEnabled != _draft.StartAtLogin && !_platform.Startup.TrySetEnabled(_draft.StartAtLogin))
         {
             _draft.StartAtLogin = _platform.Startup.IsEnabled;

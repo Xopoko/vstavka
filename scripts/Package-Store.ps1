@@ -23,6 +23,9 @@ param(
     [ValidatePattern('^\d+\.\d+\.\d+\.0$')]
     [string] $PackageVersion = '1.1.4.0',
 
+    [ValidateSet('Wpf', 'Avalonia')]
+    [string] $Application = 'Wpf',
+
     [string] $OutputDirectory,
 
     [ValidatePattern('^\d+\.\d+\.\d+\.\d+$')]
@@ -49,6 +52,30 @@ function Invoke-HiddenNative {
         $process.WaitForExit()
         [pscustomobject]@{ ExitCode = $process.ExitCode; Output = $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult() }
     } finally { $process.Dispose() }
+}
+
+function Test-WindowsStoreBuild {
+    param([string] $AssemblyPath)
+    $stream = [IO.File]::OpenRead($AssemblyPath)
+    $pe = [Reflection.PortableExecutable.PEReader]::new($stream)
+    try {
+        $metadata = [Reflection.Metadata.PEReaderExtensions]::GetMetadataReader($pe)
+        foreach ($handle in $metadata.GetAssemblyDefinition().GetCustomAttributes()) {
+            $attribute = $metadata.GetCustomAttribute($handle)
+            if ($attribute.Constructor.Kind -ne [Reflection.Metadata.HandleKind]::MemberReference) { continue }
+            $row = [Reflection.Metadata.Ecma335.MetadataTokens]::GetRowNumber($attribute.Constructor)
+            $constructor = $metadata.GetMemberReference([Reflection.Metadata.Ecma335.MetadataTokens]::MemberReferenceHandle($row))
+            if ($constructor.Parent.Kind -ne [Reflection.Metadata.HandleKind]::TypeReference) { continue }
+            $parentRow = [Reflection.Metadata.Ecma335.MetadataTokens]::GetRowNumber($constructor.Parent)
+            $type = $metadata.GetTypeReference([Reflection.Metadata.Ecma335.MetadataTokens]::TypeReferenceHandle($parentRow))
+            if ($metadata.GetString($type.Namespace) -cne 'System.Reflection' -or
+                $metadata.GetString($type.Name) -cne 'AssemblyMetadataAttribute') { continue }
+            $reader = $metadata.GetBlobReader($attribute.Value)
+            if ($reader.ReadUInt16() -eq 1 -and $reader.ReadSerializedString() -ceq 'VstavkaDistribution' -and
+                $reader.ReadSerializedString() -ceq 'WindowsStore') { return $true }
+        }
+        return $false
+    } finally { $pe.Dispose(); $stream.Dispose() }
 }
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
@@ -88,19 +115,30 @@ if (-not (Test-Path -LiteralPath $makeAppx -PathType Leaf)) {
 if (-not (Test-Path -LiteralPath $makePri -PathType Leaf)) {
     throw "Windows SDK MakePri was not found at the configured version: $WindowsSdkVersion. No tools were installed."
 }
-$requiredPayload = @('Vstavka.exe', 'Vstavka.dll', 'Vstavka.Core.dll', 'Vstavka.runtimeconfig.json', 'Vstavka.deps.json',
-    'coreclr.dll', 'hostfxr.dll', 'hostpolicy.dll', 'System.Private.CoreLib.dll', 'PresentationFramework.dll')
+$entryName = 'Vstavka'
+$uiLibraries = @('PresentationFramework.dll')
+if ($Application -eq 'Avalonia') {
+    $entryName = 'Vstavka.Desktop'
+    $uiLibraries = @('Avalonia.Controls.dll', 'Vstavka.Platform.Windows.dll', 'libSkiaSharp.dll')
+}
+$requiredPayload = @("$entryName.exe", "$entryName.dll", 'Vstavka.Core.dll',
+    "$entryName.runtimeconfig.json", "$entryName.deps.json", 'coreclr.dll', 'hostfxr.dll',
+    'hostpolicy.dll', 'System.Private.CoreLib.dll') + $uiLibraries
 foreach ($name in $requiredPayload) {
     if (-not (Test-Path -LiteralPath (Join-Path $publishRoot $name) -PathType Leaf)) {
-        throw "Missing self-contained WPF payload: $name. Publish Release with -r win-x64 --self-contained true."
+        throw "Missing self-contained $Application payload: $name. Publish Release with -r win-x64 --self-contained true."
     }
 }
 
 # Bind the candidate's product version and embedded translations to the current source.
 # PE metadata is inspected without loading or executing the application assembly.
-[xml] $appProject = Get-Content -LiteralPath (Join-Path $projectRoot 'src/Vstavka/Vstavka.csproj') -Raw
-$expectedProductVersion = [string]$appProject.Project.PropertyGroup.Version
-$productVersion = (Get-Item -LiteralPath (Join-Path $publishRoot 'Vstavka.dll')).VersionInfo.ProductVersion
+[xml] $appProject = Get-Content -LiteralPath (Join-Path $projectRoot "src/$entryName/$entryName.csproj") -Raw
+$expectedProductVersion = $appProject.SelectSingleNode('/Project/PropertyGroup/Version').InnerText
+$appAssembly = Join-Path $publishRoot "$entryName.dll"
+if ($Application -eq 'Avalonia' -and -not (Test-WindowsStoreBuild -AssemblyPath $appAssembly)) {
+    throw 'This Avalonia build is missing the Windows Store configuration. Publish with -p:VstavkaWindowsStore=true.'
+}
+$productVersion = (Get-Item -LiteralPath $appAssembly).VersionInfo.ProductVersion
 if ([string]::IsNullOrWhiteSpace($productVersion) -or $productVersion.Split('+')[0] -cne $expectedProductVersion) {
     throw "The published product version does not match source $expectedProductVersion. Rebuild the preview before packaging."
 }
@@ -143,7 +181,7 @@ try {
     })
 } finally { $coreReader.Dispose(); $coreStream.Dispose() }
 
-foreach ($name in @('Vstavka.exe', 'coreclr.dll')) {
+foreach ($name in @("$entryName.exe", 'coreclr.dll')) {
     $peReader = [IO.BinaryReader]::new([IO.File]::OpenRead((Join-Path $publishRoot $name)))
     try {
         if ($peReader.ReadUInt16() -ne 0x5A4D) { throw "Invalid Windows executable header: $name." }
@@ -196,12 +234,20 @@ foreach ($item in $publishItems | Where-Object {
     -not $_.PSIsContainer -and $_.Extension -ne '.pdb' -and $_.Name -notin @('Install-Preview.ps1', 'Uninstall-Preview.ps1')
 }) {
     $relativePath = [IO.Path]::GetRelativePath($publishRoot, $item.FullName)
-    if ($relativePath -in @('AppxManifest.xml', 'resources.pri') -or $relativePath -like 'Assets\*') {
+    if ($relativePath -in @('AppxManifest.xml', 'resources.pri') -or $relativePath -like 'Assets\*' -or
+        ($Application -eq 'Avalonia' -and $relativePath -in @('Vstavka.exe', 'License.txt', 'ThirdPartyNotices.txt'))) {
         throw 'PublishDirectory contains packaging-owned files. Use a clean application publish directory.'
     }
+    # Keep the installed Start menu and startup target stable across the WPF upgrade.
+    if ($relativePath -ceq "$entryName.exe") { $relativePath = 'Vstavka.exe' }
     $targetPath = Join-Path $stageRoot $relativePath
     [void][IO.Directory]::CreateDirectory((Split-Path -Parent $targetPath))
     Copy-Item -LiteralPath $item.FullName -Destination $targetPath
+}
+if ($Application -eq 'Avalonia') {
+    Copy-Item -LiteralPath (Join-Path $projectRoot 'LICENSE') -Destination (Join-Path $stageRoot 'License.txt')
+    Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging/WindowsThirdPartyNotices.txt') `
+        -Destination (Join-Path $stageRoot 'ThirdPartyNotices.txt')
 }
 $stageAssets = Join-Path $stageRoot 'Assets'
 [void][IO.Directory]::CreateDirectory($stageAssets)
@@ -317,7 +363,8 @@ try {
         throw 'Packaged display name must use the English product baseline Vstavka.'
     }
     $applications = $packedManifest.SelectNodes('/m:Package/m:Applications/m:Application', $packedNs)
-    if ($applications.Count -ne 1 -or $applications[0].GetAttribute('Executable') -cne 'Vstavka.exe') {
+    if ($applications.Count -ne 1 -or $applications[0].GetAttribute('Id') -cne 'Vstavka' -or
+        $applications[0].GetAttribute('Executable') -cne 'Vstavka.exe' -or $null -eq $archive.GetEntry('Vstavka.exe')) {
         throw 'The package must expose exactly one Vstavka application.'
     }
     $startup = $packedManifest.SelectSingleNode('//desktop:StartupTask', $packedNs)
@@ -342,6 +389,7 @@ $receipt = [ordered]@{
     preparedAtUtc = [DateTimeOffset]::UtcNow.ToString('o')
     phase = 'prepared'
     requestedEffect = 'local_preparation_only'
+    application = $Application
     productVersion = $productVersion
     identityScope = $identityScope
     identityName = $IdentityName

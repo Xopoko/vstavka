@@ -1,14 +1,14 @@
 {
   "schema": "vstavka.store-listing.v1",
-  "sourceVersion": "0.2.5",
+  "sourceVersion": "1.2.0",
   "language": "en-US",
   "productName": "Vstavka",
   "category": "Productivity",
   "price": "Free",
   "shortDescription": "Find and reuse what you copy. A keyboard-friendly clipboard history with visual cards, pins, collections, search, and short copy and paste sounds.",
-  "description": "Vstavka keeps your clipboard history in a horizontal panel at the bottom of your screen. Find a card and paste it back into the app you were using. Ctrl+Shift+V is the default for new setups. Existing shortcuts are kept, and you can choose Ctrl+Alt+V or Alt+V in Settings.\n\nBrowse text, links, color values, images, and copied file paths. Each card shows the icon of the app you copied from. Pin frequently used items, filter by content type, or search your history. Use the keyboard to move between cards and paste your selection.\n\nKeep prompts, snippets, and other things you reuse in collections. Give each collection a name and a color; its items stay out of your everyday history and are kept until you remove them.\n\nShort, separate sounds provide copy and paste feedback. Adjust the volume, turn either sound off, and choose whether Vstavka starts when you sign in to Windows. Light, dark, and system themes, six accent choices including the Windows accent, and 24 interface languages help it fit your desktop.\n\nYour history stays on this PC and is encrypted for your Windows account. There are no accounts, ads, subscriptions, in-app purchases, analytics, or cloud sync. Pause saving, exclude sensitive apps, delete individual items, or clear your history in Settings.\n\nText is saved without formatting. File cards remember file paths, so the original files must still exist when you paste them. Automatic pasting follows Windows security restrictions; apps running as administrator may require a manual paste. Paste sounds for Ctrl+V and Shift+Insert indicate the shortcut, not confirmation that another app accepted the content.\n\nVstavka is free and open source. It requires Windows 11 on an x64 PC.",
+  "description": "Vstavka keeps your clipboard history in a panel at the bottom of your screen. Press Ctrl+Shift+V to open it on a new setup, or record a different shortcut in Settings. Find a card and press Enter to paste it back into the app you were using.\n\nBrowse text, links, color values, images, and copied file paths. Cards show the source app when available. Pin frequently used items, filter by content type, or search your history. Use the keyboard to move between cards and paste your selection.\n\nKeep prompts, snippets, and other things you reuse in collections. Give each collection a name and a color; its items stay out of your everyday history and are kept until you remove them.\n\nShort, separate sounds provide copy and paste feedback. Adjust the volume, turn either sound off, and choose whether Vstavka starts when you sign in to Windows. Light, dark, and system themes, six accent choices including the Windows accent, and 24 interface languages help it fit your desktop.\n\nYour history stays on this PC and is encrypted for your Windows account. There are no accounts, ads, subscriptions, in-app purchases, analytics, or cloud sync. Pause saving, exclude sensitive apps, delete individual items, or clear your history in Settings.\n\nText is saved without formatting. File cards remember file paths, so the original files must still exist when you paste them. Automatic pasting follows Windows security restrictions; apps running as administrator may require a manual paste. Paste sounds for Ctrl+V and Shift+Insert indicate the shortcut, not confirmation that another app accepted the content.\n\nVstavka is free and open source. It requires Windows 11 on an x64 PC.",
   "features": [
-    "Open a horizontal clipboard panel with Ctrl+Shift+V",
+    "Open clipboard history with a customizable keyboard shortcut",
     "Preview text, links, colors, images, and copied file paths",
     "See the icon of the app each item came from",
     "Search, filter by type, and pin items you use often",
@@ -30,7 +30,7 @@
     "pinned clips",
     "productivity"
   ],
-  "whatsNew": "A refreshed clipboard panel makes more room for text. See which app each item came from and save frequently used clips in named collections. Ctrl+Shift+V is the default for new setups. Existing shortcuts are kept.",
+  "whatsNew": "The new cross-platform interface comes to Windows. It includes a refreshed clipboard panel and a setup guide where you can record and try your own shortcut. Your saved history, collections and preferences carry over when you update.",
   "minimumHardware": [
     "Windows 11, x64",
     "Keyboard and pointing device"

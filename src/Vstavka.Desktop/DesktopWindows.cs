@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Vstavka.Core.Localization;
 using Vstavka.Platform;
 
@@ -31,6 +32,11 @@ internal sealed class DesktopWindows
         Panel = CreatePanel();
         history.ToggleRequested += ToggleFromShortcut;
         history.SettingsChanged += ApplySettings;
+        if (platform.ClipboardSounds is { } sounds)
+        {
+            sounds.PasteShortcutPressed += () => Dispatcher.UIThread.Post(PlayKeyboardPasteSound);
+            UpdatePasteShortcutSounds();
+        }
     }
 
     public void OpenPanel() => Panel.Open(_positionPanel, Onboarding?.PracticeItem);
@@ -100,6 +106,7 @@ internal sealed class DesktopWindows
     private void ApplySettings()
     {
         var settings = _history.Store.Settings;
+        UpdatePasteShortcutSounds();
         if (Strings.Language != settings.Language)
         {
             Strings.SetLanguage(settings.Language);
@@ -108,5 +115,18 @@ internal sealed class DesktopWindows
         }
         SetupVisuals.ApplyTheme(settings.Theme);
         Panel.ApplyAppearance();
+    }
+
+    private void UpdatePasteShortcutSounds()
+    {
+        var settings = _history.Store.Settings;
+        _platform.ClipboardSounds?.WatchPasteShortcuts(settings.PasteSoundEnabled && settings.Volume > 0);
+    }
+
+    private void PlayKeyboardPasteSound()
+    {
+        var settings = _history.Store.Settings;
+        if (settings.PasteSoundEnabled && !Panel.IsActive && Settings?.IsActive != true && Onboarding?.IsActive != true)
+            _platform.ClipboardSounds?.Play(paste: true, settings.Volume);
     }
 }

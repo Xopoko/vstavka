@@ -47,6 +47,7 @@ internal sealed class WindowsClipboard(
     private bool disposed;
 
     public event Action<ClipboardCapture>? Captured;
+    internal event Action? CopyDetected;
     internal event Action<PlatformNotice>? Notice;
     internal uint LastWrittenSequence => Volatile.Read(ref lastWrittenSequence);
 
@@ -99,6 +100,7 @@ internal sealed class WindowsClipboard(
         {
             if (!IsCurrent(sequence))
                 return;
+            CopyDetected?.Invoke();
             var currentSettings = settings();
             _ = CaptureAsync(sequence, currentSettings, currentSettings.Copy());
         });

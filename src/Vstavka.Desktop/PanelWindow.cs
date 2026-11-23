@@ -21,7 +21,7 @@ using Vstavka.Platform.MacOS;
 
 namespace Vstavka.Desktop;
 
-internal sealed class PanelWindow : Window
+internal sealed partial class PanelWindow : Window
 {
     private static readonly (string Label, ClipKind? Kind, bool Pinned)[] Filters =
     [
@@ -145,6 +145,16 @@ internal sealed class PanelWindow : Window
             if (_cards.Scroll is ScrollViewer viewer)
                 ScrollWheel(viewer, e);
         }, RoutingStrategies.Tunnel);
+        _cards.ContextRequested += (sender, e) =>
+        {
+            // A keyboard context request starts on the list item, above the card visual.
+            if (!e.TryGetPosition(_cards, out _) && _cards.SelectedIndex >= 0 &&
+                _cards.ContainerFromIndex(_cards.SelectedIndex)?.FindDescendantOfType<ClipCardView>() is { ContextMenu: { } menu } card)
+            {
+                menu.Open(card);
+                e.Handled = true;
+            }
+        };
         _cards.DoubleTapped += (_, e) =>
         {
             if (e.Source is Visual source && source.FindAncestorOfType<Button>(includeSelf: true) is null &&
@@ -184,7 +194,7 @@ internal sealed class PanelWindow : Window
         };
         _drawer.Bind(Border.BackgroundProperty, _drawer.GetResourceObservable("WindowBrush"));
         _drawer.Bind(Border.BorderBrushProperty, _drawer.GetResourceObservable("LineBrush"));
-        Content = new Grid { ClipToBounds = true, Children = { _drawer } };
+        Content = new Grid { ClipToBounds = true, Children = { _drawer, _collectionOverlay } };
 
         ActualThemeVariantChanged += (_, _) => ApplyAppearance();
         var settings = Application.Current?.PlatformSettings;
@@ -211,7 +221,7 @@ internal sealed class PanelWindow : Window
         Opened += (_, _) => AttachNativePanel();
         Deactivated += (_, _) =>
         {
-            if (_openMenu?.IsOpen != true)
+            if (_openMenu?.IsOpen != true && _collectionColorChooser?.IsDropDownOpen != true)
                 Dismiss();
         };
         AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
@@ -271,6 +281,7 @@ internal sealed class PanelWindow : Window
             return;
         _dismissing = true;
         _openMenu?.Close();
+        CloseCollectionDialog(restoreFocus: false);
         if (_animate && !await Animate(TimeSpan.FromMilliseconds(95), from: _drawer.Opacity, to: 0))
             return;
 
@@ -372,14 +383,12 @@ internal sealed class PanelWindow : Window
         foreach (var (label, kind, pinned) in Filters)
             AddChip(label, Strings.Get(label), kind, pinned);
         _collections = _history.Store.Collections.ToArray();
-        if (_collections.Count > 0)
-        {
-            var divider = new Border { Width = 1, Height = 18, Margin = new Thickness(4, 0), VerticalAlignment = VerticalAlignment.Center };
-            divider.Bind(Border.BackgroundProperty, divider.GetResourceObservable("LineBrush"));
-            _chips.Children.Add(divider);
-        }
+        var divider = new Border { Width = 1, Height = 18, Margin = new Thickness(4, 0), VerticalAlignment = VerticalAlignment.Center };
+        divider.Bind(Border.BackgroundProperty, divider.GetResourceObservable("LineBrush"));
+        _chips.Children.Add(divider);
         foreach (var collection in _collections)
             AddChip("Collection", collection.Name, collection: collection);
+        _chips.Children.Add(NewCollectionButton());
 
         if (oldCollection is not null)
             _activeFilter = Math.Max(0, _filters.FindIndex(filter => filter.Collection == oldCollection));
@@ -396,15 +405,19 @@ internal sealed class PanelWindow : Window
         };
         PanelVisuals.NameButton(button, label);
         var index = _filters.Count;
-        button.Click += (_, _) =>
-        {
-            _filters[_activeFilter].Button.Classes.Remove("active");
-            _activeFilter = index;
-            button.Classes.Add("active");
-            ApplyFilter(resetScroll: true);
-        };
+        button.Click += (_, _) => SelectFilter(index);
+        if (collection is not null)
+            button.ContextMenu = CreateCollectionMenu(collection, button);
         _filters.Add((button, kind, pinned, collection?.Id));
         _chips.Children.Add(button);
+    }
+
+    private void SelectFilter(int index)
+    {
+        _filters[_activeFilter].Button.Classes.Remove("active");
+        _activeFilter = index;
+        _filters[_activeFilter].Button.Classes.Add("active");
+        ApplyFilter(resetScroll: true);
     }
 
     private void ApplyFilter(bool rebuild = false, bool resetScroll = false)
@@ -439,7 +452,7 @@ internal sealed class PanelWindow : Window
         if (_empty.IsVisible)
         {
             var (icon, title, hint) = query.Length > 0 ? (Symbol.Search, "NoResults", "NoResultsHint")
-                : collection is not null ? (Symbol.Folder, "EmptyCollection", null)
+                : collection is not null ? (Symbol.Folder, "EmptyCollection", "EmptyCollectionHint")
                 : pinned ? (Symbol.Pin, "EmptyPinned", "EmptyPinnedHint")
                 : total > 0 ? (Symbol.Clipboard, "EmptyCategory", "EmptyCategoryHint")
                 : _history.Paused ? (Symbol.Pause, "Paused", "PausedHint")
@@ -566,7 +579,7 @@ internal sealed class PanelWindow : Window
 
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
-        if (_openMenu?.IsOpen == true)
+        if (_openMenu?.IsOpen == true || HandleCollectionDialogKey(e))
             return;
 
         var plain = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
@@ -626,9 +639,9 @@ internal sealed class PanelWindow : Window
             }));
         menu.Items.Add(new Separator());
         menu.Items.Add(Option(item.IsPinned ? "Unpin" : "Pin", () => TogglePin(item)));
+        AddCardCollectionOptions(menu, item, card);
         menu.Items.Add(Option("Delete", () => Delete(item), new KeyGesture(Key.Delete)));
-        menu.Opened += (_, _) => _openMenu = menu;
-        menu.Closed += (_, _) => { if (ReferenceEquals(_openMenu, menu)) _openMenu = null; };
+        TrackMenu(menu);
         card.ContextMenu = menu;
         return card;
     }
@@ -673,7 +686,13 @@ internal sealed class PanelWindow : Window
             await DismissAsync();
             if (practice is not null)
                 practice.ReceivePracticePaste(item);
-            else if (!await _platform.Paste.PasteAsync())
+            else if (await _platform.Paste.PasteAsync())
+            {
+                var settings = _history.Store.Settings;
+                if (settings.PasteSoundEnabled)
+                    _platform.ClipboardSounds?.Play(paste: true, settings.Volume);
+            }
+            else
                 Feedback?.Invoke(Strings.Get("ManualPaste"));
         }
         finally

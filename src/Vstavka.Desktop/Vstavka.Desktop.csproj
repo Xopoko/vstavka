@@ -9,6 +9,13 @@
     <Product>Vstavka</Product>
     <RestoreSources>https://api.nuget.org/v3/index.json</RestoreSources>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(VstavkaWindowsStore)' == 'true'">
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <Version>1.2.0</Version>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(VstavkaWindowsStore)' == 'true'">
+    <AssemblyMetadata Include="VstavkaDistribution" Value="WindowsStore" />
+  </ItemGroup>
   <ItemGroup>
     <AvaloniaResource Include="../Vstavka/Assets/Vstavka.png" Link="Assets/Vstavka.png" />
     <PackageReference Include="Avalonia" Version="12.1.6" />

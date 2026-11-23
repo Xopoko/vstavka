@@ -17,6 +17,7 @@ using Vstavka.Core;
 using Vstavka.Core.Localization;
 using Vstavka.Platform;
 using Vstavka.Platform.MacOS;
+using Vstavka.Platform.Windows;
 
 namespace Vstavka.Desktop;
 
@@ -31,6 +32,8 @@ internal sealed class OnboardingWindow : Window
     private readonly (Button Button, Border Marker)[] _dots = new (Button, Border)[LastStep + 1];
     private Button _back;
     private Button _next;
+    private Button? _skip;
+    private TextBlock? _consentError;
     private int _furthestStep;
     private CancellationTokenSource? _motion;
     private StartupRow? _startup;
@@ -51,6 +54,8 @@ internal sealed class OnboardingWindow : Window
     public int Step { get; private set; }
     public bool Practicing => IsVisible && _practiceBox is not null;
     public bool PracticeCompleted => _copied && _openedWithShortcut && _pasted;
+    private bool UsesSystemStartupState => _platform is MacPlatformServices { IsAppStoreBuild: true }
+        or WindowsPlatformServices { StoreProfile: not null };
     public ClipItem? PracticeItem => Practicing && _copied
         ? _history.Store.Items.FirstOrDefault(item => item.Kind == ClipKind.Text && item.Text == _practiceText)
         : null;
@@ -100,7 +105,8 @@ internal sealed class OnboardingWindow : Window
         Opened += (_, _) =>
         {
             var settings = _history.Store.Settings;
-            ShowStep(settings.OnboardingCompleted ? 0 : Math.Clamp(settings.OnboardingStep, 0, LastStep), slide: false);
+            ShowStep(settings.OnboardingCompleted || _history.ClipboardConsentRequired ? 0 :
+                Math.Clamp(settings.OnboardingStep, 0, LastStep), slide: false);
         };
         Activated += (_, _) => RefreshPracticeReadiness();
         Closed += (_, _) =>
@@ -195,6 +201,7 @@ internal sealed class OnboardingWindow : Window
         var back = SetupVisuals.Button("BackSetup", Back, "ghost", "BackStep",
             Strings.IsRightToLeft ? Symbol.ChevronRight : Symbol.ChevronLeft);
         var skip = SetupVisuals.Button("SkipSetup", Complete, "ghost", "SkipSetup");
+        _skip = skip;
         var next = SetupVisuals.Button("GetStarted", Next, "primary", "NextStep");
         next.IsDefault = true;
         var contents = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
@@ -217,7 +224,15 @@ internal sealed class OnboardingWindow : Window
         if (Step == 0 && _back.IsFocused)
             _dots[0].Button.Focus();
         _back.IsVisible = Step > 0;
-        var nextLabel = Strings.Get(Step switch { 0 => "GetStarted", LastStep => "FinishSetup", _ => "ContinueSetup" });
+        var consentRequired = _history.ClipboardConsentRequired;
+        if (_skip is not null)
+            _skip.IsVisible = !consentRequired;
+        var nextLabel = Strings.Get(Step switch
+        {
+            0 => consentRequired ? "EnableHistory" : "GetStarted",
+            LastStep => "FinishSetup",
+            _ => "ContinueSetup"
+        });
         _next.Content = nextLabel;
         AutomationProperties.SetName(_next, nextLabel);
     }
@@ -226,6 +241,12 @@ internal sealed class OnboardingWindow : Window
 
     private void Next()
     {
+        if (_history.ClipboardConsentRequired && !_history.TryEnableClipboardHistory())
+        {
+            if (_consentError is not null)
+                _consentError.IsVisible = true;
+            return;
+        }
         if (Step == LastStep)
         {
             Complete();
@@ -249,7 +270,7 @@ internal sealed class OnboardingWindow : Window
 
     private bool ApplyStartupPreference()
     {
-        if (_startup is null || _platform is MacPlatformServices { IsAppStoreBuild: true } ||
+        if (_startup is null || UsesSystemStartupState ||
             _platform.Startup.IsEnabled == _startup.Enabled || SetStartup(_startup.Enabled))
             return true;
         _startup.SetError(true, _platform.Startup.IsEnabled);
@@ -274,6 +295,8 @@ internal sealed class OnboardingWindow : Window
 
     private void Complete()
     {
+        if (_history.ClipboardConsentRequired)
+            return;
         var settings = _history.Store.Settings.Copy();
         settings.OnboardingCompleted = true;
         settings.OnboardingStep = 0;
@@ -310,6 +333,19 @@ internal sealed class OnboardingWindow : Window
             Spacing = 12, Margin = new Thickness(32, 66, 32, 0), VerticalAlignment = VerticalAlignment.Top,
             Children = { logo, heading }
         };
+        _consentError = null;
+        if (_history.ClipboardConsentRequired)
+        {
+            var notice = SetupVisuals.Text(Strings.Get("WelcomePrivacy"), 12, "MutedBrush");
+            notice.HorizontalAlignment = HorizontalAlignment.Center;
+            notice.TextAlignment = TextAlignment.Center;
+            notice.MaxWidth = 470;
+            _consentError = SetupVisuals.Text(Strings.Get("SaveFailed"), 12, "WarningBrush");
+            _consentError.HorizontalAlignment = HorizontalAlignment.Center;
+            _consentError.IsVisible = false;
+            intro.Children.Add(notice);
+            intro.Children.Add(_consentError);
+        }
         var panel = MiniaturePanel(out var cards, out var firstRing);
         panel.Margin = new Thickness(48, 0, 48, -19);
         panel.VerticalAlignment = VerticalAlignment.Bottom;
@@ -415,7 +451,7 @@ internal sealed class OnboardingWindow : Window
     {
         var appStoreBuild = _platform is MacPlatformServices { IsAppStoreBuild: true };
         if (_platform.Startup.IsSupported)
-            _startup = new StartupRow(_platform.Name, appStoreBuild ? _platform.Startup.IsEnabled :
+            _startup = new StartupRow(_platform.Name, UsesSystemStartupState ? _platform.Startup.IsEnabled :
                 _history.Store.Settings.StartAtLogin, SetStartup);
         var rows = new PermissionRows(_platform, _history, _animate, _startup, RequestSignOut);
         rows.HotkeyBecameAvailable += _history.RegisterSettingsShortcut;

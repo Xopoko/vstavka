@@ -2,16 +2,19 @@ using Avalonia.Threading;
 using Vstavka.Core;
 using Vstavka.Core.Localization;
 using Vstavka.Platform;
+using Vstavka.Platform.Windows;
 
 namespace Vstavka.Desktop;
 
 internal sealed class DesktopHistory
 {
     private readonly IPlatformServices _platform;
+    private readonly WindowsStoreProfile? _windowsStoreProfile;
     private readonly DispatcherTimer _saveTimer;
     private Task _pendingSave = Task.CompletedTask;
     private IReadOnlyList<PlatformPermission>? _installingPermissions;
     private bool _signingOut;
+    private bool _monitoringClipboard;
     private string? _registeredGesture;
     private readonly HashSet<object> _recorders = [];
 
@@ -19,6 +22,7 @@ internal sealed class DesktopHistory
     public bool Paused { get; private set; }
     public string? Warning { get; private set; }
     public bool ShortcutRegistrationFailed { get; private set; }
+    public bool ClipboardConsentRequired => _windowsStoreProfile is { HasClipboardConsent: false };
     public string Shortcut => Store.Settings.PanelShortcut ?? _platform.DefaultGesture;
     public IReadOnlyList<PlatformPermission> Permissions => _installingPermissions ?? _platform.Permissions;
     public bool InstallingGnomeHelper => _installingPermissions is not null;
@@ -32,8 +36,10 @@ internal sealed class DesktopHistory
     public DesktopHistory(IPlatformServices platform)
     {
         _platform = platform;
+        _windowsStoreProfile = (platform as WindowsPlatformServices)?.StoreProfile;
         Store = new HistoryStore(platform.DataDirectory, platform.HistoryProtector);
         Store.Load();
+        _windowsStoreProfile?.ApplyLegacyPreferences(Store.Settings);
         Warning = Store.LoadWarning;
 
         _saveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
@@ -46,11 +52,35 @@ internal sealed class DesktopHistory
 
     public void Start()
     {
-        _platform.Clipboard.Captured += OnCaptured;
-        _platform.Clipboard.Start();
         _platform.Hotkey.Pressed += OnHotkey;
-
+        if (!ClipboardConsentRequired)
+            StartClipboardMonitor();
         RegisterSettingsShortcut();
+    }
+
+    public bool TryEnableClipboardHistory()
+    {
+        if (_windowsStoreProfile is null || !_windowsStoreProfile.TryGrantClipboardConsent())
+            return false;
+        StartClipboardMonitor();
+        return true;
+    }
+
+    private void StartClipboardMonitor()
+    {
+        if (_monitoringClipboard)
+            return;
+        _platform.Clipboard.Captured += OnCaptured;
+        try
+        {
+            _platform.Clipboard.Start();
+            _monitoringClipboard = true;
+        }
+        catch
+        {
+            _platform.Clipboard.Captured -= OnCaptured;
+            throw;
+        }
     }
 
     public void SetRecording(object recorder, bool recording)

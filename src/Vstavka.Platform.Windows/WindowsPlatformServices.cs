@@ -18,18 +18,28 @@ public sealed class WindowsPlatformServices : IPlatformServices
         if (!OperatingSystem.IsWindows())
             throw new PlatformNotSupportedException("The Windows platform adapter requires Windows.");
 
-        DataDirectory = PreviewDataDirectory(Environment.GetFolderPath(
-            Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.DoNotVerify));
+        var localAppData = Environment.GetFolderPath(
+            Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.DoNotVerify);
+#if VSTAVKA_WINDOWS_STORE
+        if (WindowsPackageStartup.IsPackaged)
+            StoreProfile = new WindowsStoreProfile(localAppData);
+#endif
+        DataDirectory = StoreProfile?.DataDirectory ?? PreviewDataDirectory(localAppData);
         window = new WindowsMessageWindow();
         var backend = new Win32Clipboard(window);
         var defaultSettings = new AppSettings();
-        clipboard = new WindowsClipboard(window, backend, new WindowsClipboardImages(),
-            new WindowsSourceIcons(), settings ?? (() => defaultSettings));
+        Func<AppSettings> currentSettings = settings ?? (() => defaultSettings);
+        clipboard = new WindowsClipboard(window, backend, new WindowsClipboardImages(), new WindowsSourceIcons(), currentSettings);
+        ClipboardSounds = new WindowsClipboardSounds(clipboard, currentSettings);
         hotkey = new WindowsHotkey(window);
         Paste = new WindowsPaste(new Win32Paste(), () => backend.Sequence, () => clipboard.LastWrittenSequence);
         PanelWindow = new WindowsPanelWindow();
         HistoryProtector = new WindowsHistoryProtector();
+#if VSTAVKA_WINDOWS_STORE
+        Startup = StoreProfile is not null ? new WindowsPackageStartup() : UnsupportedStartupRegistration.Instance;
+#else
         Startup = new WindowsStartupRegistration(new WindowsRunKey(), Environment.ProcessPath);
+#endif
     }
 
     public string Name => "Windows";
@@ -38,6 +48,7 @@ public sealed class WindowsPlatformServices : IPlatformServices
         PlatformCapabilities.PanelPlacement;
     public IReadOnlyList<PlatformNotice> Notices { get; } = [];
     public IReadOnlyList<PlatformPermission> Permissions { get; } = [];
+    public WindowsStoreProfile? StoreProfile { get; }
     public IStartupRegistration Startup { get; }
     public string DataDirectory { get; }
     public string DefaultGesture => AppSettings.DefaultHotkey;
@@ -46,6 +57,7 @@ public sealed class WindowsPlatformServices : IPlatformServices
     public IClipboardWriter ClipboardWriter => clipboard;
     public IGlobalHotkey Hotkey => hotkey;
     public IPasteService Paste { get; }
+    public IClipboardSounds ClipboardSounds { get; }
     public IPanelWindow PanelWindow { get; }
     public IHistoryProtector HistoryProtector { get; }
 
@@ -77,6 +89,7 @@ public sealed class WindowsPlatformServices : IPlatformServices
 
     public void Dispose()
     {
+        ClipboardSounds.Dispose();
         clipboard.Dispose();
         hotkey.Dispose();
         window.Dispose();

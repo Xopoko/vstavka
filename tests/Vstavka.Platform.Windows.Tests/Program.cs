@@ -12,9 +12,27 @@ internal static class Program
         Run("Clipboard privacy, formats, and source attribution", CaptureFormats);
         Run("Clipboard retries and suppresses own writes", ClipboardRetryAndSuppression);
         Run("Hotkey mappings and safe replacement", Hotkeys);
+        Run("Paste sound shortcuts ignore other chords and held keys", PasteSoundShortcuts);
         Run("Preview startup registration and failure", StartupRegistration);
+        Run("Store profile preserves legacy history and separates first-run consent", StoreUpgrade);
         Run("Paste restores the target and handles failure", Paste);
         Run("Preview isolation and Windows image conversion", IsolationAndCodecs);
+    }
+
+    private static void PasteSoundShortcuts()
+    {
+        var shortcut = new PasteShortcutState();
+        Check(!shortcut.Press(PasteShortcutState.V, HotkeyModifiers.Ctrl | HotkeyModifiers.Shift, 1000),
+            "The default panel shortcut must not play the paste sound.");
+        Check(shortcut.Press(PasteShortcutState.V, HotkeyModifiers.Ctrl, 1100) &&
+              !shortcut.Press(PasteShortcutState.V, HotkeyModifiers.Ctrl, 1200),
+            "Ctrl+V plays once while V stays down, including across repeated key events.");
+        shortcut.Release(PasteShortcutState.V);
+        Check(shortcut.Press(PasteShortcutState.Insert, HotkeyModifiers.Shift, 1250),
+            "Shift+Insert plays after the earlier key is released and the debounce window ends.");
+        shortcut.Release(PasteShortcutState.Insert);
+        Check(!shortcut.Press(PasteShortcutState.V, HotkeyModifiers.Ctrl, 1290),
+            "A second shortcut within the debounce window is silent.");
     }
 
     private static void CaptureFormats()
@@ -276,6 +294,52 @@ internal static class Program
         native.Processes[1] = 13;
         Check(!paste.PasteAsync().GetAwaiter().GetResult() && native.SendAttempts == 2,
             "A recycled window handle cannot receive the paste.");
+    }
+
+    private static void StoreUpgrade()
+    {
+        var localAppData = Path.Combine(Path.GetTempPath(), "VstavkaStoreProfileTests-" + Guid.NewGuid().ToString("N"));
+        var profile = new WindowsStoreProfile(localAppData);
+        try
+        {
+            Check(profile.DataDirectory == Path.Combine(localAppData, "Vstavka") && !profile.HasClipboardConsent,
+                "The Store uses the original history directory and starts without consent on a new install.");
+            var settings = new AppSettings { Hotkey = "Alt+V", StartAtLogin = false };
+            Check(profile.TryGrantClipboardConsent() && new WindowsStoreProfile(localAppData).HasClipboardConsent,
+                "Explicit consent survives restart.");
+            profile.ApplyLegacyPreferences(settings);
+            Check(!settings.OnboardingCompleted && settings.PanelShortcut is null,
+                "New users continue the new guide on the next launch.");
+
+            File.WriteAllText(Path.Combine(profile.DataDirectory, WindowsStoreProfile.LegacyConsentFile), "WPF consent");
+            if (OperatingSystem.IsWindows())
+            {
+                var wpfHistory = new HistoryStore(profile.DataDirectory) { Settings = settings };
+                wpfHistory.Add(new ClipItem { Text = "existing clipboard item", IsPinned = true });
+                wpfHistory.Save();
+                var storeHistory = new HistoryStore(profile.DataDirectory, new WindowsHistoryProtector());
+                storeHistory.Load();
+                Check(storeHistory.Items.Single() is { Text: "existing clipboard item", IsPinned: true },
+                    "The Store opens the original encrypted WPF history.");
+                settings = storeHistory.Settings;
+            }
+            profile.ApplyLegacyPreferences(settings);
+            Check(settings.OnboardingCompleted && settings.PanelShortcut == "Alt+V" && !settings.StartAtLogin,
+                "Existing consent skips first run and carries over the old shortcut and startup preference.");
+            settings.PanelShortcut = "Ctrl+Shift+X";
+            profile.ApplyLegacyPreferences(settings);
+            Check(settings.PanelShortcut == "Ctrl+Shift+X", "Future launches preserve the new user-defined shortcut.");
+        }
+        finally
+        {
+            if (Directory.Exists(profile.DataDirectory))
+            {
+                foreach (var file in Directory.EnumerateFiles(profile.DataDirectory))
+                    File.Delete(file);
+                Directory.Delete(profile.DataDirectory);
+                Directory.Delete(localAppData);
+            }
+        }
     }
 
     private static void IsolationAndCodecs()

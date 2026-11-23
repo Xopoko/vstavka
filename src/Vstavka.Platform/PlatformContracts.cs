@@ -132,6 +132,15 @@ public interface IStoreReview
     bool TryRequest();
 }
 
+public interface IClipboardSounds : IDisposable
+{
+    event Action? PasteShortcutPressed;
+
+    void WatchPasteShortcuts(bool enabled);
+
+    void Play(bool paste, double volume);
+}
+
 public interface IPlatformServices : IDisposable
 {
     string Name { get; }
@@ -155,6 +164,8 @@ public interface IPlatformServices : IDisposable
     IStartupRegistration Startup => UnsupportedStartupRegistration.Instance;
 
     IStoreReview? StoreReview => null;
+
+    IClipboardSounds? ClipboardSounds => null;
 
     IClipboardMonitor Clipboard { get; }
 

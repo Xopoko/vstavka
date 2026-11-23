@@ -8,6 +8,7 @@ using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Input.Raw;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -113,6 +114,77 @@ Run("Collection chips scope history and display empty collections", () =>
             "The collection chip shows only its own item.");
         Click(panel, ButtonNamed(panel, empty.Name));
         Check(cards.Items.Count == 0 && HasLabel(panel, "EmptyCollection"), "An empty collection has a distinct state.");
+    }
+    finally { panel.Close(); }
+});
+
+Run("Collection editing moves existing clips and confirms deletion", () =>
+{
+    using var demo = new DemoPlatformServices();
+    var history = CreateHistory(demo, seed: true);
+    var panel = OpenPanel(demo, history);
+    try
+    {
+        var cards = Find<ListBox>(panel, "Cards");
+        var kept = history.Store.Collections.Single();
+        var item = (ClipItem)cards.Items[0]!;
+        Click(panel, Find<Button>(panel, "NewCollectionButton"));
+        var name = Find<TextBox>(panel, "CollectionName");
+        Check(name.IsFocused, "New collection focuses its name field.");
+        Press(panel, Key.Enter, PhysicalKey.Enter);
+        Check(Find<TextBlock>(panel, "CollectionError").IsVisible && history.Store.Collections.Count == 1,
+            "A blank name is rejected without changing collections.");
+        name.Text = "Saved clips";
+        Find<ComboBox>(panel, "CollectionColor").SelectedIndex = 4;
+        Press(panel, Key.Enter, PhysicalKey.Enter);
+        var created = history.Store.Collections.Single(collection => collection.Id != kept.Id);
+        Check(created.Name == "Saved clips" && created.Color == "CollectionOrange" && cards.Items.Count == 0,
+            "Creating a collection selects the new empty collection.");
+
+        Click(panel, Find<Button>(panel, "AllChip"));
+        var first = cards.ContainerFromIndex(0)!;
+        var card = first.GetVisualDescendants().OfType<ClipCardView>().Single();
+        first.RaiseEvent(new ContextRequestedEventArgs { RoutedEvent = InputElement.ContextRequestedEvent });
+        Flush(panel);
+        Check(card.ContextMenu!.IsOpen, "Keyboard context requests open the selected card's menu.");
+        var assignment = card.ContextMenu!.Items.OfType<MenuItem>().Single(menu => menu.Name == "AssignCollection");
+        var destination = assignment.Items.OfType<MenuItem>().Single(menu => AutomationProperties.GetName(menu) == created.Name);
+        destination.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        Flush(panel);
+        Check(item.CollectionId == created.Id && !cards.Items.Contains(item), "Moving an item removes it from ordinary history.");
+
+        var chip = ButtonNamed(panel, created.Name);
+        Click(panel, chip);
+        Check(cards.Items.Count == 1 && ReferenceEquals(cards.Items[0], item), "The assigned item is shown in its collection.");
+        var rename = chip.ContextMenu!.Items.OfType<MenuItem>().Single(menu => Equals(menu.Header, Strings.Get("RenameCollection")));
+        rename.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        Flush(panel);
+        Find<TextBox>(panel, "CollectionName").Text = "Shared snippets";
+        Press(panel, Key.Enter, PhysicalKey.Enter);
+        chip = ButtonNamed(panel, "Shared snippets");
+        Check(item.CollectionId == created.Id && cards.Items.Count == 1, "Renaming keeps the collection identity and its selected item.");
+
+        var collected = cards.ContainerFromIndex(0)!.GetVisualDescendants().OfType<ClipCardView>().Single();
+        var remove = collected.ContextMenu!.Items.OfType<MenuItem>().Single(menu => menu.Name == "RemoveFromCollection");
+        remove.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        Flush(panel);
+        Check(item.CollectionId is null && history.Store.Items.Contains(item) && cards.Items.Count == 0,
+            "Removing a card from a collection keeps it in ordinary history.");
+        history.Store.AssignCollection(item.Id, created.Id);
+        history.HistoryChanged();
+        Flush(panel);
+
+        var delete = chip.ContextMenu!.Items.OfType<MenuItem>().Single(menu => Equals(menu.Header, Strings.Get("DeleteCollection")));
+        delete.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        Flush(panel);
+        Check(Find<Button>(panel, "CancelCollectionEdit").IsFocused, "Delete focuses the safe action first.");
+        Press(panel, Key.Escape, PhysicalKey.Escape);
+        Check(panel.IsOpen && history.Store.Items.Contains(item), "Escape cancels deletion and keeps the panel open.");
+        delete.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        Flush(panel);
+        Click(panel, Find<Button>(panel, "ConfirmCollectionDelete"));
+        Check(history.Store.Collections.SequenceEqual([kept]) && !history.Store.Items.Contains(item) && cards.Items.Count > 0,
+            "Confirming deletion removes the selected collection and its clips, and returns to history.");
     }
     finally { panel.Close(); }
 });
@@ -302,6 +374,36 @@ Run("Toolbar actions and the Settings save and clear flows", () =>
         windows.Panel.Close();
         Strings.SetLanguage("en");
         SetupVisuals.ApplyTheme("system");
+    }
+});
+
+Run("Windows sound settings preview the draft and save independent preferences", () =>
+{
+    using var sounds = new ClipboardSoundsDouble();
+    using var demo = new SetupDemo("Windows") { ClipboardSounds = sounds };
+    var history = CreateHistory(demo, seed: false);
+    var windows = new DesktopWindows(demo, history, animate: false, positionPanel: false);
+    windows.OpenSettings();
+    var settings = windows.Settings!;
+    try
+    {
+        Flush(settings);
+        Find<CheckBox>(settings, "CopySoundSetting").IsChecked = false;
+        Find<Slider>(settings, "VolumeSetting").Value = 0.25;
+        Find<Button>(settings, "PlayCopySound").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Find<Button>(settings, "PlayPasteSound").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Check(sounds.Played.SequenceEqual([(false, 0.25), (true, 0.25)]) &&
+              history.Store.Settings.SoundEnabled && history.Store.Settings.Volume == 0.45,
+            "The previews use the current draft value, including when its toggle is disabled, without saving.");
+        Click(settings, Find<Button>(settings, "SaveSettings"));
+        Check(history.Store.Settings is { SoundEnabled: false, PasteSoundEnabled: true, Volume: 0.25 } &&
+              sounds.WatchCalls.All(enabled => enabled),
+            "Saving the copy mute keeps keyboard paste feedback enabled and persists the slider value.");
+    }
+    finally
+    {
+        settings.Close();
+        windows.Panel.Close();
     }
 });
 
@@ -1160,6 +1262,16 @@ sealed class NoticeDemo : IPlatformServices, IPasteService
     public void Dispose() => _demo.Dispose();
 }
 
+sealed class ClipboardSoundsDouble : IClipboardSounds
+{
+    public List<bool> WatchCalls { get; } = [];
+    public List<(bool Paste, double Volume)> Played { get; } = [];
+    public event Action? PasteShortcutPressed { add { } remove { } }
+    public void WatchPasteShortcuts(bool enabled) => WatchCalls.Add(enabled);
+    public void Play(bool paste, double volume) => Played.Add((paste, volume));
+    public void Dispose() { }
+}
+
 sealed class SetupDemo(string profile) : IPlatformServices, IGlobalHotkey
 {
     private readonly DemoPlatformServices _demo = new();
@@ -1173,6 +1285,7 @@ sealed class SetupDemo(string profile) : IPlatformServices, IGlobalHotkey
     public IReadOnlyList<PlatformPermission> Permissions => _demo.Permissions;
     public IStartupRegistration Startup => _demo.Startup;
     public IStoreReview? StoreReview { get; init; }
+    public IClipboardSounds? ClipboardSounds { get; init; }
     public IClipboardMonitor Clipboard => _demo.Clipboard;
     public IClipboardWriter? Writer { get; init; }
     public IClipboardWriter ClipboardWriter => Writer ?? _demo.ClipboardWriter;

@@ -1,16 +1,19 @@
 # MSIX preparation
 
-This folder prepares a Microsoft Store hosted MSIX for the native WPF app. Packaging is local: the script does not sign, create certificates, change trust, install, or upload anything.
+This folder prepares a Microsoft Store hosted MSIX. The script builds an unsigned package for Partner Center to sign during publication.
 
 Pass a `-PackageVersion` higher than the version currently in the Store. Store package versions use a nonzero first component and reserve the fourth component. [Microsoft package requirements](https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/app-package-requirements)
 
 ## Build input
 
-Use the application publishing workflow to produce a Release, self-contained `win-x64` directory. Then invoke from the repository root:
+Publish the Avalonia app as a self-contained `win-x64` build with the Windows Store settings. Run these commands from the repository root:
 
 ```powershell
-pwsh -File ./scripts/Package-Store.ps1 -PublishDirectory ./artifacts/preview -LocalValidation
+dotnet publish src/Vstavka.Desktop -c Release -r win-x64 --self-contained true -p:VstavkaWindowsStore=true -o artifacts/windows-store
+pwsh -File ./scripts/Package-Store.ps1 -Application Avalonia -PublishDirectory ./artifacts/windows-store -LocalValidation
 ```
+
+Use the existing Store identity when upgrading the WPF package. The Avalonia package retains the application ID, executable name, and startup task. It opens the existing DPAPI-encrypted history and keeps the saved shortcut and clipboard consent. `-Application Wpf` packages the legacy `src/Vstavka` publish directory.
 
 The validation package uses `Vstavka.LocalPreview` / `CN=VstavkaLocalPreview`. These are clearly local placeholders, **not a Microsoft Store reservation**. The unsigned file cannot be treated as an ordinary trusted installable release.
 
