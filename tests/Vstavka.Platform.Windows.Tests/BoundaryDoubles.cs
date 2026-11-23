@@ -6,25 +6,59 @@ using Vstavka.Platform.Windows;
 internal sealed class MessageDouble : IWindowsMessages
 {
     public event Action? ClipboardChanged;
-    public event Action<int, uint>? HotkeyPressed;
+    public event Action<int, uint, uint>? HotkeyPressed;
     internal List<(int Id, uint Modifiers, uint Key)> Attempts { get; } = [];
-    internal Dictionary<int, uint> Hotkeys { get; } = [];
+    internal Dictionary<int, (uint Modifiers, uint Key)> Hotkeys { get; } = [];
     internal bool ListenerActive { get; private set; }
     internal bool RejectHotkey { get; set; }
+    internal int? RejectUnregisterId { get; set; }
 
     public void StartClipboardListener() => ListenerActive = true;
     public void StopClipboardListener() => ListenerActive = false;
     internal void Update() => ClipboardChanged?.Invoke();
-    internal void Press(int id, uint? modifiers = null) =>
-        HotkeyPressed?.Invoke(id, modifiers ?? (Hotkeys.GetValueOrDefault(id) & 0x000F));
+    internal void Press(int id, uint? modifiers = null, uint? key = null)
+    {
+        var shortcut = Hotkeys.GetValueOrDefault(id);
+        HotkeyPressed?.Invoke(id, modifiers ?? (shortcut.Modifiers & 0x000F), key ?? shortcut.Key);
+    }
 
     public bool RegisterHotkey(int id, uint modifiers, uint key)
     {
         Attempts.Add((id, modifiers, key));
-        return !RejectHotkey && Hotkeys.TryAdd(id, modifiers);
+        return !RejectHotkey && Hotkeys.TryAdd(id, (modifiers, key));
     }
 
-    public bool UnregisterHotkey(int id) => Hotkeys.Remove(id);
+    public bool UnregisterHotkey(int id) => id != RejectUnregisterId && Hotkeys.Remove(id);
+}
+
+internal sealed class RunKeyDouble : IWindowsRunKey
+{
+    internal Dictionary<string, string> Values { get; } = new(StringComparer.OrdinalIgnoreCase);
+    internal bool RefuseAccess { get; set; }
+
+    public string? Read(string name)
+    {
+        RequireAccess();
+        return Values.GetValueOrDefault(name);
+    }
+
+    public void Write(string name, string value)
+    {
+        RequireAccess();
+        Values[name] = value;
+    }
+
+    public void Delete(string name)
+    {
+        RequireAccess();
+        Values.Remove(name);
+    }
+
+    private void RequireAccess()
+    {
+        if (RefuseAccess)
+            throw new UnauthorizedAccessException();
+    }
 }
 
 internal sealed class ClipboardDouble : IWindowsClipboard, IClipboardRead

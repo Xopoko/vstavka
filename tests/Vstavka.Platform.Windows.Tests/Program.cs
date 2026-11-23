@@ -12,6 +12,7 @@ internal static class Program
         Run("Clipboard privacy, formats, and source attribution", CaptureFormats);
         Run("Clipboard retries and suppresses own writes", ClipboardRetryAndSuppression);
         Run("Hotkey mappings and safe replacement", Hotkeys);
+        Run("Preview startup registration and failure", StartupRegistration);
         Run("Paste restores the target and handles failure", Paste);
         Run("Preview isolation and Windows image conversion", IsolationAndCodecs);
     }
@@ -160,9 +161,13 @@ internal static class Program
         var delivered = new List<SynchronizationContext?>();
         hotkey.Pressed += () => delivered.Add(SynchronizationContext.Current);
         original.Run(() => Check(hotkey.TryRegister("Ctrl+Shift+V"), "The default shortcut registers."));
+        foreach (var unusable in new[] { "V", "Shift+V", "Ctrl+F25", "Ctrl+Enter" })
+            Check(!hotkey.TryRegister(unusable), $"{unusable} is unusable.");
+        Check(messages.Attempts.Single() == (1, 0x4006u, 0x56u),
+            "Unusable gestures do not reach the native registration boundary.");
 
         messages.RejectHotkey = true;
-        replacement.Run(() => Check(!hotkey.TryRegister("Ctrl+Alt+V"), "A taken shortcut is rejected."));
+        replacement.Run(() => Check(!hotkey.TryRegister("Ctrl+Shift+Z"), "A taken shortcut is rejected."));
         Check(messages.Hotkeys.Keys.SequenceEqual([1]), "The original registration remains after failure.");
         messages.Press(1);
         messages.Press(2);
@@ -172,22 +177,71 @@ internal static class Program
         Check(delivered.Count == 1 && delivered[0] == original, "The original shortcut still fires on its context.");
 
         messages.RejectHotkey = false;
-        replacement.Run(() => Check(hotkey.TryRegister("Ctrl+Alt+V"), "The next shortcut registers."));
+        messages.RejectUnregisterId = 1;
+        replacement.Run(() => Check(!hotkey.TryRegister("Ctrl+Shift+Z"), "Replacement rolls back if the old shortcut cannot be retired."));
+        Check(messages.Hotkeys.Keys.SequenceEqual([1]), "Rollback keeps only the original shortcut.");
+        messages.RejectUnregisterId = null;
+        replacement.Run(() => Check(hotkey.TryRegister("Ctrl+Shift+Z"), "The next shortcut registers."));
         messages.Press(2);
-        replacement.Run(() => Check(hotkey.TryRegister("Alt+V") && hotkey.TryRegister(" alt+v "),
-            "The final shortcut registers, and registering the same gesture is idempotent."));
-        Check(!hotkey.TryRegister("Ctrl+V") && messages.Hotkeys.Keys.SequenceEqual([1]),
-            "Unsupported gestures leave the last registration intact.");
-        messages.Press(1, 0x0006);
+        replacement.Run(() => Check(hotkey.TryRegister("Ctrl+Shift+A") && hotkey.TryRegister(" shift+control+a "),
+            "A different key with the same modifiers registers, and aliases are idempotent."));
+        messages.Press(1, key: 0x56);
         messages.Press(1);
         replacement.Drain();
-        Check(delivered.Count == 2 && delivered[^1] == replacement, "A retired registration cannot dispatch a queued press.");
+        Check(delivered.Count == 2 && delivered[^1] == replacement,
+            "Both stale Windows messages and stale queued callbacks are discarded.");
         Check(messages.Attempts.SequenceEqual(new (int, uint, uint)[]
         {
-            (1, 0x4006, 0x56), (2, 0x4003, 0x56), (2, 0x4003, 0x56), (1, 0x4001, 0x56)
-        }), "All supported gestures use V and MOD_NOREPEAT.");
+            (1, 0x4006, 0x56), (2, 0x4006, 0x5A), (2, 0x4006, 0x5A), (2, 0x4006, 0x5A), (1, 0x4006, 0x41)
+        }), "Letter shortcuts map to the expected virtual keys and include MOD_NOREPEAT.");
+
+        foreach (var (gesture, modifiers, key) in new (string, uint, uint)[]
+        {
+            ("Win+Space", 0x4008, 0x20), ("Ctrl+Alt+Shift+Meta+F1", 0x400F, 0x70),
+            ("Alt+F24", 0x4001, 0x87), ("Ctrl+0", 0x4002, 0x30), ("Ctrl+9", 0x4002, 0x39)
+        })
+        {
+            Check(hotkey.TryRegister(gesture), $"{gesture} registers.");
+            var attempt = messages.Attempts[^1];
+            Check(attempt.Modifiers == modifiers && attempt.Key == key,
+                $"{gesture} registers with the expected flags and virtual key.");
+        }
+
         hotkey.Dispose();
         Check(messages.Hotkeys.Count == 0, "Disposal unregisters the active shortcut.");
+    }
+
+    private static void StartupRegistration()
+    {
+        const string path = @"C:\Program Files\Vstavka Preview\Vstavka.exe";
+        const string preview = "Vstavka.Preview";
+        const string legacy = @"""C:\Vstavka\Vstavka.exe"" --background";
+        var runKey = new RunKeyDouble();
+        runKey.Values["Vstavka"] = legacy;
+        var startup = new WindowsStartupRegistration(runKey, path);
+        if (!OperatingSystem.IsWindows())
+        {
+            Check(!startup.IsSupported && !startup.IsEnabled && !startup.TrySetEnabled(true) &&
+                !startup.TrySetEnabled(false) && runKey.Values.Count == 1,
+                "Startup registration is guarded off Windows.");
+            return;
+        }
+
+        Check(startup.IsSupported && !startup.IsEnabled, "The WPF entry alone does not enable preview startup.");
+        runKey.Values[preview] = $"{legacy} \"{path}\"";
+        Check(!startup.IsEnabled, "A different executable does not count even if the current path is an argument.");
+        Check(startup.TrySetEnabled(true) && startup.IsEnabled && runKey.Values[preview] == $"\"{path}\" --background",
+            "Enabling writes the quoted executable and background flag under the preview value name.");
+        runKey.Values[preview] = $"\"{path.ToLowerInvariant()}\"";
+        Check(startup.IsEnabled, "Enabled state matches the executable path case-insensitively, independent of arguments.");
+
+        runKey.RefuseAccess = true;
+        Check(!startup.IsEnabled && !startup.TrySetEnabled(true) && !startup.TrySetEnabled(false) &&
+            runKey.Values.ContainsKey(preview), "Registry access failures return false and leave the entry in place.");
+        runKey.RefuseAccess = false;
+        Check(startup.TrySetEnabled(false) && startup.TrySetEnabled(false) && !startup.IsEnabled &&
+            runKey.Values.Count == 1 && runKey.Values["Vstavka"] == legacy,
+            "Disabling removes only the preview entry and succeeds when repeated.");
     }
 
     private static void Paste()
@@ -242,6 +296,9 @@ internal static class Program
             platform.HistoryProtector is WindowsHistoryProtector &&
             WindowsPlatformServices.GetSingleInstanceName().StartsWith(@"Local\Vstavka.Preview.S-", StringComparison.Ordinal),
             "The Windows entry point uses the preview directory, instance name and DPAPI.");
+        Check(platform.Permissions.Count == 0 && platform.Startup.IsSupported && platform.DefaultGesture == "Ctrl+Shift+V" &&
+            platform.SupportedGestures.SequenceEqual(["Ctrl+Shift+V", "Ctrl+Alt+V", "Alt+V"]),
+            "Windows exposes startup, the default shortcut and suggestions, and needs no permissions.");
         using var window = new WindowsMessageWindow();
         Check(window.Handle != 0, "A message-only window can be created without listening or registering a hotkey.");
 

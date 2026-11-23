@@ -29,6 +29,7 @@ public sealed class WindowsPlatformServices : IPlatformServices
         Paste = new WindowsPaste(new Win32Paste(), () => backend.Sequence, () => clipboard.LastWrittenSequence);
         PanelWindow = new WindowsPanelWindow();
         HistoryProtector = new WindowsHistoryProtector();
+        Startup = new WindowsStartupRegistration(new WindowsRunKey(), Environment.ProcessPath);
     }
 
     public string Name => "Windows";
@@ -36,6 +37,8 @@ public sealed class WindowsPlatformServices : IPlatformServices
         PlatformCapabilities.AutoPaste | PlatformCapabilities.SourceIcons | PlatformCapabilities.PersistentHistory |
         PlatformCapabilities.PanelPlacement;
     public IReadOnlyList<PlatformNotice> Notices { get; } = [];
+    public IReadOnlyList<PlatformPermission> Permissions { get; } = [];
+    public IStartupRegistration Startup { get; }
     public string DataDirectory { get; }
     public string DefaultGesture => AppSettings.DefaultHotkey;
     public IReadOnlyList<string> SupportedGestures => WindowsHotkey.Gestures;

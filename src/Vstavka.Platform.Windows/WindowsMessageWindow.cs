@@ -6,7 +6,7 @@ namespace Vstavka.Platform.Windows;
 internal interface IWindowsMessages
 {
     event Action? ClipboardChanged;
-    event Action<int, uint>? HotkeyPressed;
+    event Action<int, uint, uint>? HotkeyPressed;
     void StartClipboardListener();
     void StopClipboardListener();
     bool RegisterHotkey(int id, uint modifiers, uint key);
@@ -25,7 +25,7 @@ internal sealed class WindowsMessageWindow : IWindowsMessages, IDisposable
     internal WindowsMessageWindow() => windowProc = HandleMessage;
 
     public event Action? ClipboardChanged;
-    public event Action<int, uint>? HotkeyPressed;
+    public event Action<int, uint, uint>? HotkeyPressed;
 
     internal nint Handle
     {
@@ -81,7 +81,8 @@ internal sealed class WindowsMessageWindow : IWindowsMessages, IDisposable
         }
         if (message == 0x0312) // WM_HOTKEY
         {
-            HotkeyPressed?.Invoke((int)wParam, (uint)lParam & 0x000F);
+            var hotkey = (uint)lParam;
+            HotkeyPressed?.Invoke((int)wParam, hotkey & 0x000F, hotkey >> 16);
             return 0;
         }
         return NativeMethods.DefWindowProc(hwnd, message, wParam, lParam);
