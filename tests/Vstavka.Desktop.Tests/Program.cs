@@ -97,6 +97,51 @@ Run("Keyboard selection, Enter fallback, quick paste, and Escape", () =>
     finally { panel.Close(); }
 });
 
+Run("Deleting a card selects the one that takes its place", () =>
+{
+    using var demo = new DemoPlatformServices();
+    var panel = OpenPanel(demo, CreateHistory(demo, seed: true));
+    try
+    {
+        var cards = Find<ListBox>(panel, "Cards");
+        Press(panel, Key.Right, PhysicalKey.ArrowRight);
+        var next = cards.Items[2];
+        Press(panel, Key.Delete, PhysicalKey.Delete);
+        Check(cards.SelectedIndex == 1 && ReferenceEquals(cards.SelectedItem, next) && cards.IsKeyboardFocusWithin,
+            "The selection stays in the slot instead of returning to the first card.");
+    }
+    finally { panel.Close(); }
+});
+
+Run("A fading panel turns around when reopened, and a paste hides it", () =>
+{
+    using var demo = new DemoPlatformServices();
+    var panel = new PanelWindow(demo, CreateHistory(demo, seed: true), animate: true) { Width = 1338 };
+    panel.Open(positionOnScreen: false);
+    Flush(panel);
+    try
+    {
+        panel.Dismiss();
+        Check(panel.IsVisible && !panel.IsOpen, "A dismissed panel fades before it hides.");
+        panel.Open(positionOnScreen: false);
+        var fade = Stopwatch.StartNew();
+        PumpUntil(() =>
+        {
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+            return fade.ElapsedMilliseconds > 300;
+        }, "");
+        Check(panel.IsVisible && panel.IsOpen, "Reopening during the fade keeps the panel on screen.");
+        Press(panel, Key.Enter, PhysicalKey.Enter);
+        PumpUntil(() =>
+        {
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+            return !panel.IsVisible;
+        }, "A paste hides the panel.");
+        Check(demo.PasteRequests == 1, "The paste follows once the panel is gone.");
+    }
+    finally { panel.Close(); }
+});
+
 Run("Collection chips scope history and display empty collections", () =>
 {
     using var demo = new DemoPlatformServices();
@@ -863,7 +908,8 @@ Run("Key frame animations move and scale controls", () =>
     try
     {
         using var stop = new CancellationTokenSource();
-        var motion = SetupVisuals.Animate(target, 10_000, stop.Token, (0, 1, "translateY(8px) scale(.9)"), (1, 1, "translateY(0px)"));
+        var motion = DesktopMotion.Animate(target, TimeSpan.FromSeconds(10), DesktopMotion.Linear, stop.Token,
+            (0, 1, "translateY(8px) scale(.9)"), (1, 1, "none"));
         PumpUntil(() =>
         {
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();

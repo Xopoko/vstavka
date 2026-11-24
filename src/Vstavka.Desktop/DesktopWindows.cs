@@ -11,7 +11,7 @@ internal sealed class DesktopWindows
 {
     private readonly IPlatformServices _platform;
     private readonly DesktopHistory _history;
-    private readonly bool _animate;
+    private readonly bool? _animate;
     private readonly bool _positionPanel;
     private readonly Action<string, PanelWindow>? _feedback;
 
@@ -20,7 +20,7 @@ internal sealed class DesktopWindows
     public SettingsWindow? Settings { get; private set; }
 
     public DesktopWindows(IPlatformServices platform, DesktopHistory history, Action<string, PanelWindow>? feedback = null,
-        bool animate = true, bool positionPanel = true)
+        bool? animate = null, bool positionPanel = true)
     {
         _platform = platform;
         _history = history;
@@ -96,7 +96,7 @@ internal sealed class DesktopWindows
 
     private PanelWindow CreatePanel()
     {
-        var panel = new PanelWindow(_platform, _history, _animate && DesktopMotion.Enabled);
+        var panel = new PanelWindow(_platform, _history, _animate);
         panel.SettingsRequested += OpenSettings;
         panel.Feedback += text => _feedback?.Invoke(text, panel);
         panel.PracticeTarget = () => Onboarding is { Practicing: true } window ? window : null;

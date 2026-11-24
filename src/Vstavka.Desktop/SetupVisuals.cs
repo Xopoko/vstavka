@@ -88,37 +88,6 @@ internal static class SetupVisuals
                 _ => ThemeVariant.Default
             };
     }
-
-    public static async Task Animate(Visual control, int milliseconds, CancellationToken token,
-        params (double At, double Opacity, string Transform)[] frames)
-    {
-        var animation = new Animation { Duration = TimeSpan.FromMilliseconds(milliseconds), Easing = new ExponentialEaseOut() };
-        foreach (var (at, opacity, transform) in frames)
-            animation.Children.Add(new KeyFrame
-            {
-                Cue = new Cue(at), Setters =
-                {
-                    new Setter(Visual.OpacityProperty, opacity),
-                    new Setter(Visual.RenderTransformProperty, TransformOperations.Parse(transform))
-                }
-            });
-        try { await animation.RunAsync(control, token); }
-        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
-    }
-
-    public static async Task Reveal(Visual control, int delay, int duration, string transform, CancellationToken token)
-    {
-        control.Opacity = 0;
-        try
-        {
-            if (delay > 0)
-                await Task.Delay(delay, token);
-            control.Opacity = 1;
-            await Animate(control, duration, token, (0, 0, transform), (1, 1, "translateY(0px)"));
-        }
-        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
-        finally { control.Opacity = 1; }
-    }
 }
 
 /// <summary>
@@ -132,9 +101,66 @@ internal sealed class TransformKeyFrameAnimator : InterpolatingAnimator<ITransfo
             newValue as TransformOperations ?? TransformOperations.Identity, progress);
 }
 
+/// <summary>
+/// The app's motion. A change animates only when the movement says what the finished state cannot: where a
+/// thing came from, where it went, or that an action was heard. Whatever repeats all day (selection, filters,
+/// search, paste) is instant, and nothing the user asked for waits for an animation to end.
+/// </summary>
 internal static class DesktopMotion
 {
+    // One scale for every window. The steps are the platforms' own: Fluent moves in 83, 167 and 250 ms, and
+    // macOS and GNOME transitions sit in the same range.
+    /// <summary>Something leaves because the user sent it away.</summary>
+    public static readonly TimeSpan Exit = TimeSpan.FromMilliseconds(83);
+    /// <summary>Something arrives, or changes state where it stands.</summary>
+    public static readonly TimeSpan Enter = TimeSpan.FromMilliseconds(167);
+    /// <summary>Content moves across the window.</summary>
+    public static readonly TimeSpan Travel = TimeSpan.FromMilliseconds(250);
+    /// <summary>An illustration in the guide, slow enough to be read.</summary>
+    public static readonly TimeSpan Scene = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>Moves at once and lands softly, so the response is immediate. Used for everything that arrives.</summary>
+    public static readonly Easing Decelerate = new CubicEaseOut();
+    /// <summary>For fades and for key frames that carry their own rhythm; an easing would bend their timing.</summary>
+    public static readonly Easing Linear = new LinearEasing();
+
+    /// <summary>The system setting for animations, read on every use so a change applies without a restart.</summary>
     public static bool Enabled => ReadPreference();
+
+    /// <summary>Brings a control to rest from the place it comes from.</summary>
+    public static Task Arrive(Visual control, string from, TimeSpan duration, CancellationToken token,
+        bool fade = false, TimeSpan delay = default) =>
+        Run(control, duration, Decelerate, delay, token, [(0, fade ? 0 : 1, from), (1, 1, "none")]);
+
+    /// <summary>Marks a step the app has just seen completed.</summary>
+    public static Task Confirm(Visual control, CancellationToken token = default) =>
+        Arrive(control, "scale(.85)", Enter, token, fade: true);
+
+    /// <summary>Shakes a control that refused its input.</summary>
+    public static Task Reject(Visual control) => Animate(control, Travel, Linear, CancellationToken.None,
+        (0, 1, "none"), (.25, 1, "translateX(-6px)"), (.5, 1, "translateX(5px)"), (.75, 1, "translateX(-3px)"), (1, 1, "none"));
+
+    public static Task Animate(Visual control, TimeSpan duration, Easing easing, CancellationToken token,
+        params (double At, double Opacity, string Transform)[] frames) =>
+        Run(control, duration, easing, TimeSpan.Zero, token, frames);
+
+    private static async Task Run(Visual control, TimeSpan duration, Easing easing, TimeSpan delay, CancellationToken token,
+        (double At, double Opacity, string Transform)[] frames)
+    {
+        // The first frame holds through the delay; the animation ends on the control's own values.
+        var animation = new Animation { Duration = duration, Easing = easing, Delay = delay, FillMode = FillMode.Backward };
+        foreach (var (at, opacity, transform) in frames)
+            animation.Children.Add(new KeyFrame
+            {
+                Cue = new Cue(at), Setters =
+                {
+                    new Setter(Visual.OpacityProperty, opacity),
+                    new Setter(Visual.RenderTransformProperty, TransformOperations.Parse(transform))
+                }
+            });
+        try { await animation.RunAsync(control, token); }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+    }
 
     private static bool ReadPreference()
     {

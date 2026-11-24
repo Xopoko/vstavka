@@ -127,6 +127,7 @@ public sealed partial class App : Application
         const int height = 64;
         var work = screen.WorkingArea;
         var scale = screen.Scaling;
+        var message = PanelVisuals.Feedback(text);
         var feedback = new Window
         {
             Title = "Vstavka",
@@ -142,13 +143,27 @@ public sealed partial class App : Application
             FlowDirection = panel.FlowDirection,
             Position = new PixelPoint(work.Right - (int)Math.Ceiling((width + 16) * scale),
                 work.Bottom - (int)Math.Ceiling((height + 16) * scale)),
-            Content = PanelVisuals.Feedback(text)
+            Content = message
         };
         _feedback = feedback;
         feedback.Show();
-        _feedbackTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
-        _feedbackTimer.Tick += (_, _) => CloseFeedback();
-        _feedbackTimer.Start();
+        // The message answers an action, so it is there at once. Nobody sends it away: it leaves on its own while
+        // the user works elsewhere, and a fade keeps that from catching the eye.
+        var timer = _feedbackTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        var leaving = false;
+        timer.Tick += (_, _) =>
+        {
+            if (leaving || !DesktopMotion.Enabled)
+            {
+                CloseFeedback();
+                return;
+            }
+            leaving = true;
+            message.Transitions = [new DoubleTransition { Property = Visual.OpacityProperty, Duration = DesktopMotion.Travel }];
+            message.Opacity = 0;
+            timer.Interval = DesktopMotion.Travel;
+        };
+        timer.Start();
     }
 
     private void CloseFeedback()

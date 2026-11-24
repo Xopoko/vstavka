@@ -20,7 +20,7 @@ internal sealed class ShortcutRecorder : UserControl
     private readonly DesktopHistory _history;
     private readonly string _platform;
     private readonly Action<string> _saved;
-    private readonly bool _animate;
+    private readonly bool? _animate;
     private readonly bool _large;
     private readonly StackPanel _caps = SetupVisuals.Horizontal(7);
     private readonly StackPanel _live = SetupVisuals.Horizontal(5);
@@ -29,13 +29,12 @@ internal sealed class ShortcutRecorder : UserControl
     private readonly TextBlock _hint = SetupVisuals.Text("", 12, "MutedBrush");
     private readonly StackPanel _savedStatus;
     private readonly DispatcherTimer _savedTimer;
-    private CancellationTokenSource? _recordingMotion;
 
     public string Gesture { get; private set; }
     public bool IsRecording { get; private set; }
     public Control Keycaps => _caps;
 
-    public ShortcutRecorder(DesktopHistory history, string platform, string gesture, Action<string> saved, bool animate, bool large)
+    public ShortcutRecorder(DesktopHistory history, string platform, string gesture, Action<string> saved, bool? animate, bool large)
     {
         _history = history;
         _platform = platform;
@@ -112,11 +111,7 @@ internal sealed class ShortcutRecorder : UserControl
     {
         SetRecording(!IsRecording);
         if (IsRecording)
-        {
             Focus(NavigationMethod.Directional);
-            if (_animate && _recordingMotion is { } motion)
-                _ = BreatheAsync(_field.Children[0], motion.Token);
-        }
     }
 
     private void SetRecording(bool recording)
@@ -125,9 +120,6 @@ internal sealed class ShortcutRecorder : UserControl
         _history.SetRecording(this, recording);
         _savedStatus.IsVisible = false;
         _savedTimer.Stop();
-        _recordingMotion?.Cancel();
-        _recordingMotion?.Dispose();
-        _recordingMotion = recording ? new CancellationTokenSource() : null;
         _hint.Text = Strings.Get("RecordEscapeHint");
         _change.Content = new TextBlock { Text = Strings.Get(recording ? "Cancel" : "ChangeShortcut") };
         if (!recording)
@@ -179,25 +171,13 @@ internal sealed class ShortcutRecorder : UserControl
         _savedStatus.IsVisible = true;
         _savedTimer.Start();
         _change.Focus(NavigationMethod.Tab);
-        if (_animate)
-            _ = SetupVisuals.Animate(_caps, 300, CancellationToken.None,
-                (0, 1, "scale(.95)"), (1, 1, "scale(1)"));
     }
 
     private void ShowError(string key)
     {
         _hint.Text = Strings.Get(key);
-        if (_animate && _recordingMotion is { } motion)
-            _ = SetupVisuals.Animate(_field, 360, motion.Token,
-                (0, 1, "translateX(0px)"), (.2, 1, "translateX(-5px)"), (.4, 1, "translateX(5px)"),
-                (.6, 1, "translateX(-3px)"), (.8, 1, "translateX(2px)"), (1, 1, "translateX(0px)"));
-    }
-
-    private static async Task BreatheAsync(Control field, CancellationToken token)
-    {
-        while (!token.IsCancellationRequested)
-            await SetupVisuals.Animate(field, 1700, token,
-                (0, 1, "scale(1)"), (.52, .55, "scale(1)"), (1, 1, "scale(1)"));
+        if (_animate ?? DesktopMotion.Enabled)
+            _ = DesktopMotion.Reject(_field);
     }
 
     private void ShowHeldModifiers(HotkeyModifiers modifiers)

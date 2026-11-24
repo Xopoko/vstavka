@@ -1,6 +1,5 @@
 using Avalonia;
 using Avalonia.Animation;
-using Avalonia.Animation.Easings;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -10,7 +9,6 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Transformation;
-using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FluentIcons.Common;
@@ -28,10 +26,11 @@ internal sealed partial class PanelWindow : Window
         ("All", null, false), ("Pinned", null, true), ("Text", ClipKind.Text, false),
         ("Links", ClipKind.Link, false), ("Images", ClipKind.Image, false), ("Files", ClipKind.Files, false)
     ];
+    private static readonly TransformOperations Lowered = TransformOperations.Parse("translateY(8px)");
 
     private readonly IPlatformServices _platform;
     private readonly DesktopHistory _history;
-    private readonly bool _animate;
+    private readonly bool? _animate;
     private readonly Border _drawer;
     private readonly StackPanel _chips = new() { Orientation = Orientation.Horizontal, Spacing = 3 };
     private readonly List<(Button Button, ClipKind? Kind, bool Pinned, string? Collection)> _filters = [];
@@ -50,7 +49,12 @@ internal sealed partial class PanelWindow : Window
     private IReadOnlyList<ClipCollection> _collections = [];
     private IReadOnlyList<ClipItem> _visible = [];
     private ContextMenu? _openMenu;
+    private readonly DoubleTransition _fade = new() { Property = OpacityProperty };
+    private readonly TransformOperationsTransition _rise = new() { Property = RenderTransformProperty };
+    private readonly Transitions _drawerMotion;
     private CancellationTokenSource? _motion;
+    private CancellationTokenSource? _reflow;
+    private long _reflowedAt;
     private int _activeFilter;
     private bool _dirty = true;
     private bool _attached;
@@ -59,16 +63,19 @@ internal sealed partial class PanelWindow : Window
     private bool _pasting;
 
     private bool ClipboardOnly => _platform is MacPlatformServices { IsAppStoreBuild: true };
+    private bool Animated => _animate ?? DesktopMotion.Enabled;
     public bool IsOpen => IsVisible && !_dismissing;
     public event Action<string>? Feedback;
     public event Action? SettingsRequested;
     public Func<OnboardingWindow?>? PracticeTarget { get; set; }
 
-    public PanelWindow(IPlatformServices platform, DesktopHistory history, bool animate = true)
+    /// <param name="animate">Null follows the system setting for animations; tests fix it either way.</param>
+    public PanelWindow(IPlatformServices platform, DesktopHistory history, bool? animate = null)
     {
         _platform = platform;
         _history = history;
         _animate = animate;
+        _drawerMotion = [_fade, _rise];
 
         Title = "Vstavka";
         Width = 1200;
@@ -140,6 +147,8 @@ internal sealed partial class PanelWindow : Window
         AutomationProperties.SetName(_cards, Strings.Get("HistoryItems"));
         ScrollViewer.SetHorizontalScrollBarVisibility(_cards, ScrollBarVisibility.Auto);
         ScrollViewer.SetVerticalScrollBarVisibility(_cards, ScrollBarVisibility.Disabled);
+        // A recycled card would carry its slide over to another item.
+        _cards.ContainerClearing += (_, _) => _reflow?.Cancel();
         _cards.AddHandler(PointerWheelChangedEvent, (_, e) =>
         {
             if (_cards.Scroll is ScrollViewer viewer)
@@ -211,6 +220,7 @@ internal sealed partial class PanelWindow : Window
         Closed += (_, _) =>
         {
             StopMotion();
+            _reflow?.Cancel();
             _history.Changed -= OnHistoryChanged;
             if (settings is not null)
                 settings.ColorValuesChanged -= OnSystemColorsChanged;
@@ -254,6 +264,11 @@ internal sealed partial class PanelWindow : Window
         }
         AttachNativePanel();
 
+        // The panel rises from the screen edge it is docked to. Reopened in the middle of a dismissal, it turns
+        // around from where it is; otherwise its first frame is laid out before the window is on screen.
+        var animated = Animated;
+        if (!IsVisible)
+            MoveDrawer(shown: !animated, animated: false);
         if (!_isShowing)
         {
             _platform.PanelWindow.Showing();
@@ -263,31 +278,70 @@ internal sealed partial class PanelWindow : Window
         Activate();
         var practiceIndex = practiceItem is null ? -1 : _visible.ToList().FindIndex(item => item.Id == practiceItem.Id);
         SelectCard(practiceIndex >= 0 ? practiceIndex : Math.Max(0, _cards.SelectedIndex));
-        if (_animate)
-            _ = Animate(TimeSpan.FromMilliseconds(190), from: 0, to: 1, slide: true);
+        MoveDrawer(shown: true, animated);
     }
 
-    public void Dismiss() => _ = DismissAsync();
+    public void Dismiss() => _ = DismissAsync(fade: true);
 
     private async Task OpenSettingsAsync()
     {
-        await DismissAsync();
+        await DismissAsync(fade: false);
         SettingsRequested?.Invoke();
     }
 
-    private async Task DismissAsync()
+    /// <param name="fade">
+    /// False when the panel only stands between the user and what they asked for, such as a paste: it is gone at once.
+    /// </param>
+    private async Task DismissAsync(bool fade)
     {
         if (!IsOpen)
             return;
         _dismissing = true;
         _openMenu?.Close();
         CloseCollectionDialog(restoreFocus: false);
-        if (_animate && !await Animate(TimeSpan.FromMilliseconds(95), from: _drawer.Opacity, to: 0))
-            return;
+        if (Animated)
+        {
+            StopMotion();
+            using var cancellation = new CancellationTokenSource();
+            _motion = cancellation;
+            MoveDrawer(shown: false, animated: fade);
+            try
+            {
+                if (fade)
+                    await Task.Delay(DesktopMotion.Exit, cancellation.Token);
+                // A hidden window comes back showing its last frame, so the empty one must reach the screen first.
+                var presented = new TaskCompletionSource();
+                RequestAnimationFrame(_ => RequestAnimationFrame(_ => presented.TrySetResult()));
+                await presented.Task;
+                if (cancellation.IsCancellationRequested)
+                    return;
+            }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+            {
+                return;
+            }
+            finally
+            {
+                if (ReferenceEquals(_motion, cancellation))
+                    _motion = null;
+            }
+        }
 
         Hide();
         NotifyHidden();
         _dismissing = false;
+    }
+
+    private void MoveDrawer(bool shown, bool animated)
+    {
+        // The transitions stay attached while they run, so a reversal starts from the drawer's current place.
+        _fade.Duration = _rise.Duration = shown ? DesktopMotion.Enter : DesktopMotion.Exit;
+        _fade.Easing = _rise.Easing = shown ? DesktopMotion.Decelerate : DesktopMotion.Linear;
+        // Turned around before it has moved, a transition would start from its old target and flash the drawer.
+        var opacity = shown ? 1 : 0;
+        _drawer.Transitions = animated && _drawer.Opacity != opacity ? _drawerMotion : null;
+        _drawer.Opacity = opacity;
+        _drawer.RenderTransform = shown ? TransformOperations.Identity : Lowered;
     }
 
     private void NotifyHidden()
@@ -302,35 +356,6 @@ internal sealed partial class PanelWindow : Window
             return;
         _platform.PanelWindow.Attach(handle.Handle, descriptor);
         _attached = true;
-    }
-
-    private async Task<bool> Animate(TimeSpan duration, double from, double to, bool slide = false)
-    {
-        StopMotion();
-        using var cancellation = new CancellationTokenSource();
-        _motion = cancellation;
-        var start = new KeyFrame { Cue = new Cue(0), Setters = { new Setter(OpacityProperty, from) } };
-        var end = new KeyFrame { Cue = new Cue(1), Setters = { new Setter(OpacityProperty, to) } };
-        if (slide)
-        {
-            start.Setters.Add(new Setter(RenderTransformProperty, TransformOperations.Parse("translateY(16px)")));
-            end.Setters.Add(new Setter(RenderTransformProperty, TransformOperations.Identity));
-        }
-        var animation = new Animation { Duration = duration, Easing = new CubicEaseOut(), Children = { start, end } };
-        try
-        {
-            await animation.RunAsync(_drawer, cancellation.Token);
-            return !cancellation.IsCancellationRequested;
-        }
-        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
-        {
-            return false;
-        }
-        finally
-        {
-            if (ReferenceEquals(_motion, cancellation))
-                _motion = null;
-        }
     }
 
     private void StopMotion() => _motion?.Cancel();
@@ -433,18 +458,27 @@ internal sealed partial class PanelWindow : Window
             matches = matches.Where(item => item.Kind is ClipKind.Text or ClipKind.Color).ToArray();
 
         var previous = (_cards.SelectedItem as ClipItem)?.Id;
+        var slot = _cards.SelectedIndex;
         var focusCards = _cards.IsKeyboardFocusWithin;
+        var before = _visible;
+        var scroller = _cards.Scroll as ScrollViewer;
+        var offset = scroller?.Offset.X ?? 0;
         if (rebuild || !_visible.SequenceEqual(matches))
         {
             _visible = matches;
             _cards.ItemsSource = matches;
         }
-        var index = Math.Max(0, matches.ToList().FindIndex(item => item.Id == previous));
+        var index = matches.ToList().FindIndex(item => item.Id == previous);
+        // When the selected card leaves the row, the one that takes its place is selected.
+        if (index < 0)
+            index = rebuild ? Math.Clamp(slot, 0, Math.Max(0, matches.Count - 1)) : 0;
         _cards.SelectedIndex = matches.Count > 0 ? index : -1;
-        if (resetScroll && _cards.Scroll is ScrollViewer scroller)
+        if (resetScroll && scroller is not null)
             scroller.Offset = default;
         if (focusCards)
             SelectCard(index);
+        if (rebuild && IsOpen && scroller is not null)
+            Reflow(before, scroller, offset);
 
         var total = store.Items.Count(item => item.CollectionId == collection);
         _count.Text = total == matches.Count ? Strings.Format("ItemsCount", total) : Strings.Format("FilteredCount", matches.Count, total);
@@ -458,6 +492,50 @@ internal sealed partial class PanelWindow : Window
                 : _history.Paused ? (Symbol.Pause, "Paused", "PausedHint")
                 : (Symbol.Clipboard, "EmptyHistory", "EmptyHistoryHint");
             ShowEmpty(icon, title, hint);
+        }
+    }
+
+    /// <summary>
+    /// Slides the cards that changed place into their new slots after an item was removed, pinned or moved, so
+    /// the row is seen closing up instead of being swapped for another one.
+    /// </summary>
+    private void Reflow(IReadOnlyList<ClipItem> before, ScrollViewer scroller, double offsetBefore)
+    {
+        _reflow?.Cancel();
+        _reflow?.Dispose();
+        _reflow = null;
+        if (!Animated || before.SequenceEqual(_visible))
+            return;
+        // A held Delete key changes the row faster than a slide can be read: only a change that stands alone moves.
+        var now = Environment.TickCount64;
+        var alone = now - _reflowedAt > DesktopMotion.Travel.TotalMilliseconds;
+        _reflowedAt = now;
+        if (!alone)
+            return;
+
+        _cards.UpdateLayout();
+        var reflow = _reflow = new CancellationTokenSource();
+        var scrolled = scroller.Offset.X - offsetBefore;
+        var slots = before.ToList();
+        foreach (var card in _cards.GetRealizedContainers())
+        {
+            var index = _cards.IndexFromContainer(card);
+            var was = index < 0 ? -1 : slots.IndexOf(_visible[index]);
+            if (was < 0)
+                continue;
+            var shift = (was - index) * (card.Bounds.Width + card.Margin.Left + card.Margin.Right) + scrolled;
+            // From farther than the edge of the row a card would only arrive faster, not from anywhere visible.
+            shift = Math.Clamp(shift, -scroller.Viewport.Width, scroller.Viewport.Width);
+            if (Math.Abs(shift) >= 1)
+                _ = Slide(card, shift, above: Math.Abs(was - index) > 1);
+        }
+
+        async Task Slide(Control card, double shift, bool above)
+        {
+            // A card that jumps over its neighbours passes in front of them.
+            card.ZIndex = above ? 1 : 0;
+            await DesktopMotion.Arrive(card, FormattableString.Invariant($"translateX({shift:F1}px)"), DesktopMotion.Travel, reflow.Token);
+            card.ZIndex = 0;
         }
     }
 
@@ -689,7 +767,7 @@ internal sealed partial class PanelWindow : Window
         _pasting = true;
         try
         {
-            await DismissAsync();
+            await DismissAsync(fade: false);
             if (practice is not null)
             {
                 practice.ReceivePracticePaste(item);

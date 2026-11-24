@@ -1,6 +1,5 @@
 using Avalonia;
 using Avalonia.Animation;
-using Avalonia.Animation.Easings;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Chrome;
@@ -24,7 +23,7 @@ internal sealed class OnboardingWindow : Window
     private const int LastStep = 3;
     private readonly IPlatformServices _platform;
     private readonly DesktopHistory _history;
-    private readonly bool _animate;
+    private readonly bool? _animate;
     private readonly Grid _stage = new() { ClipToBounds = true };
     private readonly Border _footer;
     private readonly (Button Button, Border Marker)[] _dots = new (Button, Border)[LastStep + 1];
@@ -48,6 +47,7 @@ internal sealed class OnboardingWindow : Window
     private bool _pasted;
     private bool _welcomePlayed;
 
+    private bool Animated => _animate ?? DesktopMotion.Enabled;
     public int Step { get; private set; }
     public bool Practicing => IsVisible && _practiceBox is not null;
     public bool PracticeCompleted => _copied && _openedWithShortcut && _pasted;
@@ -55,11 +55,11 @@ internal sealed class OnboardingWindow : Window
         ? _history.Store.Items.FirstOrDefault(item => item.Kind == ClipKind.Text && item.Text == _practiceText)
         : null;
 
-    public OnboardingWindow(IPlatformServices platform, DesktopHistory history, bool animate = true)
+    public OnboardingWindow(IPlatformServices platform, DesktopHistory history, bool? animate = null)
     {
         _platform = platform;
         _history = history;
-        _animate = animate && DesktopMotion.Enabled;
+        _animate = animate;
         Title = Strings.Get("AppName");
         Width = 640;
         Height = 460;
@@ -163,12 +163,9 @@ internal sealed class OnboardingWindow : Window
         };
         _stage.Children.Add(control);
         UpdateFooter();
-        if (_animate && slide && direction != 0)
-        {
-            var offset = 28 * direction * (Strings.IsRightToLeft ? -1 : 1);
-            _ = SetupVisuals.Animate(control, 300, token,
-                (0, 0, $"translateX({offset}px)"), (1, 1, "translateX(0px)"));
-        }
+        // The step comes from the side it lies on, the same way the progress dots run.
+        if (Animated && slide && direction != 0)
+            _ = DesktopMotion.Arrive(control, $"translateX({24 * direction}px)", DesktopMotion.Travel, token, fade: true);
     }
 
     private (Button Back, Button Next) BuildFooter()
@@ -181,11 +178,8 @@ internal sealed class OnboardingWindow : Window
                 Classes = { "setup-dot" }, Height = 6, Width = 6, CornerRadius = new CornerRadius(3),
                 VerticalAlignment = VerticalAlignment.Center
             };
-            if (_animate)
-                dot.Transitions = new Transitions
-                {
-                    new DoubleTransition { Property = WidthProperty, Duration = TimeSpan.FromMilliseconds(300), Easing = new ExponentialEaseOut() }
-                };
+            if (Animated)
+                dot.Transitions = [new DoubleTransition { Property = WidthProperty, Duration = DesktopMotion.Travel, Easing = DesktopMotion.Decelerate }];
             var target = index;
             var button = new Button { Name = $"StepDot{target + 1}", Classes = { "panel-button", "setup-step" }, Content = dot };
             AutomationProperties.SetName(button, Strings.Format("SetupProgress", target + 1, LastStep + 1));
@@ -321,7 +315,7 @@ internal sealed class OnboardingWindow : Window
 
         using var stream = AssetLoader.Open(new Uri("avares://Vstavka.Desktop/Assets/Vstavka.png"));
         var logo = new Image { Source = new Bitmap(stream), Width = 56, Height = 56, HorizontalAlignment = HorizontalAlignment.Center };
-        var heading = Heading("WelcomeSetupTitle", "WelcomeSetupDescription", 24, out var title, out var body);
+        var heading = Heading("WelcomeSetupTitle", "WelcomeSetupDescription", 24, out _, out _);
         heading.MaxWidth = 470;
         var intro = new StackPanel
         {
@@ -341,7 +335,7 @@ internal sealed class OnboardingWindow : Window
             intro.Children.Add(notice);
             intro.Children.Add(_consentError);
         }
-        var panel = MiniaturePanel(out var cards, out var firstRing);
+        var panel = MiniaturePanel();
         panel.Margin = new Thickness(48, 0, 48, -19);
         panel.VerticalAlignment = VerticalAlignment.Bottom;
         var result = new Grid { Children = { panel, intro } };
@@ -352,16 +346,12 @@ internal sealed class OnboardingWindow : Window
         };
         result.Children.Add(pickerContainer);
 
-        if (_animate && !_welcomePlayed)
+        // The welcome moves one thing: the panel rises from the bottom edge, as the real one does. It starts once
+        // the window itself has opened.
+        if (Animated && !_welcomePlayed)
         {
             _welcomePlayed = true;
-            _ = SetupVisuals.Animate(logo, 550, token, (0, 1, "scale(.82)"), (.64, 1, "scale(1.05)"), (1, 1, "scale(1)"));
-            _ = SetupVisuals.Reveal(title, 160, 440, "translateY(8px)", token);
-            _ = SetupVisuals.Reveal(body, 240, 440, "translateY(8px)", token);
-            _ = SetupVisuals.Reveal(panel, 350, 700, "translateY(46px)", token);
-            for (var index = 0; index < cards.Length; index++)
-                _ = SetupVisuals.Reveal(cards[index], 440 + index * 65, 470, "translateY(10px) scale(.97)", token);
-            _ = SetupVisuals.Reveal(firstRing, 1250, 250, "translateY(0px)", token);
+            _ = DesktopMotion.Arrive(panel, "translateY(24px)", DesktopMotion.Scene, token, fade: true, delay: DesktopMotion.Travel);
         }
         return result;
     }
@@ -397,9 +387,9 @@ internal sealed class OnboardingWindow : Window
             Spacing = 17, Margin = new Thickness(42, 57, 42, 0),
             Children = { Heading("ShortcutSetupTitle", "ShortcutSetupDescription", 24, out _, out _), recorder }
         };
-        if (_animate)
+        if (Animated)
         {
-            var panel = MiniaturePanel(out _, out _);
+            var panel = MiniaturePanel();
             panel.VerticalAlignment = VerticalAlignment.Top;
             var mini = new Border { MaxWidth = 330, Height = 67, ClipToBounds = true, Opacity = 0, Child = panel };
             content.Children.Add(mini);
@@ -412,31 +402,41 @@ internal sealed class OnboardingWindow : Window
     {
         try
         {
+            // Three runs are enough to link the keys to the panel; a loop that never ends only pulls the eye from
+            // the text. A newly recorded shortcut is demonstrated again.
+            var gesture = recorder.Gesture;
+            var runs = 0;
             while (!token.IsCancellationRequested)
             {
                 await Task.Delay(720, token);
-                if (!recorder.IsRecording && recorder.Keycaps is StackPanel strip)
+                if (recorder.Gesture != gesture)
+                    (gesture, runs) = (recorder.Gesture, 0);
+                if (runs == 3 || recorder.IsRecording || recorder.Keycaps is not StackPanel strip)
+                    continue;
+
+                foreach (var cap in strip.Children.OfType<Border>().ToArray())
                 {
-                    foreach (var cap in strip.Children.OfType<Border>().ToArray())
-                    {
-                        if (recorder.IsRecording)
-                            break;
-                        var originalThickness = cap.BorderThickness;
-                        using var tint = cap.Bind(Border.BackgroundProperty, cap.GetResourceObservable("SelectionBrush"));
-                        cap.BorderThickness = new Thickness(1);
-                        await SetupVisuals.Animate(cap, 200, token, (0, 1, "translateY(0px)"), (.35, 1, "translateY(3px)"), (1, 1, "translateY(0px)"));
-                        cap.BorderThickness = originalThickness;
-                    }
-                    if (!recorder.IsRecording)
-                    {
-                        mini.Opacity = 1;
-                        await SetupVisuals.Animate(mini, 420, token, (0, 0, "translateY(24px)"), (1, 1, "translateY(0px)"));
-                        await Task.Delay(540, token);
-                        await SetupVisuals.Animate(mini, 260, token, (0, 1, "translateY(0px)"), (1, 0, "translateY(15px)"));
-                        mini.Opacity = 0;
-                    }
-                    await Task.Delay(350, token);
+                    if (recorder.IsRecording)
+                        break;
+                    var originalThickness = cap.BorderThickness;
+                    using var tint = cap.Bind(Border.BackgroundProperty, cap.GetResourceObservable("SelectionBrush"));
+                    cap.BorderThickness = new Thickness(1);
+                    await DesktopMotion.Animate(cap, DesktopMotion.Enter, DesktopMotion.Linear, token,
+                        (0, 1, "none"), (.4, 1, "translateY(3px)"), (1, 1, "none"));
+                    cap.BorderThickness = originalThickness;
                 }
+                if (!recorder.IsRecording)
+                {
+                    // The control's own opacity is set to where each move ends, so no frame shows it in between.
+                    mini.Opacity = 1;
+                    await DesktopMotion.Arrive(mini, "translateY(24px)", DesktopMotion.Scene, token, fade: true);
+                    await Task.Delay(600, token);
+                    mini.Opacity = 0;
+                    await DesktopMotion.Animate(mini, DesktopMotion.Travel, DesktopMotion.Linear, token,
+                        (0, 1, "none"), (1, 0, "translateY(24px)"));
+                    runs++;
+                }
+                await Task.Delay(350, token);
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
@@ -631,8 +631,8 @@ internal sealed class OnboardingWindow : Window
             marker.Classes.Set("done", done);
             circle.Children.Clear();
             circle.Children.Add(marker);
-            if (done && animate && _animate)
-                _ = SetupVisuals.Animate(marker, 320, token, (0, 0, "scale(.78)"), (1, 1, "scale(1)"));
+            if (done && animate && Animated)
+                _ = DesktopMotion.Confirm(marker, token);
         }
         if (_practiceTitle is not null)
             _practiceTitle.Text = Strings.Get(PracticeCompleted ? "PracticeComplete" : "PracticeTitle");
@@ -648,7 +648,7 @@ internal sealed class OnboardingWindow : Window
         return new StackPanel { Spacing = 8, Children = { title, body } };
     }
 
-    private static Border MiniaturePanel(out Control[] cards, out Border ring)
+    private static Border MiniaturePanel()
     {
         var chips = SetupVisuals.Horizontal(12);
         foreach (var key in new[] { "All", "Pinned", "Text", "Links", "Images" })
@@ -680,10 +680,9 @@ internal sealed class OnboardingWindow : Window
         link.FlowDirection = FlowDirection.LeftToRight;
         Control[] previews = { SetupVisuals.Text(Strings.Get("WelcomeSampleText"), 12, strong: true), link, color, landscape };
         string[] types = [ "Text", "Link", "Color", "Image" ];
-        cards = new Control[4];
-        ring = new Border { BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(9), IsHitTestVisible = false };
+        var ring = new Border { BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(9), IsHitTestVisible = false };
         ring.Bind(Border.BorderBrushProperty, ring.GetResourceObservable("AccentBrush"));
-        for (var index = 0; index < cards.Length; index++)
+        for (var index = 0; index < types.Length; index++)
         {
             var label = PanelVisuals.Label(Strings.Get(types[index]), 12, "MutedBrush");
             var card = SetupVisuals.Surface(new StackPanel { Spacing = 4, Children = { label, previews[index] } }, 9,
@@ -693,7 +692,6 @@ internal sealed class OnboardingWindow : Window
             if (index == 0)
                 grid.Children.Add(ring);
             SetupVisuals.Add(strip, grid, index);
-            cards[index] = grid;
         }
         var mini = SetupVisuals.Surface(new StackPanel { Spacing = 7, Children = { chips, strip } }, 14, "WindowBrush");
         mini.Padding = new Thickness(10, 8);

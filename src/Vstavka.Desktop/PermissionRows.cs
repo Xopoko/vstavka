@@ -1,6 +1,5 @@
 using Avalonia;
 using Avalonia.Animation;
-using Avalonia.Animation.Easings;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -26,7 +25,7 @@ internal sealed class PermissionRows : UserControl
 
     private readonly IPlatformServices _platform;
     private readonly DesktopHistory _history;
-    private readonly bool _animate;
+    private readonly bool? _animate;
     private readonly StartupRow? _startup;
     private readonly Action<Action> _signOut;
     private readonly DispatcherTimer _poll;
@@ -37,7 +36,7 @@ internal sealed class PermissionRows : UserControl
     public event Action<bool>? AvailabilityChanged;
     public event Action? HotkeyBecameAvailable;
 
-    public PermissionRows(IPlatformServices platform, DesktopHistory history, bool animate, StartupRow? startup = null,
+    public PermissionRows(IPlatformServices platform, DesktopHistory history, bool? animate, StartupRow? startup = null,
         Action<Action>? signOut = null)
     {
         _platform = platform;
@@ -138,7 +137,7 @@ internal sealed class PermissionRows : UserControl
 
     private sealed class PermissionRow : Grid
     {
-        private readonly bool _animate;
+        private readonly bool? _animate;
         private readonly Action<PlatformPermission> _request;
         private readonly string _allowedKey;
         private readonly string _actionKey;
@@ -151,7 +150,7 @@ internal sealed class PermissionRows : UserControl
         private PlatformPermission _permission;
         private bool _installing;
 
-        public PermissionRow(PlatformPermission permission, IPlatformServices platform, bool animate, Action<PlatformPermission> request)
+        public PermissionRow(PlatformPermission permission, IPlatformServices platform, bool? animate, Action<PlatformPermission> request)
         {
             _permission = permission;
             _request = request;
@@ -240,13 +239,12 @@ internal sealed class PermissionRows : UserControl
                 _illustration.Bind(Border.BackgroundProperty, _illustration.GetResourceObservable("PrimaryBrush"));
                 _knob.HorizontalAlignment = HorizontalAlignment.Right;
             }
-            if (becameGranted && _animate)
+            // The grant happens in another window; the row marks what changed for the user coming back.
+            if (becameGranted && (_animate ?? DesktopMotion.Enabled))
             {
-                _ = SetupVisuals.Animate(_status, 320, CancellationToken.None,
-                    (0, 0, "scale(.85)"), (1, 1, "scale(1)"));
+                _ = DesktopMotion.Confirm(_status);
                 if (_accessibility.IsVisible)
-                    _ = SetupVisuals.Animate(_knob, 320, CancellationToken.None,
-                        (0, 1, "translateX(-9px)"), (1, 1, "translateX(0px)"));
+                    _ = DesktopMotion.Arrive(_knob, "translateX(-9px)", DesktopMotion.Enter, CancellationToken.None);
             }
         }
 
@@ -258,7 +256,7 @@ internal sealed class PermissionRows : UserControl
                 Data = Geometry.Parse("M7,1 A6,6 0 1 1 1,7"), FlowDirection = FlowDirection.LeftToRight
             };
             spinner.Bind(Shape.StrokeProperty, spinner.GetResourceObservable("AccentBrush"));
-            spinner.Classes.Set("setup-install-spinner", _animate);
+            spinner.Classes.Set("setup-install-spinner", _animate ?? DesktopMotion.Enabled);
             return SetupVisuals.Horizontal(6, spinner, SetupVisuals.Text(Strings.Get("InstallingGnomeHelper"), 12, "MutedBrush"));
         }
 
@@ -299,6 +297,12 @@ internal sealed class StartupRow : Grid
         _toggle = new ToggleButton { Name = "StartupToggle", Classes = { "setup-switch" }, IsChecked = enabled };
         AutomationProperties.SetName(_toggle, Strings.Get(titleKey));
         _toggle.IsCheckedChanged += (_, _) => Change();
+        _toggle.TemplateApplied += (_, e) =>
+        {
+            if (DesktopMotion.Enabled && e.NameScope.Find<Border>("Knob") is { } knob)
+                knob.Transitions = [new TransformOperationsTransition
+                    { Property = RenderTransformProperty, Duration = DesktopMotion.Enter, Easing = DesktopMotion.Decelerate }];
+        };
         _error = SetupVisuals.Text(Strings.Get("StartupChangeFailed"), 12, "WarningBrush");
         _error.Name = "StartupError";
         _error.IsVisible = false;

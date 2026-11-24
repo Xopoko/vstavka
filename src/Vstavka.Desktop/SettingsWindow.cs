@@ -29,12 +29,11 @@ internal sealed partial class SettingsWindow : Window
     private bool _startupChoiceChanged;
     private bool _saved;
 
-    public SettingsWindow(IPlatformServices platform, DesktopHistory history, bool animate = true)
+    public SettingsWindow(IPlatformServices platform, DesktopHistory history, bool? animate = null)
     {
         _platform = platform;
         _history = history;
         _draft = history.Store.Settings.Copy();
-        animate &= DesktopMotion.Enabled;
         Title = Strings.Get("Settings");
         Width = 650;
         Height = 836;

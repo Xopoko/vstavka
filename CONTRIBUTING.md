@@ -26,6 +26,11 @@ clipboard history, a `history.vstavka` file, or logs with personal paths.
 - For UI changes, check the light, dark and right-to-left renders, plus
   keyboard focus and scaling. Run
   `dotnet run --project tests/Vstavka.Desktop.Tests -- --render <folder>`.
+- **Motion** goes through `DesktopMotion`: one scale of durations, one curve
+  and the few shared effects. Animate a change only when the movement explains
+  it: where something came from, where it went, that an action was heard.
+  Whatever repeats all day stays instant, and nothing the user asked for waits
+  for an animation. Check the result with system animations turned off too.
 - **Clipboard and paste changes:** say which systems and apps you tested with,
   and keep the privacy rules in [SECURITY.md](SECURITY.md) intact. Tests use
   recorded system boundaries instead of the real clipboard.

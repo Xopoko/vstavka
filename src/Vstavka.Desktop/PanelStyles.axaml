@@ -173,7 +173,7 @@
     <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
   </Style>
   <Style Selector="ToggleButton.setup-switch:checked /template/ Border#Knob">
-    <Setter Property="HorizontalAlignment" Value="Right" />
+    <Setter Property="RenderTransform" Value="translateX(18px)" />
     <Setter Property="Background" Value="{DynamicResource PrimaryInkBrush}" />
   </Style>
   <Style Selector="ToggleButton.setup-switch:focus-visible /template/ Border#FocusRing">
