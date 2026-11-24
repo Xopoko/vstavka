@@ -1077,8 +1077,11 @@ static void RenderReadme(string directory)
         foreach (var (variant, name) in new[] { (ThemeVariant.Light, "light"), (ThemeVariant.Dark, "dark") })
         {
             var panel = OpenPanel(demo, history, variant);
+            byte[] shot;
             try
             {
+                panel.Width = MacDesktop.Width - MacDesktop.PanelMargin * 2;
+                Flush(panel);
                 var cards = Find<ListBox>(panel, "Cards");
                 Check(cards.Items.Count == 6 && ReferenceEquals(cards.SelectedItem, note), "The selected note and all six demo items are in the panel.");
                 var scroll = (ScrollViewer)cards.Scroll!;
@@ -1087,9 +1090,17 @@ static void RenderReadme(string directory)
                 cards.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>()) { Setters = { new Setter(Layoutable.WidthProperty, width) } });
                 Flush(panel);
                 Check(scroll.Extent.Width <= scroll.Viewport.Width, "All six cards fit in the README panel.");
-                SaveStill(panel, "panel-" + name);
+                using var frame = Capture(panel);
+                using var png = new MemoryStream();
+                frame.Save(png, PngBitmapEncoderOptions.Default);
+                shot = png.ToArray();
             }
             finally { panel.Close(); }
+
+            var desktop = MacDesktop.Create(shot, variant == ThemeVariant.Dark);
+            desktop.Show();
+            try { SaveStill(desktop, "desktop-" + name); }
+            finally { desktop.Close(); }
         }
 
         var guide = new OnboardingWindow(demo, history, animate: false) { RequestedThemeVariant = ThemeVariant.Light };
@@ -1118,13 +1129,18 @@ static void RenderReadme(string directory)
 
     void SaveStill(Window window, string name)
     {
+        using var frame = Capture(window);
+        frame.Save(Path.Combine(directory, name + ".png"), PngBitmapEncoderOptions.Default);
+    }
+
+    static RenderTargetBitmap Capture(Window window)
+    {
         window.MouseMove(new Point(0, 0));
         window.FocusManager?.Focus(null);
         Flush(window);
-        var pixels = PixelSize.FromSize(window.ClientSize, 2);
-        using var frame = new RenderTargetBitmap(pixels, new Vector(192, 192));
+        var frame = new RenderTargetBitmap(PixelSize.FromSize(window.ClientSize, 2), new Vector(192, 192));
         frame.Render(window);
-        frame.Save(Path.Combine(directory, name + ".png"), PngBitmapEncoderOptions.Default);
+        return frame;
     }
 }
 

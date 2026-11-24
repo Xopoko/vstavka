@@ -32,9 +32,9 @@ internal static class DemoSamples
             store.SetSourceIcon(app, SourceIcon(app));
     }
 
-    internal static byte[] ExampleImage()
+    internal static byte[] ExampleImage(int scale = 1)
     {
-        using var bitmap = new RenderTargetBitmap(new PixelSize(320, 180));
+        using var bitmap = new RenderTargetBitmap(new PixelSize(320 * scale, 180 * scale), new Vector(96 * scale, 96 * scale));
         using (var drawing = bitmap.CreateDrawingContext())
         {
             drawing.FillRectangle(new SolidColorBrush(Color.Parse("#CADDDB")), new Rect(0, 0, 320, 180));

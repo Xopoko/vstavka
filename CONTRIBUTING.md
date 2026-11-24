@@ -31,7 +31,9 @@ clipboard history, a `history.vstavka` file, or logs with personal paths.
   recorded system boundaries instead of the real clipboard.
 - **README images** in `docs/images` are rendered from the cross-platform app
   with `dotnet run --project tests/Vstavka.Desktop.Tests -- --readme docs/images`.
-  The GIF needs `ffmpeg` on the `PATH` and system animations turned on.
+  The GIF needs `ffmpeg` on the `PATH` and system animations turned on. Run it
+  on a Mac: the images show macOS, and the desktop picture uses SF Pro when
+  the font is installed.
 
 For a manual pass before a release, use the
 [acceptance checklist](docs/acceptance.md).
