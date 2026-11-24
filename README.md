@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://apps.microsoft.com/detail/9NVXW230R4PX"><picture><source media="(prefers-color-scheme: dark)" srcset="https://get.microsoft.com/images/en-us%20light.svg"><img src="https://get.microsoft.com/images/en-us%20dark.svg" height="56" alt="Download from the Microsoft Store"></picture></a>
   <a href="#macos"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/badge-macos-light.svg"><img src="docs/images/badge-macos-dark.svg" height="56" alt="Build it for macOS"></picture></a>
-  <a href="#ubuntu"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/badge-ubuntu-light.svg"><img src="docs/images/badge-ubuntu-dark.svg" height="56" alt="Build it for Ubuntu"></picture></a>
+  <a href="https://snapcraft.io/vstavka"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/badge-ubuntu-light.svg"><img src="docs/images/badge-ubuntu-dark.svg" height="56" alt="Install Vstavka on Ubuntu from the Snap Store"></picture></a>
 </p>
 
 <p align="center">
