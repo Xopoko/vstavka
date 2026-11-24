@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Vstavka
+Comment=Search and reuse clipboard history
+Exec=vstavka
+Icon=${SNAP}/meta/gui/icon.png
+Terminal=false
+Categories=Utility;
+StartupWMClass=io.github.xopoko.Vstavka

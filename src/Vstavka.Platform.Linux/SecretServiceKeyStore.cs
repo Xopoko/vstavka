@@ -20,6 +20,9 @@ internal sealed class SecretServiceKeyStore : IHistoryKeyStore
 
         try
         {
+            if (Environment.GetEnvironmentVariable("SNAP_NAME") == "vstavka")
+                return CanUseSecretPortal() ? new() : null;
+
             var service = secret_service_get_sync(0, 0, out var error);
             FreeError(error);
             if (service == 0)
@@ -47,6 +50,24 @@ internal sealed class SecretServiceKeyStore : IHistoryKeyStore
         catch (Exception error) when (error is DllNotFoundException or EntryPointNotFoundException)
         {
             return null;
+        }
+    }
+
+    private static bool CanUseSecretPortal()
+    {
+        var schema = NewSchema();
+        try
+        {
+            // Password lookup uses libsecret's confined backend. Collection APIs call the host keyring directly.
+            var value = secret_password_lookup_sync(schema, 0, out var error, Entry, EntryName, 0);
+            if (value != 0)
+                secret_password_free(value);
+            FreeError(error);
+            return error == 0;
+        }
+        finally
+        {
+            secret_schema_unref(schema);
         }
     }
 

@@ -551,7 +551,8 @@ internal sealed class OnboardingWindow : Window
                 permission.Code == "gnome-helper" ? "PracticeGnomeRestart" : "PracticePermissionRestart",
                 SetupVisuals.ShortcutInText(ShortcutRecorder.GestureText(_history.Shortcut, _platform.Name))),
             not null => Strings.Format("PracticePermissionMissing", PermissionRows.Title(permission)),
-            _ => Strings.Get("PracticeUnavailable")
+            _ => _platform.Notices.FirstOrDefault(notice => notice.Code == "linux-snap-x11-required")?.Message
+                ?? Strings.Get("PracticeUnavailable")
         };
         var icon = SetupVisuals.Surface(PanelVisuals.Glyph(Symbol.Info, IconSize.Feature, "AccentBrush"), Radius.Control,
             "SelectedSurfaceBrush", "SelectedSurfaceBrush");

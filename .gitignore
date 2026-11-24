@@ -9,6 +9,7 @@ artifacts/
 *.cer
 *.msix
 *.msixbundle
+*.snap
 *.zip
 
 # Store submission records are kept out of the public repository.

@@ -4,6 +4,7 @@ using Vstavka.Platform;
 using Vstavka.Platform.Linux;
 
 Run("Session selects the extension first and never uses Xwayland as the clipboard fallback", TestModes);
+Run("The Snap uses X11 directly and registers a revision-independent autostart command", TestSnapSession);
 Run("Clipboard maps supported formats, caps data and checks privacy markers", TestClipboardFormats);
 Run("Clipboard and shortcut use their registration contexts", TestCallbacks);
 Run("Linux shortcuts map usable gestures to GNOME accelerators and X11 keysyms", TestGestures);
@@ -60,6 +61,47 @@ static void TestModes()
     using var fallback = Create(() => default, () => null);
     Check(x11Attempts == 1 && fallback.Capabilities == x11.Capabilities);
     Check(fallback.Permissions.Count == 0);
+}
+
+static void TestSnapSession()
+{
+    var configHome = Directory.CreateTempSubdirectory("vstavka-snap-autostart-");
+    try
+    {
+        var x11 = new FakeDesktop { Capabilities = PlatformCapabilities.WatchClipboard };
+        var session = "wayland";
+        var x11Attempts = 0;
+        LinuxPlatformServices Create(string executable) => new(name => name switch
+        {
+            "SNAP_NAME" => "vstavka",
+            "XDG_CONFIG_HOME" => configHome.FullName,
+            "XDG_CURRENT_DESKTOP" => "GNOME",
+            "XDG_SESSION_TYPE" => session,
+            "DISPLAY" => ":55",
+            _ => null,
+        }, configHome.FullName, () => throw new InvalidOperationException("Snap tried to connect to GNOME Shell."),
+            () => { x11Attempts++; return x11; }, () => null, executable);
+
+        using (var wayland = Create("/snap/vstavka/1/app/Vstavka.Desktop"))
+        {
+            Check(wayland.Capabilities == PlatformCapabilities.None && x11Attempts == 0);
+            Check(wayland.Permissions.Count == 0 && wayland.Notices.Single().Code == "linux-snap-x11-required");
+        }
+
+        session = "x11";
+        using (var first = Create("/snap/vstavka/1/app/Vstavka.Desktop"))
+        {
+            Check(first.Capabilities == PlatformCapabilities.WatchClipboard && x11Attempts == 1);
+            Check(first.Notices.Single().Code == "linux-snap-history-session-only");
+            Check(first.Startup.TrySetEnabled(true));
+        }
+        using var second = Create("/snap/vstavka/2/app/Vstavka.Desktop");
+        Check(second.Startup.IsEnabled);
+    }
+    finally
+    {
+        configHome.Delete(recursive: true);
+    }
 }
 
 static void TestClipboardFormats()

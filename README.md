@@ -38,13 +38,14 @@ into 24 languages.
 
 | | Windows 11 (x64) | macOS 13 or later (local build) | Ubuntu 24.04 or later |
 | --- | --- | --- | --- |
-| Install | [Microsoft Store](https://apps.microsoft.com/detail/9NVXW230R4PX) | [Build from source](#macos) | [Build from source](#ubuntu) |
+| Install | [Microsoft Store](https://apps.microsoft.com/detail/9NVXW230R4PX) | [Build from source](#macos) | [Snap Store, x64 and X11](https://snapcraft.io/vstavka) · [Build from source](#ubuntu) |
 | Status | Stable | Preview | Preview |
 | Panel shortcut | Ctrl+Shift+V | ⇧⌘V | Ctrl+Alt+V |
 
 The desktop app uses [Avalonia](https://avaloniaui.net/) on all three platforms.
-Windows builds play optional clipboard sounds. On Ubuntu, use a GNOME Wayland
-or X11 session. The GNOME helper declares compatibility with GNOME 46–51.
+Windows builds play optional clipboard sounds. The Snap requires an X11 desktop
+session. The Ubuntu source build also supports GNOME on Wayland with the bundled
+helper, which declares compatibility with GNOME 46–51.
 
 ## Using Vstavka
 
@@ -59,9 +60,9 @@ grant permissions and try a copy and paste.
 - **macOS** may ask for permission to read the clipboard. The local app can
   also request **Accessibility** for automatic paste. With the App Store build
   or without Accessibility, paste the selected item yourself with **⌘V**.
-- **Ubuntu** on Wayland needs the small GNOME Shell helper that comes with
-  Vstavka. The guide installs and turns it on; GNOME loads it after you sign
-  out and back in once. X11 sessions need nothing.
+- **Ubuntu** source builds on Wayland use the bundled GNOME Shell helper. The
+  guide installs and turns it on. GNOME loads it after you sign out and back in
+  once. X11 sessions need no helper.
 
 <img src="docs/images/onboarding-permissions.png" width="560" alt="Permissions step on macOS: clipboard access is required and allowed, paste for you is optional, open at login is on">
 
@@ -112,10 +113,11 @@ Ctrl+Shift+V to paste without formatting in other apps.
 | Windows, Store app | `%LOCALAPPDATA%\Vstavka` | Windows Data Protection (DPAPI) for your account |
 | Windows, local build | `%LOCALAPPDATA%\Vstavka.Preview` | Windows Data Protection (DPAPI) for your account |
 | macOS | `~/Library/Application Support/Vstavka` for the local build, or `Library/Application Support/Vstavka` in the App Store sandbox | AES-256-GCM, key in your login Keychain |
-| Ubuntu | `$XDG_DATA_HOME/vstavka` (defaults to `~/.local/share/vstavka`) | AES-256-GCM, key in GNOME Keyring (Secret Service) |
+| Ubuntu, local build | `$XDG_DATA_HOME/vstavka` (defaults to `~/.local/share/vstavka`) | AES-256-GCM, key in GNOME Keyring (Secret Service) |
+| Ubuntu, Snap | `~/snap/vstavka/common/.local/share/vstavka` | AES-256-GCM, key protected by your desktop’s Secret portal |
 
-- If the Keychain or GNOME Keyring is unavailable, Vstavka keeps history in
-  memory until you quit.
+- If the system key store is unavailable, Vstavka keeps history in memory
+  until you quit.
 - Vstavka skips content while saving is paused, content copied from apps in the
   **Excluded apps** list (password managers by default), and content that apps
   mark as private: the Windows clipboard history flags, the

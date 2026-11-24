@@ -1,0 +1,24 @@
+The following libraries are distributed under the MIT license terms in the
+copyright file in this directory.
+
+Avalonia
+Copyright (c) AvaloniaUI OÜ. All Rights Reserved.
+https://github.com/AvaloniaUI/Avalonia
+
+FluentIcons
+Copyright (c) 2022 davidxuang
+https://github.com/davidxuang/FluentIcons
+
+Fluent UI System Icons
+Copyright (c) 2020 Microsoft Corporation
+https://github.com/microsoft/fluentui-system-icons
+
+MicroCom
+Copyright (c) 2021 Nikita Tsukanov
+https://github.com/kekekeks/MicroCom
+
+Tmds.DBus
+Copyright 2006 Alp Toker
+Copyright 2010 Other Contributors
+Copyright 2016 Tom Deseyn
+https://github.com/tmds/Tmds.DBus

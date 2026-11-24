@@ -1,0 +1,98 @@
+name: vstavka
+title: Vstavka
+base: core24
+version: '1.0.0'
+summary: Search, pin, and reuse clipboard history from one panel
+description: |
+  Recall text, links, images, and files from your clipboard. Open the panel
+  with Ctrl+Alt+V, search your history, and organize items with pins and
+  collections. Saved clipboard history is encrypted locally when your desktop
+  provides the Secret portal.
+
+  This Snap supports X11 desktop sessions.
+grade: stable
+confinement: strict
+license: MIT
+icon: assets/Vstavka.png
+website: https://github.com/Xopoko/vstavka
+source-code: https://github.com/Xopoko/vstavka
+issues: https://github.com/Xopoko/vstavka-support/issues
+contact: https://github.com/Xopoko/vstavka-support/issues/new/choose
+
+platforms:
+  amd64:
+
+apps:
+  vstavka:
+    command: app/Vstavka.Desktop
+    autostart: io.github.xopoko.Vstavka.desktop
+    environment:
+      FONTCONFIG_FILE: $SNAP/etc/fonts/vstavka.conf
+      XDG_CONFIG_HOME: $SNAP_USER_DATA/.config
+      XDG_DATA_HOME: $SNAP_USER_COMMON/.local/share
+    plugs:
+      - desktop
+      - desktop-legacy
+      - x11
+
+parts:
+  vstavka:
+    plugin: nil
+    source: .
+    build-packages:
+      - ca-certificates
+      - curl
+      - libicu74
+      - libssl3t64
+    stage-packages:
+      - libfontconfig1
+      - libgl1
+      - libice6
+      - libicu74
+      - libsecret-1-0
+      - libsm6
+      - libx11-6
+      - libx11-xcb1
+      - libxcb-icccm4
+      - libxcb1
+      - libxfixes3
+      - libxi6
+      - libxkbcommon-x11-0
+      - libxrandr2
+      - libxrender1
+      - libxtst6
+    build-environment:
+      - DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      - DOTNET_NOLOGO: '1'
+    override-build: |
+      set -eu
+
+      sdk_version=10.0.404
+      sdk_sha512=577d0eb17fec33d029104c5c63a1ab0accc3e28776274abef2218dbac5af18d2109b5406d26b31d76f5c245215e3ba0926a94c20246c672c41847c9e1eb1dc50
+      sdk_archive="$CRAFT_PART_BUILD/dotnet-sdk.tar.gz"
+      sdk_dir="$CRAFT_PART_BUILD/dotnet-sdk"
+      curl --fail --location --retry 3 --output "$sdk_archive" \
+        "https://builds.dotnet.microsoft.com/dotnet/Sdk/$sdk_version/dotnet-sdk-$sdk_version-linux-x64.tar.gz"
+      printf '%s  %s\n' "$sdk_sha512" "$sdk_archive" | sha512sum --check
+      mkdir -p "$sdk_dir"
+      tar -xzf "$sdk_archive" -C "$sdk_dir"
+
+      export NUGET_PACKAGES="$CRAFT_PART_BUILD/nuget-packages"
+      "$sdk_dir/dotnet" publish src/Vstavka.Desktop/Vstavka.Desktop.csproj \
+        --configuration Release --runtime linux-x64 --self-contained -p:Version=1.0.0 \
+        --output "$CRAFT_PART_INSTALL/app"
+      rm -rf "$CRAFT_PART_INSTALL/app/gnome-extension"
+      install -Dm644 snap/local/fonts.conf "$CRAFT_PART_INSTALL/etc/fonts/vstavka.conf"
+
+      notices="$CRAFT_PART_INSTALL/usr/share/doc/vstavka"
+      install -Dm644 LICENSE "$notices/copyright"
+      install -Dm644 snap/local/third-party.txt "$notices/third-party.txt"
+      install -Dm644 "$sdk_dir/LICENSE.txt" "$notices/dotnet-LICENSE.txt"
+      install -Dm644 "$sdk_dir/ThirdPartyNotices.txt" "$notices/dotnet-ThirdPartyNotices.txt"
+      for package in harfbuzzsharp harfbuzzsharp.nativeassets.linux skiasharp skiasharp.nativeassets.linux; do
+        for file in "$NUGET_PACKAGES/$package"/*/LICENSE.txt "$NUGET_PACKAGES/$package"/*/THIRD-PARTY-NOTICES.txt; do
+          if [ -f "$file" ]; then
+            install -Dm644 "$file" "$notices/$package/$(basename "$file")"
+          fi
+        done
+      done

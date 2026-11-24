@@ -8,6 +8,7 @@ public sealed class LinuxPlatformServices : IPlatformServices, IPasteService, IP
     private readonly ClipboardAccess _clipboard;
     private readonly HotkeyAccess _hotkey;
     private readonly LinuxSession _session;
+    private readonly bool _isSnap;
     private readonly Func<GnomeConnection> _connectShell;
     private readonly GnomeHelper? _helper;
     private GnomeConnection _shell;
@@ -24,16 +25,18 @@ public sealed class LinuxPlatformServices : IPlatformServices, IPasteService, IP
         string? executable = null, string? bundledRoot = null, LinuxCommand? run = null)
     {
         _session = LinuxDesktop.DetectSession(environment);
+        _isSnap = environment("SNAP_NAME") == "vstavka";
         _connectShell = connectShell;
-        _shell = connectShell();
+        _shell = _isSnap ? default : connectShell();
         _desktop = _shell.Desktop ?? (_session == LinuxSession.X11 ? connectX11() : null);
         _clipboard = new ClipboardAccess(_desktop);
         _hotkey = new HotkeyAccess(_desktop);
 
         var dataHome = HomeDirectory(environment("XDG_DATA_HOME"), Path.Combine(home, ".local", "share"));
         DataDirectory = Path.Combine(dataHome, "vstavka");
-        Startup = new LinuxStartupRegistration(HomeDirectory(environment("XDG_CONFIG_HOME"), Path.Combine(home, ".config")), executable);
-        if (_session == LinuxSession.Wayland && LinuxDesktop.IsGnome(environment))
+        Startup = new LinuxStartupRegistration(HomeDirectory(environment("XDG_CONFIG_HOME"), Path.Combine(home, ".config")),
+            _isSnap ? "vstavka" : executable);
+        if (!_isSnap && _session == LinuxSession.Wayland && LinuxDesktop.IsGnome(environment))
             _helper = new GnomeHelper(dataHome, bundledRoot ?? AppContext.BaseDirectory, executable,
                 run ?? LinuxProcess.Run, environment("XDG_DATA_DIRS"));
 
@@ -51,7 +54,11 @@ public sealed class LinuxPlatformServices : IPlatformServices, IPasteService, IP
     {
         GnomeAccess.Denied => [new("gnome-extension-not-allowed", "Allow the Vstavka executable to use the GNOME Shell extension.")],
         GnomeAccess.Busy => [new("gnome-extension-busy", "Another Vstavka process is using the GNOME clipboard.")],
+        _ when _isSnap && _desktop is not null && HistoryProtector is null =>
+            [new("linux-snap-history-session-only", "Clipboard history lasts for this session. To keep it across restarts, unlock your keyring in an X11 desktop session with the Secret portal and reopen Vstavka.")],
         _ when _desktop is not null => [],
+        _ when _isSnap && _session == LinuxSession.Wayland =>
+            [new("linux-snap-x11-required", "Sign in to an X11 desktop session to capture clipboard history with this Snap.")],
         _ when _helper is not null => [_helper.Permission(_shell) switch
         {
             { State: PermissionState.RestartRequired } helper =>
