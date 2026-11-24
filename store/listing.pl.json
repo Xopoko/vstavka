@@ -1,0 +1,36 @@
+{
+  "schema": "vstavka.store-listing.v1",
+  "language": "pl",
+  "productName": "Vstavka: Menedżer schowka",
+  "shortDescription": "Menedżer schowka dla Windows 11. Ctrl+Shift+V pokazuje skopiowane elementy jako karty. Wyszukuj je, przypinaj i wklejaj. Zapisuj prompty i fragmenty tekstu w kolekcjach. Darmowa aplikacja z otwartym kodem i historią szyfrowaną na twoim komputerze.",
+  "description": "Vstavka to menedżer schowka dla Windows 11. Zapisuje to, co kopiujesz, i pokazuje historię jako karty w panelu u dołu ekranu. Naciśnij Ctrl+Shift+V, wybierz kartę i naciśnij Enter. Vstavka wklei jej zawartość do aplikacji, której używasz.\n\nCO ZAPISUJE VSTAVKA\n• Tekst, linki, wartości kolorów, obrazy i ścieżki do skopiowanych plików\n• Każda karta pokazuje podgląd i aplikację źródłową, jeśli uda się ją ustalić\n• Domyślnie Vstavka zachowuje 500 najnowszych pozycji z ostatnich 30 dni. Możesz ustawić limit pozycji i czas ich przechowywania\n\nSZYBKO ZNAJDUJ I WKLEJAJ\n• Szukaj w historii lub filtruj według typu, wybierając „Tekst”, „Linki”, „Obrazy” lub „Pliki”\n• Przypinaj często używane pozycje, aby szybko znaleźć je w sekcji „Przypięte”\n• Przechodź między kartami klawiszami strzałek i wklejaj klawiszem Enter\n• Użyj skrótów od Ctrl+1 do Ctrl+9, aby wkleić kartę według jej pozycji, lub Shift+Enter, aby wkleić tekst bez formatowania\n• Ustaw własny skrót w sekcji „Ustawienia”, jeśli inna aplikacja używa już Ctrl+Shift+V\n\nKOLEKCJE NA PROMPTY I FRAGMENTY TEKSTU\n• Przechowuj w kolekcjach z własnymi nazwami i kolorami prompty, fragmenty tekstu i inne pozycje, których używasz wielokrotnie\n• Pozycje z kolekcji nie pojawiają się w zwykłej historii i pozostają zapisane, dopóki ich nie usuniesz\n\nHISTORIA ZOSTAJE NA TWOIM KOMPUTERZE\n• Historia zostaje na tym komputerze i jest szyfrowana dla twojego konta Windows\n• Vstavka działa bez kont, reklam, subskrypcji, zakupów w aplikacji, analityki i synchronizacji w chmurze\n• Menedżery haseł są domyślnie wykluczone. Możesz dodać inne aplikacje do listy „Wykluczone aplikacje”\n• W sekcji „Ustawienia” wybierz „Wstrzymaj zapisywanie”, usuń pojedyncze pozycje lub wybierz „Wyczyść historię”\n\nDOSTOSUJ APLIKACJĘ\n• W sekcji „Motyw” wybierz „Jasny”, „Ciemny” lub „Systemowy”. W sekcji „Kolor wiodący” masz sześć opcji, w tym kolor systemu Windows\n• „Dźwięk kopiowania” i „Dźwięk wklejania” to dwa różne, krótkie dźwięki o regulowanej głośności\n• Interfejs w 24 językach, w tym z układem od prawej do lewej dla języków zapisywanych w tym kierunku\n• Opcjonalne uruchamianie przy logowaniu do systemu Windows\n\nWarto wiedzieć, że tekst jest zapisywany bez formatowania. Karty plików przechowują ścieżki, więc oryginalne pliki muszą nadal znajdować się w tym samym miejscu podczas wklejania. Automatyczne wklejanie podlega ograniczeniom zabezpieczeń systemu Windows. W aplikacjach uruchomionych jako administrator może być konieczne ręczne wklejenie. Dźwięk wklejania po naciśnięciu Ctrl+V lub Shift+Insert sygnalizuje użycie skrótu. Nie potwierdza, że druga aplikacja przyjęła zawartość.\n\nVstavka jest darmowa i ma otwarty kod źródłowy. Wymaga systemu Windows 11 na komputerze x64.",
+  "features": [
+    "Historia schowka w panelu u dołu ekranu",
+    "Otwieranie za pomocą Ctrl+Shift+V lub własnego skrótu",
+    "Wklejanie zawartości wybranej karty do używanej aplikacji",
+    "Podgląd tekstu, linków, wartości kolorów, obrazów i ścieżek do skopiowanych plików",
+    "Ikony aplikacji źródłowych, jeśli są dostępne",
+    "Wyszukiwanie w historii i filtrowanie według typu",
+    "Przypinanie często używanych pozycji",
+    "Kolekcje z własnymi nazwami i kolorami na prompty i fragmenty tekstu",
+    "Nawigacja i wklejanie z klawiatury, w tym skróty od Ctrl+1 do Ctrl+9",
+    "Wklejanie tekstu bez formatowania skrótem Shift+Enter",
+    "Lokalna historia szyfrowana dla twojego konta Windows",
+    "Bez kont, reklam, analityki i synchronizacji w chmurze",
+    "Wstrzymywanie zapisywania, wykluczanie aplikacji i ustawienia przechowywania historii",
+    "Osobne dźwięki kopiowania i wklejania z regulacją głośności",
+    "Jasny, ciemny i systemowy motyw z kolorem wiodącym systemu Windows jako opcją",
+    "Interfejs w 24 językach, w tym z układem od prawej do lewej",
+    "Opcjonalne uruchamianie przy logowaniu do systemu Windows",
+    "Darmowa aplikacja z otwartym kodem źródłowym"
+  ],
+  "keywords": [
+    "historia schowka",
+    "kopiuj wklej",
+    "clipboard manager",
+    "text snippets",
+    "clipboard history",
+    "menedżer schowka"
+  ],
+  "whatsNew": "Nowy wieloplatformowy interfejs jest już dostępny w systemie Windows. Obejmuje odświeżony panel schowka i przewodnik konfiguracji, w którym możesz ustawić i wypróbować własny skrót. Po aktualizacji zachowasz zapisaną historię, kolekcje i ustawienia."
+}

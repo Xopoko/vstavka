@@ -1,0 +1,35 @@
+{
+  "schema": "vstavka.store-listing.v1",
+  "language": "it",
+  "productName": "Vstavka: Gestore appunti",
+  "shortDescription": "Un gestore degli appunti per Windows 11. Ctrl+Maiusc+V mostra in schede ciò che hai copiato. Cerca, fissa e incolla gli elementi. Organizza prompt e frammenti di testo in raccolte. Gratuito e open source, con cronologia cifrata sul tuo PC.",
+  "description": "Vstavka è un gestore degli appunti per Windows 11. Conserva la cronologia di ciò che copi e la mostra sotto forma di schede in un pannello nella parte inferiore dello schermo. Premi Ctrl+Maiusc+V, scegli una scheda e premi Invio. Vstavka incolla il contenuto nell’app che stavi usando.\n\nCOSA CONSERVA\n• Testo, collegamenti, valori dei colori, immagini e percorsi dei file copiati\n• Ogni scheda mostra un’anteprima e, quando disponibile, l’app di origine\n• Per impostazione predefinita restano i 500 elementi più recenti tra quelli copiati negli ultimi 30 giorni. Decidi tu quanti tenerne e per quanto tempo\n\nTROVA E INCOLLA QUELLO CHE HAI COPIATO\n• Cerca nella cronologia o filtra per tipo con «Testo», «Collegamenti», «Immagini» o «File»\n• Fissa gli elementi che usi spesso per ritrovarli in «Fissati»\n• Passa da una scheda all’altra con i tasti freccia e incolla con Invio\n• Usa una scorciatoia da Ctrl+1 a Ctrl+9 per incollare una scheda in base alla sua posizione, oppure Maiusc+Invio per incollare come testo semplice\n• Registra una nuova scorciatoia in «Impostazioni» se un’altra app usa già Ctrl+Maiusc+V\n\nRACCOLTE PER PROMPT E FRAMMENTI DI TESTO\n• Organizza prompt, frammenti di testo e altri elementi che riutilizzi in raccolte con un nome e un colore\n• Gli elementi delle raccolte restano fuori dalla cronologia normale e vengono conservati finché non li rimuovi\n\nLA CRONOLOGIA RESTA SUL TUO PC\n• La cronologia rimane su questo PC ed è cifrata per il tuo account Windows\n• Vstavka funziona senza account, pubblicità, abbonamenti, acquisti in-app, analisi dell’utilizzo o sincronizzazione nel cloud\n• I gestori di password sono esclusi per impostazione predefinita. Puoi aggiungere altre app a «App escluse»\n• In «Impostazioni» puoi scegliere «Sospendi salvataggio», eliminare singoli elementi o usare «Cancella cronologia»\n\nPERSONALIZZA VSTAVKA\n• In «Tema» puoi scegliere «Chiaro», «Scuro» o «Sistema». Per «Colore principale» ci sono sei opzioni, tra cui il colore di Windows\n• «Suono alla copia» e «Suono all’incolla» sono due suoni brevi e distinti con volume regolabile\n• Interfaccia in 24 lingue, con layout da destra a sinistra per le lingue che lo richiedono\n• Se vuoi, Vstavka si avvia quando accedi a Windows\n\nTieni presente che il testo viene salvato senza formattazione. Le schede dei file ne conservano i percorsi, quindi i file originali devono essere ancora presenti quando li incolli. L’incolla automatico rispetta le restrizioni di sicurezza di Windows. Nelle app eseguite come amministratore potrebbe essere necessario incollare manualmente. Con Ctrl+V o Maiusc+Ins, il suono segnala che hai usato la scorciatoia. Non conferma che l’altra app abbia accettato il contenuto.\n\nVstavka è gratuita e open source. Richiede Windows 11 su un PC x64.",
+  "features": [
+    "Cronologia degli appunti in un pannello nella parte inferiore dello schermo",
+    "Apertura con Ctrl+Maiusc+V o con una scorciatoia che registri tu",
+    "Contenuto della scheda selezionata incollato nell’app che stavi usando",
+    "Anteprima di testi, collegamenti, valori dei colori, immagini e percorsi dei file copiati",
+    "Icone delle app di origine, quando disponibili",
+    "Ricerca nella cronologia e filtro per tipo",
+    "Possibilità di fissare gli elementi che usi spesso",
+    "Raccolte con nome e colore per prompt e frammenti di testo",
+    "Navigazione e incolla da tastiera, anche con le scorciatoie da Ctrl+1 a Ctrl+9",
+    "Incolla come testo semplice con Maiusc+Invio",
+    "Cronologia locale cifrata per il tuo account Windows",
+    "Senza account, pubblicità, analisi dell’utilizzo o sincronizzazione nel cloud",
+    "Pausa del salvataggio, esclusione di app e impostazioni di conservazione della cronologia",
+    "Suoni distinti per la copia e l’incolla con volume regolabile",
+    "Temi chiaro, scuro e di sistema, con il colore principale di Windows come opzione",
+    "Interfaccia in 24 lingue, con layout da destra a sinistra",
+    "Avvio facoltativo all’accesso a Windows",
+    "Gratuita e open source"
+  ],
+  "keywords": [
+    "cronologia appunti",
+    "copia incolla",
+    "snippet di testo",
+    "clipboard manager",
+    "clipboard history"
+  ],
+  "whatsNew": "La nuova interfaccia multipiattaforma arriva su Windows. Include un pannello degli appunti rinnovato e una guida alla configurazione per registrare e provare la tua scorciatoia. La cronologia già salvata, le raccolte e le preferenze vengono mantenute durante l’aggiornamento."
+}

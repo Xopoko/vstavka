@@ -1,0 +1,37 @@
+{
+  "schema": "vstavka.store-listing.v1",
+  "language": "de",
+  "productName": "Vstavka: Zwischenablage",
+  "shortDescription": "Ein Zwischenablage-Manager für Windows 11. Strg+Umschalt+V zeigt deine Kopien als Karten. Durchsuche den Verlauf, hefte Einträge an und füge sie ein. Lege Prompts und Textbausteine in Sammlungen ab. Kostenlos und quelloffen, mit verschlüsseltem Verlauf auf deinem PC.",
+  "description": "Vstavka ist ein Zwischenablage-Manager für Windows 11. Die App merkt sich, was du kopierst, und zeigt den Verlauf als Karten in einem Bereich am unteren Bildschirmrand. Drücke Strg+Umschalt+V, wähle eine Karte aus und drücke die Eingabetaste. Vstavka fügt den Inhalt in die App ein, in der du gerade gearbeitet hast.\n\nWAS VSTAVKA SPEICHERT\n• Text, Links, Farbwerte, Bilder und Pfade kopierter Dateien\n• Jede Karte zeigt eine Vorschau und, wenn verfügbar, die Quell-App\n• Standardmäßig bleiben die 500 neuesten Einträge der letzten 30 Tage erhalten. Du legst fest, wie viele Einträge du wie lange behältst\n\nSCHNELL WIEDERFINDEN UND EINFÜGEN\n• Durchsuche den Verlauf oder filtere nach „Text“, „Links“, „Bilder“ oder „Dateien“\n• Hefte häufig verwendete Einträge an. Du findest sie unter „Angeheftet“\n• Wechsle mit den Pfeiltasten zwischen Karten und füge sie mit der Eingabetaste ein\n• Mit Strg+1 bis Strg+9 fügst du eine Karte anhand ihrer Position ein. Umschalt+Eingabetaste fügt Text ohne Formatierung ein\n• Zeichne unter „Einstellungen“ ein anderes Tastenkürzel auf, wenn eine andere App bereits Strg+Umschalt+V verwendet\n\nSAMMLUNGEN FÜR PROMPTS UND TEXTBAUSTEINE\n• Lege Sammlungen mit eigenen Namen und Farben für Prompts, Textbausteine und andere Inhalte an, die du wiederverwendest\n• Einträge in Sammlungen erscheinen nicht im normalen Verlauf und bleiben erhalten, bis du sie entfernst\n\nDEIN VERLAUF BLEIBT BEI DIR\n• Dein Verlauf bleibt auf diesem PC und wird für dein Windows-Konto verschlüsselt\n• Vstavka kommt ohne Konten, Werbung, Abos, In-App-Käufe, Nutzungsanalyse und Cloud-Synchronisierung aus\n• Passwortmanager sind standardmäßig ausgeschlossen. Unter „Ausgeschlossene Apps“ kannst du weitere Apps hinzufügen\n• In den „Einstellungen“ kannst du „Speichern pausieren“, einzelne Einträge löschen oder mit „Verlauf leeren“ den gesamten Verlauf löschen\n\nPASS VSTAVKA AN\n• Wähle unter „Design“ zwischen „Hell“, „Dunkel“ und „System“. Als „Akzentfarbe“ stehen sechs Optionen zur Wahl, darunter die Windows-Akzentfarbe\n• „Ton beim Kopieren“ und „Ton beim Einfügen“ sind zwei kurze, getrennte Töne mit einstellbarer Lautstärke\n• Oberfläche in 24 Sprachen, auch mit Layouts für Schriftrichtung von rechts nach links\n• Auf Wunsch startet Vstavka bei der Anmeldung bei Windows\n\nBeachte, dass Text ohne Formatierung gespeichert wird. Dateikarten merken sich die Pfade. Die Originaldateien müssen beim Einfügen noch vorhanden sein. Beim automatischen Einfügen gelten die Sicherheitsbeschränkungen von Windows. Bei Apps, die als Administrator laufen, musst du Inhalte gegebenenfalls manuell einfügen. Der Einfügeton bei Strg+V und Umschalt+Einfg signalisiert das Tastenkürzel. Ob die andere App den Inhalt übernommen hat, lässt sich daraus nicht ableiten.\n\nVstavka ist kostenlos und quelloffen. Die App benötigt Windows 11 auf einem x64-PC.",
+  "features": [
+    "Zwischenablageverlauf in einem Bereich am unteren Bildschirmrand",
+    "Öffnen mit Strg+Umschalt+V oder einem selbst aufgezeichneten Tastenkürzel",
+    "Ausgewählte Karte in die zuvor verwendete App einfügen",
+    "Vorschau für Text, Links, Farbwerte, Bilder und Pfade kopierter Dateien",
+    "Symbole der Quell-Apps, sofern verfügbar",
+    "Verlauf durchsuchen und nach Typ filtern",
+    "Häufig verwendete Einträge anheften",
+    "Prompts und Textbausteine in Sammlungen mit eigenen Namen und Farben ablegen",
+    "Mit der Tastatur navigieren und einfügen, auch mit Strg+1 bis Strg+9",
+    "Text ohne Formatierung mit Umschalt+Eingabetaste einfügen",
+    "Lokaler, für dein Windows-Konto verschlüsselter Verlauf",
+    "Ohne Konten, Werbung, Nutzungsanalyse und Cloud-Synchronisierung",
+    "Speichern pausieren, Apps ausschließen und Aufbewahrung des Verlaufs einstellen",
+    "Getrennte Töne beim Kopieren und Einfügen mit einstellbarer Lautstärke",
+    "Helles, dunkles oder systemabhängiges Design mit Windows-Akzentfarbe als Option",
+    "Oberfläche in 24 Sprachen, auch für Schriftrichtung von rechts nach links",
+    "Optionaler Start bei der Anmeldung bei Windows",
+    "Kostenlos und quelloffen"
+  ],
+  "keywords": [
+    "zwischenablage-manager",
+    "kopierverlauf",
+    "kopieren einfügen",
+    "textbausteine",
+    "clipboard manager",
+    "clipboard history",
+    "zwischenablage verlauf"
+  ],
+  "whatsNew": "Die neue plattformübergreifende Oberfläche ist jetzt für Windows verfügbar. Dazu gehören ein überarbeiteter Zwischenablagebereich und eine Einrichtungshilfe, mit der du dein eigenes Tastenkürzel aufzeichnen und ausprobieren kannst. Dein gespeicherter Verlauf, deine Sammlungen und deine Einstellungen bleiben beim Update erhalten."
+}

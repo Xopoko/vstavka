@@ -1,0 +1,36 @@
+{
+  "schema": "vstavka.store-listing.v1",
+  "language": "fr",
+  "productName": "Vstavka : Presse-papiers",
+  "shortDescription": "Un gestionnaire de presse-papiers pour Windows 11. Ctrl+Maj+V affiche vos copies sous forme de cartes à retrouver, épingler et coller. Rangez vos prompts et extraits dans des collections. Gratuit et open source, avec un historique chiffré sur votre PC.",
+  "description": "Vstavka est un gestionnaire de presse-papiers pour Windows 11. L’application conserve l’historique de ce que vous copiez et l’affiche sous forme de cartes dans un panneau en bas de l’écran. Appuyez sur Ctrl+Maj+V, choisissez une carte, puis appuyez sur Entrée. Vstavka colle son contenu dans l’application que vous utilisiez.\n\nCE QUE VSTAVKA CONSERVE\n• Texte, liens, valeurs de couleur, images et chemins des fichiers copiés\n• Chaque carte affiche un aperçu et, si elle est connue, l’application source\n• Par défaut, Vstavka conserve les 500 éléments les plus récents parmi ceux copiés au cours des 30 derniers jours. Vous choisissez combien d’éléments garder et pendant combien de temps\n\nRETROUVEZ ET COLLEZ VOS COPIES\n• Recherchez dans l’historique ou filtrez par type avec « Texte », « Liens », « Images » ou « Fichiers »\n• Épinglez les éléments que vous utilisez souvent pour les retrouver dans « Épinglés »\n• Passez d’une carte à l’autre avec les touches fléchées et collez avec Entrée\n• Utilisez les raccourcis de Ctrl+1 à Ctrl+9 pour coller une carte selon sa position, ou Maj+Entrée pour coller du texte brut\n• Enregistrez un autre raccourci dans « Paramètres » si une autre application utilise déjà Ctrl+Maj+V\n\nDES COLLECTIONS POUR VOS PROMPTS ET EXTRAITS DE TEXTE\n• Rangez vos prompts, extraits et autres éléments réutilisables dans des collections auxquelles vous donnez un nom et une couleur\n• Les éléments des collections restent en dehors de l’historique courant et sont conservés jusqu’à ce que vous les retiriez\n\nVOTRE HISTORIQUE RESTE SUR VOTRE PC\n• Votre historique reste sur ce PC et est chiffré pour votre compte Windows\n• Vstavka fonctionne sans comptes, publicités, abonnements, achats intégrés, suivi d’utilisation ni synchronisation dans le cloud\n• Les gestionnaires de mots de passe sont exclus par défaut. Vous pouvez ajouter d’autres applications à la liste « Applications exclues »\n• Dans « Paramètres », vous pouvez choisir « Suspendre l’enregistrement », supprimer des éléments un par un ou sélectionner « Effacer l’historique »\n\nPERSONNALISEZ VSTAVKA\n• Dans « Thème », choisissez « Clair », « Sombre » ou « Système ». Six options sont proposées pour la « Couleur d’accentuation », dont celle de Windows\n• « Son de copie » et « Son de collage » sont deux sons courts et distincts, avec un volume réglable\n• Interface en 24 langues, avec des mises en page de droite à gauche pour les langues concernées\n• Démarrage facultatif à l’ouverture de votre session Windows\n\nNotez que le texte est enregistré sans mise en forme. Les cartes de fichiers conservent leurs chemins d’accès. Les fichiers d’origine doivent donc toujours être présents au moment du collage. Le collage automatique respecte les restrictions de sécurité de Windows. Dans une application exécutée en tant qu’administrateur, il peut être nécessaire de coller manuellement. Avec Ctrl+V et Maj+Inser, le son de collage signale le raccourci. Il ne confirme pas que l’autre application a accepté le contenu.\n\nVstavka est une application gratuite et open source qui nécessite un PC x64 sous Windows 11.",
+  "features": [
+    "Historique du presse-papiers dans un panneau en bas de l’écran",
+    "Ouverture avec Ctrl+Maj+V ou un raccourci que vous enregistrez",
+    "Collage du contenu de la carte sélectionnée dans l’application que vous utilisiez",
+    "Aperçu des textes, liens, valeurs de couleur, images et chemins des fichiers copiés",
+    "Icônes des applications sources lorsqu’elles sont disponibles",
+    "Recherche dans l’historique et filtre par type",
+    "Épinglage des éléments utilisés souvent",
+    "Rangement des prompts et extraits dans des collections nommées et colorées",
+    "Navigation et collage au clavier, notamment avec Ctrl+1 à Ctrl+9",
+    "Collage en texte brut avec Maj+Entrée",
+    "Historique local chiffré pour votre compte Windows",
+    "Sans comptes, publicités, suivi d’utilisation ni synchronisation dans le cloud",
+    "Pause de l’enregistrement, exclusion d’applications et réglage de la conservation de l’historique",
+    "Sons distincts pour la copie et le collage, avec un volume réglable",
+    "Thèmes clair, sombre et système, avec la couleur d’accentuation de Windows en option",
+    "Interface en 24 langues, avec des mises en page de droite à gauche",
+    "Démarrage facultatif à l’ouverture de votre session Windows",
+    "Gratuit et open source"
+  ],
+  "keywords": [
+    "gestionnaire de presse-papiers",
+    "historique du presse-papiers",
+    "copier coller",
+    "extraits de texte",
+    "clipboard manager",
+    "clipboard history"
+  ],
+  "whatsNew": "La nouvelle interface multiplateforme arrive sur Windows. Elle comprend un panneau de presse-papiers remanié et un guide de configuration pour enregistrer et essayer votre propre raccourci. Votre historique enregistré, vos collections et vos préférences sont conservés lors de la mise à jour."
+}

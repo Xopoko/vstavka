@@ -1,0 +1,36 @@
+{
+  "schema": "vstavka.store-listing.v1",
+  "language": "tr",
+  "productName": "Vstavka: Pano yöneticisi",
+  "shortDescription": "Windows 11 için pano yöneticisi. Ctrl+Shift+V ile kopyaladıklarınızı kartlar hâlinde görün, arayın, sabitleyin ve yapıştırın. İstemleri ve metin parçalarını koleksiyonlarda saklayın. Ücretsiz ve açık kaynaklıdır. Geçmişiniz bu bilgisayarda şifrelenir.",
+  "description": "Vstavka, Windows 11 için bir pano yöneticisidir. Kopyaladıklarınızın geçmişini tutar ve ekranın altındaki bir panelde kartlar hâlinde gösterir. Ctrl+Shift+V tuşlarına basın, bir kart seçin ve Enter tuşuna basın. Vstavka kartın içeriğini o sırada kullandığınız uygulamaya yapıştırır.\n\nNELERİ SAKLAR?\n• Metin, bağlantılar, renk değerleri, görseller ve kopyalanan dosyaların yolları\n• Her kart, öğenin önizlemesini ve biliniyorsa kopyalandığı uygulamayı gösterir\n• Varsayılan olarak son 30 günde kopyalanan en yeni 500 öğe saklanır. Kaç öğenin ne kadar süreyle saklanacağını siz belirleyin\n\nARADIĞINIZI HEMEN BULUN VE YAPIŞTIRIN\n• Geçmişte arayın veya “Metin”, “Bağlantılar”, “Görseller” ya da “Dosyalar” ile türe göre filtreleyin\n• Sık kullandığınız öğeleri sabitleyin. Onları “Sabitlenenler” bölümünde bulabilirsiniz\n• Ok tuşlarıyla kartlar arasında gezinin ve Enter tuşuyla yapıştırın\n• Bir kartı sırasına göre yapıştırmak için Ctrl+1 ile Ctrl+9 arasındaki kısayolları, düz metin olarak yapıştırmak için Shift+Enter kısayolunu kullanın\n• Başka bir uygulama Ctrl+Shift+V kısayolunu kullanıyorsa “Ayarlar”da başka bir kısayol kaydedin\n\nİSTEMLER VE METİN PARÇALARI İÇİN KOLEKSİYONLAR\n• İstemleri, metin parçalarını ve tekrar kullandığınız diğer öğeleri ad ve renk verdiğiniz koleksiyonlarda saklayın\n• Koleksiyonlardaki öğeler normal geçmişte görünmez ve siz kaldırana kadar saklanır\n\nGEÇMİŞİNİZ BU BİLGİSAYARDA KALIR\n• Geçmişiniz bu bilgisayarda kalır ve Windows hesabınız için şifrelenir\n• Vstavka’da hesap, reklam, abonelik, uygulama içi satın alma, kullanım analizi veya bulut eşitlemesi yoktur\n• Parola yöneticileri varsayılan olarak hariç tutulur. Diğer uygulamaları “Hariç tutulan uygulamalar” listesine ekleyebilirsiniz\n• “Ayarlar”da “Kaydetmeyi duraklat” seçeneğini kullanabilir, öğeleri tek tek silebilir veya “Geçmişi temizle”yi seçebilirsiniz\n\nKENDİNİZE GÖRE AYARLAYIN\n• “Tema” ayarından “Açık”, “Koyu” veya “Sistem”i seçin. Windows’un vurgu rengi dâhil altı “Vurgu rengi” seçeneği vardır\n• “Kopyalama sesi” ve “Yapıştırma sesi” kısa ve birbirinden farklıdır. Ses düzeyini ayarlayabilirsiniz\n• Sağdan sola yazılan dillere uygun düzenler dâhil 24 dilde arayüz\n• Dilerseniz Vstavka, Windows’ta oturum açtığınızda başlar\n\nMetnin biçimlendirme olmadan kaydedildiğini unutmayın. Dosya kartları dosya yollarını saklar. Yapıştırabilmeniz için asıl dosyaların aynı konumda durması gerekir. Otomatik yapıştırma Windows’un güvenlik kısıtlamalarına uyar. Yönetici olarak çalışan uygulamalarda elle yapıştırmanız gerekebilir. Ctrl+V veya Shift+Insert kullandığınızda yapıştırma sesi, kısayola bastığınızı bildirir. Diğer uygulamanın içeriği kabul ettiğini doğrulamaz.\n\nVstavka ücretsiz ve açık kaynaklıdır. Windows 11 yüklü bir x64 bilgisayar gerektirir.",
+  "features": [
+    "Ekranın altındaki panelde pano geçmişi",
+    "Ctrl+Shift+V veya kaydettiğiniz bir kısayolla açma",
+    "Seçilen kartın içeriğini kullanmakta olduğunuz uygulamaya yapıştırma",
+    "Metin, bağlantı, renk değeri, görsel ve kopyalanan dosya yollarının önizlemesi",
+    "Biliniyorsa kaynak uygulamaların simgeleri",
+    "Geçmişte arama ve türe göre filtreleme",
+    "Sık kullanılan öğeleri sabitleme",
+    "İstemler ve metin parçaları için ad ve renk verilen koleksiyonlar",
+    "Ctrl+1 ile Ctrl+9 dâhil klavyeyle gezinme ve yapıştırma",
+    "Shift+Enter ile düz metin olarak yapıştırma",
+    "Windows hesabınız için şifrelenen yerel geçmiş",
+    "Hesap, reklam, kullanım analizi veya bulut eşitlemesi yok",
+    "Kaydetmeyi duraklatma, uygulamaları hariç tutma ve geçmişin saklama ayarları",
+    "Ayarlanabilir ses düzeyiyle ayrı kopyalama ve yapıştırma sesleri",
+    "Windows vurgu rengi seçeneğiyle açık, koyu ve sistem temaları",
+    "Sağdan sola düzenler dâhil 24 dilde arayüz",
+    "İsteğe bağlı olarak Windows’ta oturum açıldığında başlatma",
+    "Ücretsiz ve açık kaynaklı"
+  ],
+  "keywords": [
+    "pano geçmişi",
+    "kopyala yapıştır",
+    "clipboard manager",
+    "text snippets",
+    "clipboard history",
+    "pano yöneticisi"
+  ],
+  "whatsNew": "Yeni çok platformlu arayüz Windows’a geldi. Yenilenen pano panelinin yanı sıra kendi kısayolunuzu kaydedip deneyebileceğiniz bir kurulum kılavuzu var. Güncelleme yaptığınızda kayıtlı geçmişiniz, koleksiyonlarınız ve tercihleriniz korunur."
+}

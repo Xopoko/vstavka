@@ -1,0 +1,36 @@
+{
+  "schema": "vstavka.store-listing.v1",
+  "language": "pt-BR",
+  "productName": "Vstavka: Área de transferência",
+  "shortDescription": "Um gerenciador de área de transferência para Windows 11. Ctrl+Shift+V mostra o que você copiou em cartões. Busque, fixe e cole itens. Guarde prompts e trechos em coleções. Grátis e de código aberto, com histórico criptografado no seu PC.",
+  "description": "O Vstavka é um gerenciador de área de transferência para Windows 11. Guarda o histórico do que você copia e o exibe em cartões em um painel na parte inferior da tela. Pressione Ctrl+Shift+V, escolha um cartão e pressione Enter. O Vstavka cola o conteúdo no aplicativo que você estava usando.\n\nO QUE O VSTAVKA GUARDA\n• Texto, links, valores de cor, imagens e caminhos dos arquivos copiados\n• Cada cartão mostra uma prévia e, quando disponível, o aplicativo de origem\n• Por padrão, são mantidos os 500 itens mais recentes dos últimos 30 dias. Você decide quantos itens guardar e por quanto tempo\n\nENCONTRE E COLE O QUE VOCÊ COPIOU\n• Pesquise no histórico ou filtre por tipo com “Texto”, “Links”, “Imagens” ou “Arquivos”\n• Fixe os itens que você usa com frequência para encontrá-los em “Fixados”\n• Use as setas para navegar entre os cartões e pressione Enter para colar\n• Use um atalho de Ctrl+1 a Ctrl+9 para colar um cartão pela posição ou Shift+Enter para colar como texto sem formatação\n• Grave outro atalho em “Configurações” se outro aplicativo já usar Ctrl+Shift+V\n\nCOLEÇÕES PARA PROMPTS E TRECHOS DE TEXTO\n• Guarde prompts, trechos de texto e outros itens que você costuma reutilizar em coleções com nome e cor\n• Os itens das coleções ficam fora do histórico do dia a dia e são mantidos até você removê-los\n\nSEU HISTÓRICO FICA NO SEU PC\n• O histórico fica neste PC e é criptografado para a sua conta do Windows\n• O Vstavka funciona sem contas, anúncios, assinaturas, compras no app, análise de uso ou sincronização na nuvem\n• Gerenciadores de senhas são excluídos por padrão. Você pode adicionar outros aplicativos à lista “Aplicativos excluídos”\n• Em “Configurações”, use “Pausar salvamento”, exclua itens individualmente ou selecione “Limpar histórico”\n\nDO SEU JEITO\n• Em “Tema”, escolha “Claro”, “Escuro” ou “Sistema”. Há seis opções de “Cor de destaque”, incluindo a do Windows\n• “Som ao copiar” e “Som ao colar” são dois sons curtos e distintos com volume ajustável\n• Interface em 24 idiomas, com layout da direita para a esquerda para os idiomas que o usam\n• Se quiser, o Vstavka pode abrir quando você entrar no Windows\n\nVale saber que o texto é salvo sem formatação. Os cartões dos arquivos guardam os caminhos. Para colar os arquivos, os originais precisam continuar no mesmo local. A colagem automática segue as restrições de segurança do Windows. Em aplicativos executados como administrador, talvez você precise colar manualmente. O som ao colar com Ctrl+V ou Shift+Insert indica que o atalho foi usado. Ele não confirma que o outro aplicativo aceitou o conteúdo.\n\nO Vstavka é grátis e de código aberto. Requer Windows 11 em um PC x64.",
+  "features": [
+    "Histórico da área de transferência em um painel na parte inferior da tela",
+    "Abertura com Ctrl+Shift+V ou com um atalho que você gravar",
+    "Colagem do conteúdo do cartão selecionado no aplicativo que você estava usando",
+    "Prévia de textos, links, valores de cor, imagens e caminhos dos arquivos copiados",
+    "Ícones dos aplicativos de origem, quando disponíveis",
+    "Pesquisa no histórico e filtro por tipo",
+    "Opção de fixar itens usados com frequência",
+    "Coleções com nome e cor para prompts e trechos de texto",
+    "Navegação e colagem pelo teclado, inclusive com os atalhos de Ctrl+1 a Ctrl+9",
+    "Colagem de texto sem formatação com Shift+Enter",
+    "Histórico local criptografado para a sua conta do Windows",
+    "Sem contas, anúncios, análise de uso ou sincronização na nuvem",
+    "Pausa no salvamento, seleção de aplicativos excluídos e ajuste da retenção do histórico",
+    "Sons distintos ao copiar e ao colar, com volume ajustável",
+    "Temas claro, escuro e do sistema, com a cor de destaque do Windows como opção",
+    "Interface em 24 idiomas, com layout da direita para a esquerda",
+    "Abertura opcional ao entrar no Windows",
+    "Grátis e de código aberto"
+  ],
+  "keywords": [
+    "histórico de cópias",
+    "gerenciador de área de transferência",
+    "copiar e colar",
+    "clipboard manager",
+    "text snippets",
+    "clipboard history"
+  ],
+  "whatsNew": "A nova interface multiplataforma chega ao Windows. Ela inclui um painel renovado da área de transferência e um guia de configuração para gravar e testar seu próprio atalho. Seu histórico salvo, suas coleções e suas preferências são mantidos ao atualizar."
+}

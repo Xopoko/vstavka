@@ -208,7 +208,7 @@ system boundaries; none of them reads your clipboard. See
 | `tests` | Test suites and performance probes |
 | `scripts` | MSIX and macOS app bundle scripts |
 | `packaging` | MSIX manifest template and package assets, see [packaging/README.md](packaging/README.md) |
-| `store` | Store listing text, Mac screenshots and archived Windows WPF screenshots |
+| `store` | Store listing text, Microsoft Store and Mac screenshots, and archived Windows WPF screenshots |
 | `docs` | [Cross-platform notes](docs/cross-platform.md), [localization notes](docs/localization.md) and the [manual acceptance checklist](docs/acceptance.md) |
 
 ## Support and contributing

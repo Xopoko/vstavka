@@ -51,6 +51,10 @@ The MSIX manifest declares the same 24 locales in the same order. Runtime catalo
 
 Localization tests check catalog structure. The headless desktop tests also
 render a right-to-left locale. Native-speaker review has not been recorded.
-The [Microsoft Store listing](../store/listing.en-US.json) is maintained in
-English. The [Mac App Store metadata](../store/app-store/README.md) has its own
-set of locales.
+The Microsoft Store listing has one file per language,
+`store/listing.<language>.json`, for 16 of the 24 languages; English is in
+[listing.en-US.json](../store/listing.en-US.json). Each listing uses its own
+reserved product name, such as `Vstavka: Clipboard Manager`, while the package
+display name stays **Vstavka**. The
+[Mac App Store metadata](../store/app-store/README.md) has its own set of
+locales.

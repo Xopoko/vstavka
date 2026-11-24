@@ -1,0 +1,37 @@
+{
+  "schema": "vstavka.store-listing.v1",
+  "language": "vi",
+  "productName": "Vstavka: Clipboard Manager",
+  "shortDescription": "Ứng dụng quản lý bộ nhớ tạm cho Windows 11. Nhấn Ctrl+Shift+V để xem nội dung đã sao chép dưới dạng thẻ, rồi tìm, ghim hoặc dán nội dung. Lưu câu lệnh và đoạn văn bản trong bộ sưu tập. Miễn phí, mã nguồn mở, lịch sử được mã hóa trên máy tính của bạn.",
+  "description": "Vstavka là ứng dụng quản lý bộ nhớ tạm cho Windows 11. Ứng dụng lưu lại nội dung bạn đã sao chép và hiển thị từng mục dưới dạng thẻ trong bảng ở cuối màn hình. Nhấn Ctrl+Shift+V để mở bảng, chọn một thẻ rồi nhấn Enter để dán nội dung vào ứng dụng bạn đang dùng.\n\nXem lịch sử bộ nhớ tạm qua các thẻ\n• Lưu văn bản, liên kết, giá trị màu, hình ảnh và đường dẫn tệp đã sao chép\n• Mỗi thẻ hiển thị bản xem trước và ứng dụng nguồn nếu xác định được\n• Mặc định lưu tối đa 500 mục mới nhất trong 30 ngày qua. Bạn có thể đổi số mục và thời gian lưu\n\nTìm và dán nhanh nội dung cần dùng\n• Tìm trong lịch sử hoặc lọc theo loại, chẳng hạn như văn bản, liên kết, hình ảnh hoặc tệp\n• Ghim những mục thường dùng để dễ tìm trong “Đã ghim”\n• Dùng các phím mũi tên để di chuyển giữa các thẻ và nhấn Enter để dán\n• Nhấn từ Ctrl+1 đến Ctrl+9 để dán thẻ ở vị trí tương ứng, hoặc nhấn Shift+Enter để dán dưới dạng văn bản thuần túy\n• Nếu ứng dụng khác đã dùng Ctrl+Shift+V, bạn có thể ghi một phím tắt khác trong “Cài đặt”\n\nBộ sưu tập cho câu lệnh và đoạn văn bản\n• Đặt tên và chọn màu cho bộ sưu tập để lưu câu lệnh, đoạn văn bản và nội dung khác mà bạn thường dùng lại\n• Các mục trong bộ sưu tập không xuất hiện trong lịch sử hằng ngày và được giữ lại cho đến khi bạn bỏ chúng khỏi bộ sưu tập\n\nBảo vệ quyền riêng tư theo mặc định\n• Lịch sử chỉ lưu trên máy tính này và được mã hóa theo tài khoản Windows của bạn\n• Không có tài khoản, quảng cáo, gói đăng ký, giao dịch mua trong ứng dụng, phân tích dữ liệu sử dụng hay đồng bộ đám mây\n• Các ứng dụng quản lý mật khẩu được loại trừ mặc định. Bạn có thể thêm ứng dụng khác vào danh sách “Ứng dụng bị loại trừ”\n• Trong “Cài đặt”, bạn có thể chọn “Tạm dừng lưu”, xóa từng mục hoặc chọn “Xóa lịch sử” để xóa toàn bộ\n\nTùy chỉnh theo cách bạn dùng\n• Chọn chủ đề Sáng, Tối hoặc Hệ thống, cùng sáu tùy chọn màu nhấn, trong đó có màu nhấn của Windows\n• Âm thanh khi sao chép và âm thanh khi dán là hai âm ngắn riêng biệt, có thể chỉnh âm lượng\n• Giao diện hỗ trợ 24 ngôn ngữ, bao gồm cả bố cục từ phải sang trái\n• Có thể đặt ứng dụng tự khởi động khi bạn đăng nhập Windows\n\nLưu ý: Văn bản được lưu mà không giữ định dạng. Thẻ tệp lưu đường dẫn đến tệp, nên khi bạn dán, tệp gốc vẫn phải nằm ở vị trí đó. Tính năng dán tự động tuân theo các giới hạn bảo mật của Windows. Nếu ứng dụng đang chạy với quyền quản trị viên, bạn có thể cần dán thủ công. Âm thanh khi dán bằng Ctrl+V hoặc Shift+Insert cho biết tổ hợp phím đã được nhấn, chứ không xác nhận ứng dụng khác đã nhận nội dung.\n\nVstavka là ứng dụng mã nguồn mở miễn phí, yêu cầu máy tính x64 chạy Windows 11.",
+  "features": [
+    "Xem lịch sử bộ nhớ tạm trong bảng ở cuối màn hình",
+    "Mở bảng bằng Ctrl+Shift+V hoặc phím tắt do bạn ghi",
+    "Dán nội dung của thẻ đã chọn vào ứng dụng bạn đang dùng",
+    "Xem trước văn bản, liên kết, màu, hình ảnh và đường dẫn tệp đã sao chép",
+    "Hiện biểu tượng ứng dụng nguồn nếu xác định được",
+    "Tìm trong lịch sử và lọc theo loại",
+    "Ghim các mục thường dùng",
+    "Lưu câu lệnh và đoạn văn bản vào bộ sưu tập có tên và màu riêng",
+    "Di chuyển giữa các thẻ và dán bằng bàn phím, hỗ trợ Ctrl+1 đến Ctrl+9",
+    "Dán văn bản thuần túy bằng Shift+Enter",
+    "Lịch sử lưu trên máy và được mã hóa theo tài khoản Windows của bạn",
+    "Không có tài khoản, quảng cáo, phân tích dữ liệu sử dụng hay đồng bộ đám mây",
+    "Tạm dừng lưu, chọn ứng dụng bị loại trừ và chỉnh cách lưu lịch sử",
+    "Âm thanh khi sao chép và âm thanh khi dán riêng biệt, có thể chỉnh âm lượng",
+    "Chủ đề Sáng, Tối và Hệ thống, có tùy chọn màu nhấn của Windows",
+    "Giao diện 24 ngôn ngữ, có bố cục từ phải sang trái",
+    "Tùy chọn khởi động khi đăng nhập Windows",
+    "Miễn phí và mã nguồn mở"
+  ],
+  "keywords": [
+    "clipboard manager",
+    "clipboard history",
+    "bộ nhớ tạm",
+    "lịch sử bộ nhớ tạm",
+    "bảng tạm",
+    "sao chép và dán",
+    "đoạn văn bản"
+  ],
+  "whatsNew": "Giao diện đa nền tảng mới đã có trên Windows. Bản cập nhật làm mới bảng bộ nhớ tạm và có hướng dẫn thiết lập để bạn ghi và thử phím tắt riêng. Lịch sử, bộ sưu tập và tùy chọn đã lưu vẫn được giữ lại khi cập nhật."
+}

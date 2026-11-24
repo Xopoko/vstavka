@@ -1,0 +1,36 @@
+{
+  "schema": "vstavka.store-listing.v1",
+  "language": "es",
+  "productName": "Vstavka: Portapapeles",
+  "shortDescription": "Un gestor del portapapeles para Windows 11. Pulsa Ctrl+Mayús+V para ver tus copias en tarjetas. Búscalas, fíjalas y pégalas. Guarda prompts y fragmentos en colecciones. Gratis y de código abierto, con historial cifrado en tu PC.",
+  "description": "Vstavka es un gestor del portapapeles para Windows 11. Guarda el historial de lo que copias y lo muestra en tarjetas, en un panel en la parte inferior de la pantalla. Pulsa Ctrl+Mayús+V, elige una tarjeta y pulsa Intro. Vstavka pega su contenido en la aplicación que estabas usando.\n\nQUÉ GUARDA\n• Texto, enlaces, valores de color, imágenes y rutas de los archivos copiados\n• Cada tarjeta muestra una vista previa y, cuando está disponible, la aplicación de origen\n• Por defecto, conserva los 500 elementos más recientes de los últimos 30 días. Tú eliges cuántos conservar y durante cuánto tiempo\n\nENCUENTRA Y PEGA LO QUE BUSCAS\n• Busca en el historial o filtra por tipo con «Texto», «Enlaces», «Imágenes» o «Archivos»\n• Fija lo que usas a menudo para encontrarlo en «Fijados»\n• Muévete entre las tarjetas con las flechas del teclado y pega con Intro\n• Usa un atajo de Ctrl+1 a Ctrl+9 para pegar una tarjeta por su posición o Mayús+Intro para pegar texto sin formato\n• Graba otro atajo en «Configuración» si hay otra aplicación que ya usa Ctrl+Mayús+V\n\nCOLECCIONES PARA PROMPTS Y FRAGMENTOS DE TEXTO\n• Guarda prompts, fragmentos y otros elementos que vuelvas a usar en colecciones con nombre y color\n• Los elementos de las colecciones quedan fuera del historial habitual y se conservan hasta que los quites\n\nTU HISTORIAL SE QUEDA EN TU PC\n• El historial se queda en este PC y se cifra para tu cuenta de Windows\n• Vstavka funciona sin cuentas, anuncios, suscripciones, compras dentro de la app, analítica ni sincronización en la nube\n• Los gestores de contraseñas están excluidos por defecto. Puedes añadir otras aplicaciones a «Aplicaciones excluidas»\n• En «Configuración» puedes usar «Pausar guardado», eliminar elementos por separado o seleccionar «Borrar historial»\n\nA TU GUSTO\n• En «Tema» puedes elegir «Claro», «Oscuro» o «Sistema». Hay seis opciones de «Color de énfasis», incluida la de Windows\n• «Sonido al copiar» y «Sonido al pegar» son dos sonidos breves y distintos con volumen ajustable\n• Interfaz en 24 idiomas, con disposición de derecha a izquierda para los idiomas que la usan\n• Puedes elegir que Vstavka se abra al iniciar sesión en Windows\n\nTen en cuenta que el texto se guarda sin formato. Las tarjetas de archivo conservan las rutas. Para pegar los archivos, los originales tienen que seguir en el mismo sitio. El pegado automático respeta las restricciones de seguridad de Windows. En aplicaciones que se ejecutan como administrador puede que tengas que pegar el contenido manualmente. El sonido al pegar con Ctrl+V o Mayús+Insert señala el uso del atajo. No confirma que la otra aplicación haya aceptado el contenido.\n\nVstavka es gratis y de código abierto. Requiere Windows 11 en un PC x64.",
+  "features": [
+    "Historial del portapapeles en un panel en la parte inferior de la pantalla",
+    "Apertura con Ctrl+Mayús+V o un atajo que grabes",
+    "Pegado del contenido de la tarjeta seleccionada en la aplicación que estabas usando",
+    "Vista previa de textos, enlaces, valores de color, imágenes y rutas de los archivos copiados",
+    "Iconos de las aplicaciones de origen cuando están disponibles",
+    "Búsqueda en el historial y filtros por tipo",
+    "Opción de fijar los elementos que más usas",
+    "Colecciones con nombre y color para prompts y fragmentos de texto",
+    "Navegación y pegado con el teclado, incluidos los atajos de Ctrl+1 a Ctrl+9",
+    "Pegado de texto sin formato con Mayús+Intro",
+    "Historial local cifrado para tu cuenta de Windows",
+    "Sin cuentas, anuncios, analítica ni sincronización en la nube",
+    "Pausa del guardado, exclusión de aplicaciones y ajuste de la conservación del historial",
+    "Sonidos distintos al copiar y al pegar, con volumen ajustable",
+    "Temas claro, oscuro y del sistema, con el color de énfasis de Windows como opción",
+    "Interfaz en 24 idiomas, con disposición de derecha a izquierda",
+    "Apertura opcional al iniciar sesión en Windows",
+    "Gratis y de código abierto"
+  ],
+  "keywords": [
+    "historial del portapapeles",
+    "gestor portapapeles",
+    "copiar y pegar",
+    "fragmentos de texto",
+    "clipboard manager",
+    "clipboard history"
+  ],
+  "whatsNew": "La nueva interfaz multiplataforma llega a Windows. Incluye un panel del portapapeles renovado y una guía de configuración para grabar y probar tu propio atajo. Al actualizar, se conservan tu historial guardado, tus colecciones y tus preferencias."
+}
