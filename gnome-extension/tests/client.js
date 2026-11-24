@@ -80,7 +80,7 @@ async function test(editor, entry) {
         GLib.file_test(home + '/unlisted-ready', GLib.FileTest.EXISTS));
 
     await until('Wayland keyboard announced', () => display.get_default_seat().get_keyboard());
-    await until('editor mapped', () => windowState(EDITOR_TITLE));
+    await until('editor shown by Mutter', () => windowState(EDITOR_TITLE)?.visible);
     call(PROBE, 'Focus', '(s)', [EDITOR_TITLE]);
     await until('editor focused', () => windowState(EDITOR_TITLE)?.focused);
     entry.grab_focus();
@@ -153,7 +153,7 @@ async function test(editor, entry) {
     panel.set_visible(true);
     await until('panel bottom aligned, above and sticky', () => {
         const state = windowState('Vstavka');
-        return state && state.bottom === state.workBottom && state.above && state.sticky;
+        return state?.visible && state.bottom === state.workBottom && state.above && state.sticky;
     });
     print('PASS panel bottom placement, above and sticky in Mutter');
     if (!windowState('Vstavka').focused)
@@ -192,7 +192,7 @@ async function test(editor, entry) {
     });
     terminal.add_controller(keys);
     terminal.set_visible(true);
-    await until('terminal mapped', () => windowState(TERMINAL_TITLE));
+    await until('terminal shown by Mutter', () => windowState(TERMINAL_TITLE)?.visible);
     call(PROBE, 'Focus', '(s)', [TERMINAL_TITLE]);
     await until('terminal focused', () => windowState(TERMINAL_TITLE)?.focused);
     terminalEntry.grab_focus();

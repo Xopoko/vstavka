@@ -28,29 +28,30 @@ export default class TestProbe extends Extension {
         this.keyboard = null;
     }
 
-    find(title) {
-        return global.get_window_actors().map(actor => actor.meta_window)
-            .find(window => window.get_title() === title);
+    findActor(title) {
+        return global.get_window_actors().find(actor => actor.meta_window.get_title() === title);
     }
 
     Window(title) {
-        const window = this.find(title);
-        if (!window)
+        const actor = this.findActor(title);
+        if (!actor)
             return 'null';
+        const window = actor.meta_window;
         const frame = window.get_frame_rect();
         const area = window.get_work_area_current_monitor();
         const app = Shell.WindowTracker.get_default().get_window_app(window);
         return JSON.stringify({
-            id: app?.get_id(), focused: global.display.focus_window === window,
+            id: app?.get_id(), visible: actor.is_visible(), focused: global.display.focus_window === window,
             bottom: frame.y + frame.height, workBottom: area.y + area.height,
             above: window.is_above(), sticky: window.is_on_all_workspaces(),
         });
     }
 
     Focus(title) {
-        const window = this.find(title);
-        if (window)
-            Main.activateWindow(window);
+        // Mutter can create a Wayland window actor before adding the window to the stack.
+        const actor = this.findActor(title);
+        if (actor?.is_visible())
+            Main.activateWindow(actor.meta_window);
     }
 
     Ready() {
