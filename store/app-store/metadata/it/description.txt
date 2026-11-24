@@ -2,7 +2,7 @@ Vstavka conserva la cronologia di ciò che copi e la mostra sotto forma di sched
 
 COSA CONSERVA
 • Testo, collegamenti, colori, immagini e file
-• Ogni scheda mostra un’anteprima e l’app da cui hai copiato l’elemento
+• Ogni scheda mostra un’anteprima e, quando disponibile, l’app di origine
 • Per impostazione predefinita vengono conservati i 500 elementi più recenti tra quelli copiati negli ultimi 30 giorni. Decidi tu quanti tenerne e per quanto tempo
 
 TROVA QUELLO CHE HAI COPIATO
@@ -13,7 +13,7 @@ TROVA QUELLO CHE HAI COPIATO
 
 LA CRONOLOGIA RESTA TUA
 • La cronologia viene cifrata prima di essere salvata e resta solo sul tuo Mac
-• Vstavka non ha account, pubblicità, analisi dell’utilizzo o funzionalità di rete
+• Vstavka non ha account, pubblicità né analisi dell’utilizzo
 • I gestori di password sono esclusi per impostazione predefinita. Puoi aggiungere altre app a «App escluse»
 • Scegli «Sospendi salvataggio» prima di copiare qualcosa di privato. Puoi eliminare singoli elementi o usare «Cancella cronologia» per eliminarli tutti
 

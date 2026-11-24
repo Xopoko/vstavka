@@ -2,7 +2,7 @@ Vstavka guarda el historial de lo que copias y lo muestra en tarjetas, en un pan
 
 QUÉ GUARDA
 • Texto, enlaces, colores, imágenes y archivos
-• Cada tarjeta muestra una vista previa y la aplicación de la que se copió el elemento
+• Cada tarjeta muestra una vista previa y, cuando está disponible, la aplicación de origen
 • Por defecto, conserva los 500 elementos más recientes de los últimos 30 días. Tú eliges cuántos conservar y durante cuánto tiempo
 
 ENCUENTRA LO QUE BUSCAS
@@ -13,7 +13,7 @@ ENCUENTRA LO QUE BUSCAS
 
 TU HISTORIAL ES TUYO
 • El historial se cifra antes de guardarse y solo se almacena en tu Mac
-• Vstavka no tiene cuentas, anuncios, funciones de analítica ni funciones de red
+• Vstavka no tiene cuentas, anuncios ni funciones de analítica
 • Los gestores de contraseñas están excluidos por defecto. Puedes agregar otras aplicaciones a «Aplicaciones excluidas»
 • Usa «Pausar guardado» antes de copiar algo privado. Puedes eliminar elementos por separado o usar «Borrar historial» para eliminarlos todos
 

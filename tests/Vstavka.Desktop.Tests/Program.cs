@@ -6,7 +6,6 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Input;
-using Avalonia.Input.Platform;
 using Avalonia.Input.Raw;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -51,7 +50,7 @@ Run("Category filters, search and empty results", () =>
         Check(cards.Items.Count == 1 && ((ClipItem)cards.Items[0]!).Kind == ClipKind.Link, "Links chip filters by type.");
         Click(panel, Find<Button>(panel, "TextChip"));
         Check(cards.Items.Cast<ClipItem>().Select(item => item.Kind).ToHashSet().SetEquals([ClipKind.Text, ClipKind.Color]),
-            "Text includes colors as in the WPF panel.");
+            "The Text filter includes color values.");
         Press(panel, Key.F, PhysicalKey.F, CommandModifier());
         var search = Find<TextBox>(panel, "SearchBox");
         Check(search.IsFocused, "Ctrl+F focuses search.");
@@ -375,6 +374,64 @@ Run("Toolbar actions and the Settings save and clear flows", () =>
         Strings.SetLanguage("en");
         SetupVisuals.ApplyTheme("system");
     }
+});
+
+Run("Clear history waits for persistence and reports a failed write", () =>
+{
+    var directory = Directory.CreateTempSubdirectory("Vstavka.ClearTests.");
+    var keys = new TestKeyStore();
+    var protector = new AesGcmHistoryProtector(keys);
+    using var demo = new SetupDemo("Windows") { DataDirectory = directory.FullName, HistoryProtector = protector };
+    var history = CreateHistory(demo, seed: true);
+    history.Store.Save();
+    var settings = new SettingsWindow(demo, history, animate: false);
+    settings.Show();
+    try
+    {
+        var clear = Find<Button>(settings, "ClearHistory");
+        clear.BringIntoView();
+        Flush(settings);
+        keys.Unavailable = true;
+        Click(settings, clear);
+        Click(settings, Find<Button>(settings, "ConfirmClear"));
+        PumpUntil(() => HasLabel(settings, "SaveFailed"), "A failed write is visible in Settings.");
+        Check(!HasLabel(settings, "HistoryCleared"), "Settings has not confirmed deletion.");
+
+        keys.Unavailable = false;
+        Check(CreateHistory(demo, seed: false).Store.Items.Count > 0, "The previous history is still on disk.");
+        Click(settings, clear);
+        Click(settings, Find<Button>(settings, "ConfirmClear"));
+        PumpUntil(() => HasLabel(settings, "HistoryCleared"), "The successful retry confirms deletion.");
+        Check(CreateHistory(demo, seed: false).Store.Items.Count == 0, "The saved history is empty.");
+    }
+    finally
+    {
+        settings.Close();
+        directory.Delete(recursive: true);
+    }
+});
+
+Run("Pause and Clear discard clipboard events that were already in flight", () =>
+{
+    using var monitor = new ClipboardMonitorDouble();
+    using var demo = new SetupDemo("Windows") { Monitor = monitor };
+    var history = CreateHistory(demo, seed: false);
+    history.Start();
+    try
+    {
+        history.TogglePause();
+        var copiedDuringPause = DateTimeOffset.UtcNow;
+        history.TogglePause();
+        monitor.Publish("Copied while paused", copiedDuringPause);
+        Check(history.Store.Items.Count == 0, "Resuming does not import copies that arrived late.");
+
+        var copiedBeforeClear = DateTimeOffset.UtcNow;
+        history.ClearHistoryAsync().GetAwaiter().GetResult();
+        monitor.Publish("Copied before clearing", copiedBeforeClear);
+        monitor.Publish("Copied after clearing", DateTimeOffset.UtcNow.AddSeconds(1));
+        Check(history.Store.Items.Single().Text == "Copied after clearing", "Only new copies can repopulate cleared history.");
+    }
+    finally { history.Stop(); }
 });
 
 Run("Windows sound settings preview the draft and save independent preferences", () =>
@@ -780,7 +837,7 @@ Run("Try it uses the real panel and completes setup with an in-app paste", () =>
     }
 });
 
-Run("Copy can fall back to the Avalonia headless clipboard", () =>
+Run("The guide reports clipboard write failure without advancing the practice", () =>
 {
     var writer = new ThrowingClipboardWriter();
     using var demo = new SetupDemo("Linux") { Writer = writer };
@@ -791,11 +848,8 @@ Run("Copy can fall back to the Avalonia headless clipboard", () =>
     {
         Advance(window, 3);
         Click(window, Find<Button>(window, "CopyPracticeSample"));
-        var read = window.Clipboard!.TryGetTextAsync();
-        PumpUntil(() => read.IsCompleted && window.PracticeItem is not null, "The fallback copies the practice item.");
-        Check(writer.Calls == 1 && read.GetAwaiter().GetResult() == Strings.Get("PracticeSample")
-            && history.Store.Items.Single().SourceApp == "Vstavka" && !Find<TextBlock>(window, "PracticeCopyError").IsVisible,
-            "Copy tries the adapter, updates the headless clipboard and history, and hides the write error.");
+        Check(writer.Calls == 1 && window.PracticeItem is null && history.Store.Items.Count == 0
+            && HasLabel(window, "ClipboardWriteFailed"), "An unsuccessful write leaves practice and history unchanged.");
     }
     finally { window.Close(); }
 });
@@ -1239,7 +1293,7 @@ static void Press(Window panel, Key key, PhysicalKey physical, RawInputModifiers
 
 static Color ColorOf(IBrush? brush) => ((ISolidColorBrush)brush!).Color;
 
-sealed class NoticeDemo : IPlatformServices, IPasteService
+sealed class NoticeDemo : IPlatformServices
 {
     private readonly DemoPlatformServices _demo = new();
 
@@ -1248,17 +1302,12 @@ sealed class NoticeDemo : IPlatformServices, IPasteService
     public IReadOnlyList<PlatformNotice> Notices { get; set; } = [];
     public string DataDirectory => _demo.DataDirectory;
     public string DefaultGesture => _demo.DefaultGesture;
-    public IReadOnlyList<string> SupportedGestures => _demo.SupportedGestures;
     public IClipboardMonitor Clipboard => _demo.Clipboard;
     public IClipboardWriter ClipboardWriter => _demo.ClipboardWriter;
     public IGlobalHotkey Hotkey => _demo.Hotkey;
-    public IPasteService Paste => this;
+    public IPasteService Paste => _demo.Paste;
     public IPanelWindow PanelWindow => _demo.PanelWindow;
     public IHistoryProtector? HistoryProtector => _demo.HistoryProtector;
-    public PermissionState Permission => PermissionState.Missing;
-    public void CaptureTarget() => _demo.CaptureTarget();
-    public Task<bool> PasteAsync() => _demo.PasteAsync();
-    public void RequestPermission() => throw new InvalidOperationException("The footer must call the notice action.");
     public void Dispose() => _demo.Dispose();
 }
 
@@ -1280,13 +1329,13 @@ sealed class SetupDemo(string profile) : IPlatformServices, IGlobalHotkey
     public IReadOnlyList<PlatformNotice> Notices => _demo.Notices;
     public string DataDirectory { get; init; } = Path.Combine(Path.GetTempPath(), "Vstavka.Demo");
     public string DefaultGesture => profile == "macOS" ? "Shift+Meta+V" : _demo.DefaultGesture;
-    public IReadOnlyList<string> SupportedGestures => [DefaultGesture];
     public List<PlatformPermission> DemoPermissions => _demo.DemoPermissions;
     public IReadOnlyList<PlatformPermission> Permissions => _demo.Permissions;
     public IStartupRegistration Startup => _demo.Startup;
     public IStoreReview? StoreReview { get; init; }
     public IClipboardSounds? ClipboardSounds { get; init; }
-    public IClipboardMonitor Clipboard => _demo.Clipboard;
+    public IClipboardMonitor? Monitor { get; init; }
+    public IClipboardMonitor Clipboard => Monitor ?? _demo.Clipboard;
     public IClipboardWriter? Writer { get; init; }
     public IClipboardWriter ClipboardWriter => Writer ?? _demo.ClipboardWriter;
     public IGlobalHotkey Hotkey => this;
@@ -1329,7 +1378,8 @@ sealed class ReviewDemo : IStoreReview
 sealed class TestKeyStore : IHistoryKeyStore
 {
     private byte[]? _key;
-    public byte[]? TryLoadKey() => _key?.ToArray();
+    public bool Unavailable { get; set; }
+    public byte[]? TryLoadKey() => Unavailable ? throw new IOException("Injected key-store failure.") : _key?.ToArray();
     public void SaveKey(byte[] key) => _key = key.ToArray();
 }
 
@@ -1342,4 +1392,14 @@ sealed class ThrowingClipboardWriter : IClipboardWriter
         Calls++;
         throw new InvalidOperationException("Injected clipboard failure.");
     }
+}
+
+sealed class ClipboardMonitorDouble : IClipboardMonitor
+{
+    public event Action<ClipboardCapture>? Captured;
+    public void Start() { }
+    public void Dispose() { }
+
+    public void Publish(string text, DateTimeOffset copiedAt) =>
+        Captured?.Invoke(new ClipboardCapture(new ClipItem { Text = text, CapturedAt = copiedAt }, null));
 }

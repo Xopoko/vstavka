@@ -19,41 +19,39 @@ internal sealed class WindowsPaste(IWindowsPaste native, Func<uint> clipboardSeq
     private (nint Window, uint ProcessId) target;
     private int pasting;
 
-    public PermissionState Permission => PermissionState.NotNeeded;
-    public void RequestPermission() { }
-
     public void CaptureTarget()
     {
         var foreground = native.ForegroundWindow;
         var process = native.ProcessId(foreground);
-        if (process != native.CurrentProcessId)
-            target = (foreground, process);
+        target = foreground == 0 || process == 0 || process == native.CurrentProcessId ? default : (foreground, process);
     }
 
-    public async Task<bool> PasteAsync()
+    public async Task<PasteResult> PasteAsync()
     {
+        var sequence = writtenSequence();
+        bool ClipboardUnchanged() => sequence != 0 && writtenSequence() == sequence && clipboardSequence() == sequence;
+        PasteResult Failure() => ClipboardUnchanged() ? PasteResult.Manual : PasteResult.ClipboardChanged;
+
         if (Interlocked.Exchange(ref pasting, 1) != 0)
-            return false;
+            return Failure();
         try
         {
             var (window, process) = target;
-            var sequence = writtenSequence();
-            bool StateStillCurrent() => target == (window, process) && sequence != 0 && clipboardSequence() == sequence &&
-                writtenSequence() == sequence && native.ProcessId(window) == process;
+            bool StateStillCurrent() => target == (window, process) && native.ProcessId(window) == process && ClipboardUnchanged();
 
-            if (window == 0 || process == 0 || !StateStillCurrent())
-                return false;
+            if (window == 0 || !StateStillCurrent())
+                return Failure();
             await wait(170);
             if (!StateStillCurrent() || !native.RestoreForeground(window))
-                return false;
+                return Failure();
             for (var attempt = 0; attempt < 30 && (native.ModifiersDown || native.ForegroundWindow != window); attempt++)
             {
                 if (!StateStillCurrent())
-                    return false;
+                    return Failure();
                 await wait(20);
             }
-            return StateStillCurrent() && native.ForegroundWindow == window && !native.ModifiersDown &&
-                native.SendPaste();
+            return native.ForegroundWindow == window && !native.ModifiersDown && StateStillCurrent() && native.SendPaste()
+                ? PasteResult.ShortcutSent : Failure();
         }
         finally
         {

@@ -6,7 +6,6 @@ using Avalonia.Controls;
 using Avalonia.Controls.Chrome;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
-using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -17,7 +16,6 @@ using Vstavka.Core;
 using Vstavka.Core.Localization;
 using Vstavka.Platform;
 using Vstavka.Platform.MacOS;
-using Vstavka.Platform.Windows;
 
 namespace Vstavka.Desktop;
 
@@ -45,7 +43,6 @@ internal sealed class OnboardingWindow : Window
     private string _practiceText = "";
     private string? _practiceInput;
     private string? _copyError;
-    private bool _copying;
     private bool _copied;
     private bool _openedWithShortcut;
     private bool _pasted;
@@ -54,8 +51,6 @@ internal sealed class OnboardingWindow : Window
     public int Step { get; private set; }
     public bool Practicing => IsVisible && _practiceBox is not null;
     public bool PracticeCompleted => _copied && _openedWithShortcut && _pasted;
-    private bool UsesSystemStartupState => _platform is MacPlatformServices { IsAppStoreBuild: true }
-        or WindowsPlatformServices { StoreProfile: not null };
     public ClipItem? PracticeItem => Practicing && _copied
         ? _history.Store.Items.FirstOrDefault(item => item.Kind == ClipKind.Text && item.Text == _practiceText)
         : null;
@@ -270,7 +265,7 @@ internal sealed class OnboardingWindow : Window
 
     private bool ApplyStartupPreference()
     {
-        if (_startup is null || UsesSystemStartupState ||
+        if (_startup is null || _history.IsStoreBuild ||
             _platform.Startup.IsEnabled == _startup.Enabled || SetStartup(_startup.Enabled))
             return true;
         _startup.SetError(true, _platform.Startup.IsEnabled);
@@ -451,7 +446,7 @@ internal sealed class OnboardingWindow : Window
     {
         var appStoreBuild = _platform is MacPlatformServices { IsAppStoreBuild: true };
         if (_platform.Startup.IsSupported)
-            _startup = new StartupRow(_platform.Name, UsesSystemStartupState ? _platform.Startup.IsEnabled :
+            _startup = new StartupRow(_platform.Name, _history.IsStoreBuild ? _platform.Startup.IsEnabled :
                 _history.Store.Settings.StartAtLogin, SetStartup);
         var rows = new PermissionRows(_platform, _history, _animate, _startup, RequestSignOut);
         rows.HotkeyBecameAvailable += _history.RegisterSettingsShortcut;
@@ -481,11 +476,11 @@ internal sealed class OnboardingWindow : Window
             return PracticeNotReady(_practiceReadiness.Blocker);
 
         _history.RegisterSettingsShortcut();
-        if (!_copied && !_copying)
+        if (!_copied)
             _practiceText = Strings.Get("PracticeSample");
         var heading = Heading(PracticeCompleted ? "PracticeComplete" : "PracticeTitle", null,
             28, out _practiceTitle, out _, TextAlignment.Start);
-        var copyButton = SetupVisuals.Button("Copy", () => _ = CopyPracticeSampleAsync(), "permission", "CopyPracticeSample");
+        var copyButton = SetupVisuals.Button("Copy", CopyPracticeSample, "permission", "CopyPracticeSample");
         var sample = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 6 };
         SetupVisuals.Add(sample, SetupVisuals.Text(_practiceText, 12));
         SetupVisuals.Add(sample, copyButton, 1);
@@ -597,51 +592,26 @@ internal sealed class OnboardingWindow : Window
         return row;
     }
 
-    private async Task CopyPracticeSampleAsync()
+    private void CopyPracticeSample()
     {
-        if (_copying)
-            return;
-        _copying = true;
         var item = new ClipItem { Text = _practiceText, SourceApp = "Vstavka" };
         var store = _history.Store;
-        try
+        _copyError = _history.WriteToClipboard(item);
+        if (_copyError is null)
         {
-            var accepted = store.Add(item) || store.LastRejectionReason is null;
-            var rejection = store.LastRejectionReason;
-            _history.HistoryChanged();
-            _copied = accepted && await WritePracticeSampleAsync(item);
-            _copyError = _copied ? null : rejection ?? Strings.Get("ClipboardWriteFailed");
-            if (Practicing && _practiceError is not null)
-            {
-                _practiceError.IsVisible = _copyError is not null;
-                _practiceError.Text = _copyError;
-                UpdatePractice();
-            }
+            _copied = store.Add(item) || store.LastRejectionReason is null;
+            _copyError = store.LastRejectionReason;
+            if (_copied)
+                _history.HistoryChanged();
         }
-        finally { _copying = false; }
-    }
-
-    private async Task<bool> WritePracticeSampleAsync(ClipItem item)
-    {
-        try
+        else
+            _copied = false;
+        if (_practiceError is not null)
         {
-            _platform.ClipboardWriter.Write(item, plainText: false);
-            return true;
+            _practiceError.IsVisible = _copyError is not null;
+            _practiceError.Text = _copyError;
         }
-        catch (Exception)
-        {
-            try
-            {
-                if (Clipboard is not { } clipboard)
-                    return false;
-                await clipboard.SetTextAsync(item.Text);
-                return true;
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-        }
+        UpdatePractice();
     }
 
     private void UpdatePractice(CancellationToken token = default, bool animate = true)

@@ -1,9 +1,5 @@
 <schemalist>
   <schema id="io.github.xopoko.Vstavka.Shell" path="/io/github/xopoko/Vstavka/Shell/">
-    <key name="vstavka-hotkey" type="as">
-      <default>['&lt;Control&gt;&lt;Alt&gt;v']</default>
-      <summary>Open the Vstavka panel</summary>
-    </key>
     <key name="allowed-executables" type="as">
       <default>[]</default>
       <summary>Absolute executable paths allowed to use the Vstavka D-Bus interface</summary>

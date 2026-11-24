@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.Globalization;
 using System.Text.Json;
 
@@ -7,16 +6,14 @@ namespace Vstavka.Core.Localization;
 public sealed record LanguageOption(string Code, string Name, string EnglishName);
 
 /// <summary>English is the source catalog and fallback. Stored clipboard data is never translated.</summary>
-public sealed class Strings : INotifyPropertyChanged
+public static class Strings
 {
     private static readonly Dictionary<string, IReadOnlyDictionary<string, string>> Catalogs = new(StringComparer.OrdinalIgnoreCase);
-    private static IReadOnlyDictionary<string, string> _active = ReadCatalog("en");
-    public static Strings Current { get; } = new();
+    private static readonly IReadOnlyDictionary<string, string> English = ReadCatalog("en");
+    private static IReadOnlyDictionary<string, string> _active = English;
     public static CultureInfo Culture { get; private set; } = CultureInfo.GetCultureInfo("en");
     public static string Language { get; private set; } = "en";
     public static bool IsRightToLeft => Culture.TextInfo.IsRightToLeft;
-    public event PropertyChangedEventHandler? PropertyChanged;
-    public string this[string key] => Get(key);
     public static IReadOnlyList<LanguageOption> AvailableLanguages { get; } = new[]
     {
         new LanguageOption("en", "English", "English"),
@@ -49,16 +46,18 @@ public sealed class Strings : INotifyPropertyChanged
 
     public static void SetLanguage(string? language)
     {
-        var code=NormalizeLanguage(language);
-        _active=ReadCatalog(code); Language=code; Culture=CultureInfo.GetCultureInfo(code);
-        // UI formatting follows the selected language; persistence always uses JSON/invariant values.
-        CultureInfo.CurrentUICulture=Culture;
-        Current.PropertyChanged?.Invoke(Current,new PropertyChangedEventArgs("Item[]"));
+        var code = NormalizeLanguage(language);
+        _active = ReadCatalog(code);
+        Language = code;
+        Culture = CultureInfo.GetCultureInfo(code);
+        CultureInfo.CurrentUICulture = Culture;
     }
+
     public static string Get(string key)
     {
-        if(_active.TryGetValue(key,out var value) && !string.IsNullOrWhiteSpace(value))return value;
-        var english=ReadCatalog("en");return english.TryGetValue(key,out value)?value:key;
+        if (_active.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value))
+            return value;
+        return English.TryGetValue(key, out value) ? value : key;
     }
     public static string Format(string key,params object[] args) => string.Format(Culture,Get(key),args);
     public static IReadOnlyDictionary<string,string> ReadCatalog(string code)

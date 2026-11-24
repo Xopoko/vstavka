@@ -2,7 +2,7 @@ Vstavka zapisuje historię schowka i pokazuje skopiowane elementy jako karty w p
 
 CO ZAPISUJE VSTAVKA
 • Tekst, linki, kolory, obrazy i pliki
-• Każda karta pokazuje podgląd i aplikację, z której skopiowano dany element
+• Każda karta pokazuje podgląd oraz aplikację źródłową, jeśli uda się ją ustalić
 • Domyślnie Vstavka zachowuje 500 najnowszych pozycji z ostatnich 30 dni. Możesz ustawić limit pozycji i czas ich przechowywania
 
 ZNAJDŹ TO, CO KOPIUJESZ
@@ -13,7 +13,7 @@ ZNAJDŹ TO, CO KOPIUJESZ
 
 HISTORIA ZOSTAJE NA MACU
 • Vstavka szyfruje historię przed zapisem i przechowuje ją tylko na Macu
-• Vstavka działa bez kont, reklam, analityki i funkcji sieciowych
+• Vstavka działa bez kont, reklam i analityki
 • Menedżery haseł są domyślnie wykluczone. Możesz dodać inne aplikacje do listy „Wykluczone aplikacje”
 • Wybierz „Wstrzymaj zapisywanie”, zanim skopiujesz coś prywatnego. Możesz usuwać pojedyncze pozycje lub wybrać „Wyczyść historię”, aby usunąć wszystkie
 

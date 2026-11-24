@@ -8,7 +8,7 @@ using Vstavka.Core;
 namespace Vstavka.Platform.Windows;
 
 internal enum ClipboardFormat { Text, Files, Dib, DibV5, Png, Exclude, ViewerIgnore, IncludeInHistory, UploadToCloud }
-internal enum ClipboardWriteResult { Written, Busy, Changed, Failed }
+internal enum ClipboardWriteResult { Written, Busy, Failed }
 internal readonly record struct ClipboardOwner(string Name, string? Path = null);
 internal readonly record struct ClipboardData(ClipboardFormat Format, byte[] Bytes);
 
@@ -17,10 +17,9 @@ internal interface IClipboardRead : IDisposable
     ClipboardOwner Owner { get; }
     string ForegroundProcessName { get; }
     bool Has(ClipboardFormat format);
-    nuint Size(ClipboardFormat format);
     int? ReadFlag(ClipboardFormat format);
-    byte[]? ReadBytes(ClipboardFormat format, int maxBytes);
-    string[]? ReadFiles(out bool tooMany);
+    byte[]? ReadBytes(ClipboardFormat format, int maxBytes, out bool tooLarge);
+    string[]? ReadFiles(int maxBytes, out bool tooLarge, out bool tooMany);
     byte[]? ReadBitmap();
 }
 
@@ -51,10 +50,12 @@ internal sealed class Win32Clipboard(WindowsMessageWindow window) : IWindowsClip
         var handles = new nint[data.Count];
         if (!NativeMethods.OpenClipboard(hwnd))
             return ClipboardWriteResult.Busy;
+        bool closed;
+        uint openSequence;
         try
         {
             if (Sequence != expectedSequence)
-                return ClipboardWriteResult.Changed;
+                return ClipboardWriteResult.Failed;
             for (var index = 0; index < data.Count; index++)
             {
                 var bytes = data[index].Bytes;
@@ -73,19 +74,21 @@ internal sealed class Win32Clipboard(WindowsMessageWindow window) : IWindowsClip
                     return ClipboardWriteResult.Failed;
                 handles[index] = 0; // The clipboard now owns this block.
             }
-            writtenSequence = Sequence;
+            openSequence = Sequence;
         }
         finally
         {
-            NativeMethods.CloseClipboard();
+            closed = NativeMethods.CloseClipboard();
             foreach (var handle in handles)
                 if (handle != 0)
                     NativeMethods.GlobalFree(handle);
         }
+        if (!closed)
+            return ClipboardWriteResult.Failed;
         // The system can synthesize formats at close. Check ownership around the resulting sequence.
         var closedSequence = Sequence;
-        if (NativeMethods.GetClipboardOwner() == hwnd && Sequence == closedSequence)
-            writtenSequence = closedSequence;
+        writtenSequence = NativeMethods.GetClipboardOwner() == hwnd && Sequence == closedSequence
+            ? closedSequence : openSequence;
         return ClipboardWriteResult.Written;
     }
 
@@ -114,8 +117,6 @@ internal sealed class Win32Clipboard(WindowsMessageWindow window) : IWindowsClip
         public ClipboardOwner Owner => SourceOf(NativeMethods.GetClipboardOwner(), includePath: true);
         public string ForegroundProcessName => SourceOf(NativeMethods.GetForegroundWindow(), includePath: false).Name;
         public bool Has(ClipboardFormat format) => NativeMethods.IsClipboardFormatAvailable(registeredFormats[format]);
-        public nuint Size(ClipboardFormat format) => Has(format)
-            ? NativeMethods.GlobalSize(NativeMethods.GetClipboardData(registeredFormats[format])) : 0;
 
         public int? ReadFlag(ClipboardFormat format)
         {
@@ -129,13 +130,12 @@ internal sealed class Win32Clipboard(WindowsMessageWindow window) : IWindowsClip
             finally { NativeMethods.GlobalUnlock(handle); }
         }
 
-        public byte[]? ReadBytes(ClipboardFormat format, int maxBytes)
+        public byte[]? ReadBytes(ClipboardFormat format, int maxBytes, out bool tooLarge)
         {
-            if (!Has(format))
-                return null;
             var handle = NativeMethods.GetClipboardData(registeredFormats[format]);
             var size = NativeMethods.GlobalSize(handle);
-            if (size == 0 || size > (nuint)maxBytes)
+            tooLarge = size > (nuint)maxBytes;
+            if (size == 0 || tooLarge)
                 return null;
             var address = NativeMethods.GlobalLock(handle);
             if (address == 0)
@@ -149,11 +149,13 @@ internal sealed class Win32Clipboard(WindowsMessageWindow window) : IWindowsClip
             finally { NativeMethods.GlobalUnlock(handle); }
         }
 
-        public string[]? ReadFiles(out bool tooMany)
+        public string[]? ReadFiles(int maxBytes, out bool tooLarge, out bool tooMany)
         {
             tooMany = false;
             var handle = NativeMethods.GetClipboardData(registeredFormats[ClipboardFormat.Files]);
-            if (handle == 0 || NativeMethods.GlobalSize(handle) < 20)
+            var size = NativeMethods.GlobalSize(handle);
+            tooLarge = size > (nuint)maxBytes;
+            if (size < 20 || tooLarge)
                 return null;
             var count = NativeMethods.DragQueryFile(handle, uint.MaxValue, null, 0);
             if (count > HistoryStore.MaxFilesPerItem)

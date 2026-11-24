@@ -481,7 +481,7 @@ internal sealed partial class PanelWindow : Window
 
     private void UpdateStatus()
     {
-        var notice = _platform.Notices.FirstOrDefault();
+        var notice = _platform.Notices.FirstOrDefault() ?? (_history.Warning is null ? _history.CaptureNotice : null);
         var warning = notice is not null || _history.ShortcutRegistrationFailed || _history.Warning is not null || _history.Paused;
         if (_history.ShortcutRegistrationFailed)
             notice = new PlatformNotice("shortcut-unavailable", Strings.Get("HotkeyBusy"), () => _ = OpenSettingsAsync());
@@ -495,12 +495,18 @@ internal sealed partial class PanelWindow : Window
             "gnome-extension-missing" => Strings.Get("GnomeHelperNotice"),
             "gnome-helper-restart" => Strings.Get("GnomeRestartNotice"),
             "gnome-extension-not-allowed" => notice.Message,
+            "clipboard-item-too-large" => Strings.Get("ItemTooLarge"),
+            "clipboard-too-many-files" => Strings.Get("TooManyFiles"),
+            "clipboard-busy" => Strings.Get("ClipboardBusy"),
+            "clipboard-read-failed" => Strings.Get("UnsupportedFormat"),
             _ => notice?.Message ?? _history.Warning ?? Strings.Get(_history.Paused ? "Paused"
                 : _platform is DemoPlatformServices ? "DemoStatus" : "LocalHistory")
         };
         var label = PanelVisuals.Label(text, 12, "MutedBrush");
         label.Name = "PlatformStatus";
-        ToolTip.SetTip(label, text);
+        ToolTip.SetTip(label, _history.Warning is { } storageWarning && text != storageWarning
+            ? text + Environment.NewLine + storageWarning
+            : text);
         _status.Children.Clear();
         _status.HorizontalAlignment = warning ? HorizontalAlignment.Stretch : HorizontalAlignment.Right;
         AddColumn(_status, PanelVisuals.Dot(warning ? "WarningBrush" : "SuccessBrush"), 0);
@@ -667,9 +673,9 @@ internal sealed partial class PanelWindow : Window
 
     private bool TryWrite(ClipItem item, bool plain)
     {
-        if (_history.TryWrite(item, plain))
+        if (_history.WriteToClipboard(item, plain) is not { } error)
             return true;
-        Feedback?.Invoke(Strings.Get("ClipboardWriteFailed"));
+        Feedback?.Invoke(error);
         return false;
     }
 
@@ -685,15 +691,19 @@ internal sealed partial class PanelWindow : Window
         {
             await DismissAsync();
             if (practice is not null)
+            {
                 practice.ReceivePracticePaste(item);
-            else if (await _platform.Paste.PasteAsync())
+                return;
+            }
+            var result = await _platform.Paste.PasteAsync();
+            if (result == PasteResult.ShortcutSent)
             {
                 var settings = _history.Store.Settings;
                 if (settings.PasteSoundEnabled)
                     _platform.ClipboardSounds?.Play(paste: true, settings.Volume);
             }
             else
-                Feedback?.Invoke(Strings.Get("ManualPaste"));
+                Feedback?.Invoke(Strings.Get(result == PasteResult.ClipboardChanged ? "PasteStateChanged" : "ManualPaste"));
         }
         finally
         {

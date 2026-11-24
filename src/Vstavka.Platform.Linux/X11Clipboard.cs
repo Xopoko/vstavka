@@ -25,7 +25,6 @@ internal sealed partial class X11Desktop
         public long Deadline { get; set; }
         public (nuint Atom, string Name)[] Formats { get; set; } = [];
         public string? Mime { get; set; }
-        public string? Hint { get; set; }
         public MemoryStream? Stream { get; set; }
     }
 
@@ -115,8 +114,7 @@ internal sealed partial class X11Desktop
         if (transfer.Target == Atom("TARGETS") && property is { Format: 32 } && property.Atom == Atom("ATOM"))
         {
             transfer.Formats = DecodeFormats(property.Data);
-            var names = transfer.Formats.Select(pair => pair.Name).ToArray();
-            if (!LinuxClipboard.HasPrivateMarker(names))
+            if (!LinuxClipboard.HasPrivateMarker(transfer.Formats.Select(pair => pair.Name)))
             {
                 var hint = transfer.Formats.FirstOrDefault(pair =>
                     pair.Name.Equals(LinuxClipboard.PasswordHint, StringComparison.OrdinalIgnoreCase));
@@ -129,24 +127,20 @@ internal sealed partial class X11Desktop
                     return;
             }
         }
-        else if (transfer.Mime is null && property is { Format: 8 })
+        else if (transfer.Mime is null && property is { Format: 8 } && !LinuxClipboard.IsPrivateHint(property.Data))
         {
-            transfer.Hint = Encoding.ASCII.GetString(property.Data).TrimEnd('\0');
             if (RequestPayload(transfer))
                 return;
         }
         else if (transfer.Mime is { } mime && property is { Format: 8, Data.Length: > 0 })
         {
-            ClipboardChanged?.Invoke(new(mime, property.Data, Name: transfer.App,
-                Formats: transfer.Formats.Select(pair => pair.Name).ToArray(), PasswordHint: transfer.Hint));
+            ClipboardChanged?.Invoke(new(mime, property.Data, Name: transfer.App));
         }
         FinishRead();
     }
 
     private bool RequestPayload(Incoming transfer)
     {
-        if (LinuxClipboard.IsPrivate(transfer.Formats.Select(pair => pair.Name).ToArray(), transfer.Hint))
-            return false;
         foreach (var mime in LinuxClipboard.PayloadTypes)
         {
             var offered = transfer.Formats.FirstOrDefault(pair => pair.Name.Equals(mime, StringComparison.OrdinalIgnoreCase));

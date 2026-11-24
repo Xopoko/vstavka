@@ -4,7 +4,7 @@ using System.Text.Json;
 using Vstavka.Core;
 
 // In-memory synthetic data only: this benchmark never loads or saves history or uses the clipboard.
-var store = new HistoryStore(Path.Combine(Path.GetTempPath(), "Vstavka-Core-Benchmark", Guid.NewGuid().ToString("N")));
+var store = new HistoryStore(Path.GetTempPath(), protector: null);
 var timestamp = DateTimeOffset.UtcNow;
 for (var index = 0; index < 490; index++)
     store.Add(new ClipItem { Text = $"Synthetic text {index:D4}: " + new string('x', 2048), CapturedAt = timestamp.AddHours(-2).AddSeconds(index) });
@@ -17,7 +17,7 @@ for (var index = 0; index < 10; index++)
 var sequence = 0;
 var largeText = new ClipItem { Text = string.Concat(Enumerable.Repeat(new string('x', 99) + "\n", 10_000)) };
 var shortText = new ClipItem { Text = "Short synthetic title" };
-var fileStore = new HistoryStore(Path.Combine(Path.GetTempPath(), "Vstavka-Core-Benchmark", Guid.NewGuid().ToString("N")));
+var fileStore = new HistoryStore(Path.GetTempPath(), protector: null);
 for (var index = 0; index < 500; index++)
 {
     var paths = Enumerable.Range(0, 100).Select(i => $@"C:\Synthetic\folder\document-{i:D3}.txt").ToArray();

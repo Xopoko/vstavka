@@ -31,7 +31,6 @@ public sealed class MacPlatformServices : IPlatformServices
     public string Name => "macOS";
     public string DataDirectory => Path.Combine(GetApplicationSupportDirectory(), "Vstavka");
     public string DefaultGesture => MacGlobalHotkey.DefaultGesture;
-    public IReadOnlyList<string> SupportedGestures => MacGlobalHotkey.SupportedGestures;
     public IReadOnlyList<PlatformPermission> Permissions => MacPermissions.System.GetPermissions();
     public IStartupRegistration Startup => MacStartupRegistration.System;
 #if VSTAVKA_MAC_APP_STORE
@@ -44,20 +43,9 @@ public sealed class MacPlatformServices : IPlatformServices
     public IPanelWindow PanelWindow { get; } = new MacPanelWindow();
     public IHistoryProtector? HistoryProtector => historyProtector.Value;
 
-    public PlatformCapabilities Capabilities
-    {
-        get
-        {
-            var capabilities = PlatformCapabilities.GlobalHotkey | PlatformCapabilities.SourceIcons | PlatformCapabilities.PanelPlacement;
-            if (MacPermissions.System.CanReadClipboard)
-                capabilities |= PlatformCapabilities.WatchClipboard;
-            if (Paste.Permission == PermissionState.Granted)
-                capabilities |= PlatformCapabilities.AutoPaste;
-            if (HistoryProtector is not null)
-                capabilities |= PlatformCapabilities.PersistentHistory;
-            return capabilities;
-        }
-    }
+    public PlatformCapabilities Capabilities => MacPermissions.System.CanReadClipboard
+        ? PlatformCapabilities.GlobalHotkey | PlatformCapabilities.WatchClipboard
+        : PlatformCapabilities.GlobalHotkey;
 
     public IReadOnlyList<PlatformNotice> Notices
     {
@@ -86,7 +74,9 @@ public sealed class MacPlatformServices : IPlatformServices
         try
         {
             var store = new KeychainHistoryKeyStore();
-            store.EnsureKey();
+            var key = store.TryLoadKey();
+            if (key is not null)
+                CryptographicOperations.ZeroMemory(key);
             return new AesGcmHistoryProtector(store);
         }
         catch (CryptographicException)

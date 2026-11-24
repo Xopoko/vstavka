@@ -17,13 +17,8 @@ internal static partial class MacImages
     internal static nint Encode(nint bitmap, int format) =>
         ObjC.Send(bitmap, ObjC.Sel("representationUsingType:properties:"), format, ObjC.Get(ObjC.Class("NSDictionary"), "dictionary"));
 
-    internal static bool HasSafePixelCount(nint bitmap)
-    {
-        var width = (long)ObjC.Get(bitmap, "pixelsWide");
-        var height = (long)ObjC.Get(bitmap, "pixelsHigh");
-        return width is > 0 and <= ClipboardCapturePolicy.MaxImagePixels &&
-            height > 0 && height <= ClipboardCapturePolicy.MaxImagePixels / width;
-    }
+    internal static bool HasSafePixelCount(nint bitmap) =>
+        ClipboardImageLimits.FitsPixelLimit(ObjC.Get(bitmap, "pixelsWide"), ObjC.Get(bitmap, "pixelsHigh"));
 
     internal static byte[]? RenderIcon(nint icon)
     {
@@ -47,8 +42,7 @@ internal static partial class MacImages
             CoreFoundation.Release(image);
             try
             {
-                var png = ObjC.ReadData(Encode(bitmap, Png), HistoryStore.MaxSourceIconBytes);
-                return ClipboardCapturePolicy.IsSourceIconPng(png) ? png : null;
+                return ObjC.ReadData(Encode(bitmap, Png), HistoryStore.MaxSourceIconBytes);
             }
             finally
             {

@@ -113,7 +113,7 @@ internal sealed class NativePasteboard : IPasteboard
             if (item.Kind == ClipKind.Image && !plainText)
             {
                 var png = item.ImageBytes;
-                if (png is null || !ClipboardCapturePolicy.IsClipboardPng(png))
+                if (png is null || !ClipboardCapturePolicy.FitsClipboardPngLimits(png))
                     throw new InvalidOperationException("The clipboard image must be a PNG within Vstavka's size limits.");
                 var data = ObjC.Data(png);
                 var representation = MacImages.Decode(data);
@@ -150,7 +150,6 @@ internal sealed class MacClipboardWriter(NativePasteboard board, ClipboardPoll p
 {
     public void Write(ClipItem item, bool plainText)
     {
-        poll.CancelSuppression();
         ArgumentNullException.ThrowIfNull(item);
         using var pool = new AutoreleasePool();
         board.Write(item, plainText, poll.RecordOwnWrite);

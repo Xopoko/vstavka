@@ -277,8 +277,8 @@ internal sealed class ShortcutRecorder : UserControl
             >= Key.NumPad0 and <= Key.NumPad9 => ((int)e.Key - (int)Key.NumPad0).ToString(System.Globalization.CultureInfo.InvariantCulture),
             _ => e.Key.ToString()
         };
-        var candidate = new HotkeyGesture(Modifiers(e.KeyModifiers), name);
-        return HotkeyGesture.TryParse(candidate.ToString(), out gesture);
+        gesture = new HotkeyGesture(Modifiers(e.KeyModifiers), name);
+        return gesture.IsUsable;
     }
 
     private static HotkeyModifiers Modifier(Key key) => key switch

@@ -11,11 +11,6 @@ internal sealed class WindowsHotkey(IWindowsMessages messages) : IGlobalHotkey
     private const uint ModWin = 0x0008;
     private const uint ModNoRepeat = 0x4000;
 
-    internal static IReadOnlyList<string> Gestures { get; } = Array.AsReadOnly(new[]
-    {
-        AppSettings.DefaultHotkey, "Ctrl+Alt+V", "Alt+V"
-    });
-
     private SynchronizationContext? context;
     private uint modifiers;
     private uint virtualKey;

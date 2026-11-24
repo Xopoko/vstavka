@@ -68,8 +68,7 @@ public sealed class AppSettings
     internal void Normalize()
     {
         Volume = double.IsFinite(Volume) ? Math.Clamp(Volume, 0, 1) : 0.45;
-        RetentionDays = Math.Clamp(RetentionDays, 0, 3650);
-        MaxItems = Math.Clamp(MaxItems, 1, HistoryStore.MaxItemCount);
+        NormalizeRetention();
         Hotkey = NormalizeHotkey(Hotkey);
         PanelShortcut = HotkeyGesture.TryParse(PanelShortcut, out var shortcut) ? shortcut.ToString() : null;
         OnboardingStep = Math.Clamp(OnboardingStep, 0, 3);
@@ -77,5 +76,11 @@ public sealed class AppSettings
         Theme = Theme is "light" or "dark" ? Theme : "system";
         Accent = Accent is "violet" or "blue" or "teal" or "rose" or "amber" ? Accent : "windows";
         ExcludedApps = (ExcludedApps ?? []).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    internal void NormalizeRetention()
+    {
+        RetentionDays = Math.Clamp(RetentionDays, 0, 3650);
+        MaxItems = Math.Clamp(MaxItems, 1, HistoryStore.MaxItemCount);
     }
 }

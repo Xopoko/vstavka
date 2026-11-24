@@ -653,7 +653,7 @@ try
             damaged[index] ^= 0x5a;
             Check(Throws<System.Security.Cryptography.CryptographicException>(() => aes.Unprotect(damaged)), $"A changed byte at {index} is rejected.");
         }
-        Check(Throws<System.Security.Cryptography.CryptographicException>(() => new AesGcmHistoryProtector(new MemoryKeyStore()).Unprotect(first)),
+        Check(Throws<IOException>(() => new AesGcmHistoryProtector(new MemoryKeyStore()).Unprotect(first)),
             "A missing key is reported as unreadable history.");
         var otherKeys = new MemoryKeyStore();
         otherKeys.SaveKey(new byte[32]);
@@ -667,10 +667,20 @@ try
         var readback = new HistoryStore(directory, new AesGcmHistoryProtector(keys));
         readback.Load();
         Check(readback.Items.Single().Text == "synthetic AES history entry", "A history store saved with AES-GCM reloads with the same key.");
-        var locked = new HistoryStore(directory, new AesGcmHistoryProtector(new MemoryKeyStore()));
+        var path = Path.Combine(directory, "history.vstavka");
+        var saved = File.ReadAllBytes(path);
+        var unavailableKeys = new MemoryKeyStore { Unavailable = true };
+        var locked = new HistoryStore(directory, new AesGcmHistoryProtector(unavailableKeys));
         locked.Load();
-        Check(locked.Items.Count == 0 && locked.LoadWarning is not null && Directory.GetFiles(directory, "history.recovery-*.vstavka").Length == 1,
-            "Without its key the file is kept aside instead of being overwritten.");
+        Check(locked.Items.Count == 0 && locked.SavingBlocked && locked.LoadWarning is not null && Throws<IOException>(locked.Save) &&
+              File.Exists(path) && File.ReadAllBytes(path).SequenceEqual(saved), "A credential store failure preserves the original file and blocks writes.");
+        unavailableKeys.Unavailable = false;
+        locked.Load();
+        Check(locked.SavingBlocked && File.Exists(path), "A missing key also leaves the original in place and blocks writes.");
+        unavailableKeys.SaveKey(key!);
+        locked.Load();
+        Check(!locked.SavingBlocked && locked.LoadWarning is null && locked.Items.Single().Text == "synthetic AES history entry",
+            "A later reload recovers the same history once the key is available.");
     });
 
     Run("Shortcut gestures parse aliases and refuse ones that would fire while typing", () =>
@@ -681,17 +691,21 @@ try
             ("Command+Option+k", "Alt+Meta+K"), ("control+alt+f5", "Ctrl+Alt+F5"), ("Super+Space", "Meta+Space"), ("Win+1", "Meta+1"),
         })
             Check(HotkeyGesture.TryParse(text, out var gesture) && gesture.ToString() == expected, $"{text} parses as {expected}.");
-        foreach (var text in new[] { null, "", "V", "Shift+V", "Ctrl+Ctrl+V", "Ctrl+Escape", "Ctrl+F0", "Ctrl+F25", "Hyper+V", "Ctrl+" })
+        foreach (var text in new[] { null, "", "V", "Shift+V", "Ctrl+Ctrl+V", "Ctrl+Escape", "Ctrl+F0", "Ctrl+F25", "Hyper+V", "Ctrl+", "Ctrl++V", "Ctrl+F 1" })
             Check(!HotkeyGesture.TryParse(text, out _), $"'{text}' is refused.");
+        Check(new HotkeyGesture(HotkeyModifiers.Ctrl, "V").IsUsable &&
+              !new HotkeyGesture(HotkeyModifiers.Ctrl, null!).IsUsable &&
+              !new HotkeyGesture(HotkeyModifiers.Ctrl | (HotkeyModifiers)16, "V").IsUsable,
+            "Directly constructed gestures require a key and supported modifiers too.");
 
         var settings = JsonSerializer.Deserialize<AppSettings>("{\"PanelShortcut\":\"option+cmd+v\"}")!;
         var store = Store("shortcut-settings");
         store.Settings = settings;
-        store.Add(Text("synthetic shortcut probe"));
+        store.ApplyRetention();
         Check(store.Settings.PanelShortcut == "Alt+Meta+V" && !store.Settings.OnboardingCompleted,
             "A stored shortcut is normalized and onboarding starts as not completed.");
         store.Settings.PanelShortcut = "Shift+V";
-        store.Add(Text("another synthetic shortcut probe"));
+        store.ApplyRetention();
         Check(store.Settings.PanelShortcut is null, "An unusable stored shortcut falls back to the platform default.");
     });
 
@@ -753,7 +767,10 @@ static bool Throws<T>(Action action) where T : Exception
 sealed class MemoryKeyStore : IHistoryKeyStore
 {
     private byte[]? _key;
-    public byte[]? TryLoadKey() => _key?.ToArray();
+    public bool Unavailable { get; set; }
+    public byte[]? TryLoadKey() => Unavailable
+        ? throw new System.Security.Cryptography.CryptographicException("Synthetic key lookup failure.")
+        : _key?.ToArray();
     public void SaveKey(byte[] key) => _key = key.ToArray();
 }
 

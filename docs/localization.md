@@ -1,6 +1,8 @@
 # Vstavka localization
 
-The application includes **24 locales**, with additions chosen for the Windows desktop audience. This is a practical initial set, not a measured ranking by worldwide population or prospective sales. English is the source catalog, the default for new settings, and the fallback. The language picker starts with English; all other languages follow alphabetically by their English names. Russian is an ordinary entry in that order.
+The app ships 24 locales. English is the source catalog, the default for new
+settings and the fallback. The language picker starts with English, followed by
+the other languages in alphabetical order by their English names.
 
 | Catalog | Language | Picker label | Direction |
 | --- | --- | --- | --- |
@@ -29,7 +31,7 @@ The application includes **24 locales**, with additions chosen for the Windows d
 | `ur` | Urdu | اردو | RTL |
 | `vi` | Vietnamese | Tiếng Việt | LTR |
 
-## Catalog and fallback contract
+## Catalogs and fallback
 
 `src/Vstavka.Core/Localization/en.json` defines the UI strings. Each UTF-8 JSON catalog uses the same keys, formatting placeholders, and required line breaks. The catalogs are embedded in `Vstavka.Core.dll` and checked by `Vstavka.Localization.Tests`.
 
@@ -47,4 +49,8 @@ Only application text is translated. Stored clipboard text, links, file names, f
 
 The MSIX manifest declares the same 24 locales in the same order. Runtime catalog `en` maps to manifest/default PRI language `en-US`; other codes remain unchanged. Package display name and description use the English baseline **Vstavka**. All languages ship in the main package, with no separate resource-pack download.
 
-Automated checks cover catalog structure and layout. Native-speaker review has not been recorded. The [Store listing](../store/listing.en-US.json) is maintained in English.
+Localization tests check catalog structure. The headless desktop tests also
+render a right-to-left locale. Native-speaker review has not been recorded.
+The [Microsoft Store listing](../store/listing.en-US.json) is maintained in
+English. The [Mac App Store metadata](../store/app-store/README.md) has its own
+set of locales.

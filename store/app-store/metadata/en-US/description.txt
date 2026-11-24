@@ -2,7 +2,7 @@ Vstavka keeps a history of what you copy and shows it as cards in a panel at the
 
 WHAT IT KEEPS
 • Text, links, colors, images and files
-• Every card shows a preview and the app it was copied from
+• Cards show a preview and the source app when available
 • The last 500 items from the past 30 days by default; you decide how many items to keep and for how long
 
 FIND IT QUICKLY
@@ -13,7 +13,7 @@ FIND IT QUICKLY
 
 YOUR HISTORY STAYS YOURS
 • History is stored only on your Mac and is encrypted before it is saved
-• Vstavka has no accounts, ads, analytics or network features
+• Vstavka has no accounts, ads or analytics
 • Password managers are excluded by default, and you can add other apps to the list
 • Pause saving before you copy something private, delete single items or clear the whole history
 

@@ -14,7 +14,6 @@
     <ProjectReference Include="..\Vstavka.Platform\Vstavka.Platform.csproj" />
     <PackageReference Include="System.Drawing.Common" Version="10.0.11" />
     <PackageReference Include="System.Windows.Extensions" Version="10.0.11" />
-    <Compile Include="../Vstavka/Services/SoundService.cs" Link="SoundService.cs" />
     <InternalsVisibleTo Include="Vstavka.Platform.Windows.Tests" />
   </ItemGroup>
 </Project>

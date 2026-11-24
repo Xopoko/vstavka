@@ -33,46 +33,13 @@ The panel must use title `Vstavka` and WM_CLASS or Wayland app ID `io.github.xop
 
 ## D-Bus
 
-The service owns `io.github.xopoko.Vstavka.Shell1` on the session bus while enabled. The object path is `/io/github/xopoko/Vstavka/Shell`.
-
-~~~xml
-<node>
-  <interface name="io.github.xopoko.Vstavka.Shell1">
-    <method name="CheckAccess"/>
-    <method name="SubscribeClipboard"/>
-    <method name="UnsubscribeClipboard"/>
-    <method name="SetClipboard">
-      <arg name="mime" type="s" direction="in"/>
-      <arg name="data" type="ay" direction="in"/>
-      <arg name="success" type="b" direction="out"/>
-    </method>
-    <method name="SetAccelerator">
-      <arg name="accelerator" type="s" direction="in"/>
-      <arg name="success" type="b" direction="out"/>
-    </method>
-    <method name="ReleaseHotkey"/>
-    <method name="CaptureTarget"/>
-    <method name="Paste">
-      <arg name="success" type="b" direction="out"/>
-    </method>
-    <method name="PreparePanel"/>
-    <signal name="ClipboardChanged">
-      <arg name="mime" type="s"/>
-      <arg name="data" type="ay"/>
-      <arg name="desktop_id" type="s"/>
-      <arg name="display_name" type="s"/>
-      <arg name="icon_path" type="s"/>
-    </signal>
-    <signal name="HotkeyPressed"/>
-  </interface>
-</node>
-~~~
+The service owns `io.github.xopoko.Vstavka.Shell1` on the session bus while enabled. Its object path is `/io/github/xopoko/Vstavka/Shell`. The methods and signals are defined in [shell.xml](vstavka@xopoko.github.io/shell.xml).
 
 - `CheckAccess` checks whether the caller is allowed without acquiring the clipboard slot. A client uses one connection for subscription and signal handling. The first allowed clipboard subscriber reserves the slot until it disconnects or its authorization is revoked. `UnsubscribeClipboard` turns off notifications for that connection. A second allowed connection gets `io.github.xopoko.Vstavka.Shell1.ClipboardBusy`. Disconnecting also releases the shortcut.
 - Clipboard notifications report new `CLIPBOARD` owners. In priority order the extension reads `text/uri-list`, `image/png`, UTF-8 text, and legacy X11 `STRING`. The cap is 10 MiB for PNG and 4 MiB for text and URI lists. The Linux adapter converts local `file:` URIs to paths and applies the Core limits for text, paths and images.
 - Attribution uses the focused app at the time of the owner change. Unavailable metadata is an empty string. The theme lookup prefers a PNG at 32 pixels. The adapter accepts PNG paths up to 32 × 32 and 64 KiB.
 - `SetClipboard` accepts `text/plain;charset=utf-8`, `text/uri-list`, and `image/png`. The extension suppresses its own owner change. The app's clipboard writer sends file paths as newline-delimited plain text.
-- The default is Ctrl+Alt+V. Suggestions include Ctrl+Shift+V and Alt+V. `SetAccelerator` accepts `<Control>`, `<Alt>`, `<Shift>` and `<Super>` in any order, once each, followed by `a`–`z`, `0`–`9`, `F1`–`F24` or `space`. At least one of Control, Alt or Super is required. A successful call registers the keybinding for that caller and saves its accelerator. An unavailable accelerator returns false and preserves the previous binding.
+- Vstavka defaults to Ctrl+Alt+V and stores the user's choice in its own settings. `SetAccelerator` accepts `<Control>`, `<Alt>`, `<Shift>` and `<Super>` in any order, once each, followed by `a`–`z`, `0`–`9`, `F1`–`F24` or `space`. At least one of Control, Alt or Super is required. An unavailable accelerator returns false and preserves the previous binding.
 - `Paste` returns true after the extension has focused the target and queued Ctrl+V, or Ctrl+Shift+V for apps with the `TerminalEmulator` desktop entry category. The receiving application decides how to handle the shortcut.
 
 ### Access

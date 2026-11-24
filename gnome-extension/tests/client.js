@@ -142,6 +142,7 @@ async function test(editor, entry) {
     GLib.file_set_contents(home + '/authorized-traffic', new Uint8Array([1]));
     await waitPeer(denied);
 
+    check(!call(SHELL, 'Paste'), 'paste requires a captured target');
     call(SHELL, 'CaptureTarget');
     call(SHELL, 'PreparePanel');
     const panelApp = new Gtk.Application({application_id: 'io.github.xopoko.Vstavka'});

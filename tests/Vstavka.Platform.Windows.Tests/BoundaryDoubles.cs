@@ -94,31 +94,33 @@ internal sealed class ClipboardDouble : IWindowsClipboard, IClipboardRead
         if (BusyWrites-- > 0)
             return ClipboardWriteResult.Busy;
         if (Sequence != expectedSequence)
-            return ClipboardWriteResult.Changed;
+            return ClipboardWriteResult.Failed;
         Data = data.ToDictionary(value => value.Format, value => value.Bytes);
         writtenSequence = ++Sequence;
         return ClipboardWriteResult.Written;
     }
 
     public bool Has(ClipboardFormat format) => Data.ContainsKey(format);
-    public nuint Size(ClipboardFormat format) => (nuint)(Data.GetValueOrDefault(format)?.Length ?? 0);
     public int? ReadFlag(ClipboardFormat format) => Data.GetValueOrDefault(format) is { Length: >= 4 } flag
         ? BinaryPrimitives.ReadInt32LittleEndian(flag) : null;
 
-    public byte[]? ReadBytes(ClipboardFormat format, int maxBytes)
+    public byte[]? ReadBytes(ClipboardFormat format, int maxBytes, out bool tooLarge)
     {
-        if (Data.GetValueOrDefault(format) is not { } bytes || bytes.Length > maxBytes)
+        var bytes = Data.GetValueOrDefault(format);
+        tooLarge = bytes?.Length > maxBytes;
+        if (bytes is null || tooLarge)
             return null;
         PayloadReads++;
         Rendering?.Invoke();
         return bytes;
     }
 
-    public string[]? ReadFiles(out bool tooMany)
+    public string[]? ReadFiles(int maxBytes, out bool tooLarge, out bool tooMany)
     {
         PayloadReads++;
-        tooMany = false;
-        return Files;
+        tooLarge = Data[ClipboardFormat.Files].Length > maxBytes;
+        tooMany = Files?.Length > Vstavka.Core.HistoryStore.MaxFilesPerItem;
+        return tooLarge || tooMany ? null : Files;
     }
 
     public byte[]? ReadBitmap() => null;

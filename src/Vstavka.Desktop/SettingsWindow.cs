@@ -9,8 +9,6 @@ using Avalonia.Media;
 using Vstavka.Core;
 using Vstavka.Core.Localization;
 using Vstavka.Platform;
-using Vstavka.Platform.MacOS;
-using Vstavka.Platform.Windows;
 
 namespace Vstavka.Desktop;
 
@@ -30,9 +28,6 @@ internal sealed partial class SettingsWindow : Window
     private readonly ShortcutRecorder _recorder;
     private bool _startupChoiceChanged;
     private bool _saved;
-
-    private bool UsesSystemStartupState => _platform is MacPlatformServices { IsAppStoreBuild: true }
-        or WindowsPlatformServices { StoreProfile: not null };
 
     public SettingsWindow(IPlatformServices platform, DesktopHistory history, bool animate = true)
     {
@@ -67,7 +62,7 @@ internal sealed partial class SettingsWindow : Window
             contents.Children.Add(SoundSection(sounds));
         if (platform.Startup.IsSupported)
         {
-            if (UsesSystemStartupState)
+            if (history.IsStoreBuild)
                 _draft.StartAtLogin = platform.Startup.IsEnabled;
             _startup = new StartupRow(platform.Name, _draft.StartAtLogin, value =>
             {
@@ -111,7 +106,7 @@ internal sealed partial class SettingsWindow : Window
         };
         var description = SetupVisuals.Text(Strings.Get(history.Store.IsPersistent ? "PrivacySummary" : "PrivacyMemory"), 12, "MutedBrush");
         Control privacy = description;
-        if (UsesSystemStartupState)
+        if (history.IsStoreBuild)
         {
             var policy = new HyperlinkButton
             {
@@ -176,7 +171,7 @@ internal sealed partial class SettingsWindow : Window
         confirmation.Name = "ClearConfirmation";
         confirmation.IsVisible = false;
         confirmation.Padding = new Thickness(10);
-        var status = SetupVisuals.Text(Strings.Get("HistoryCleared"), 12, "SuccessBrush");
+        var status = SetupVisuals.Text("", 12, "MutedBrush");
         status.IsVisible = false;
         Button? clear = null;
         void DismissConfirmation()
@@ -185,11 +180,14 @@ internal sealed partial class SettingsWindow : Window
             clear?.Focus(NavigationMethod.Tab);
         }
         var cancel = SetupVisuals.Button("Cancel", DismissConfirmation, "ghost", "CancelClear");
-        var confirm = SetupVisuals.Button("DeleteAll", () =>
+        var confirm = SetupVisuals.Button("DeleteAll", async () =>
         {
-            _history.Store.Clear(includePinned: true);
-            _history.HistoryChanged();
             DismissConfirmation();
+            clear!.IsEnabled = false;
+            var cleared = await _history.ClearHistoryAsync();
+            clear.IsEnabled = true;
+            status.Text = cleared ? Strings.Get("HistoryCleared") :
+                _history.Store.SavingBlocked ? _history.Store.LoadWarning : Strings.Get("SaveFailed");
             status.IsVisible = true;
         }, "danger-filled", "ConfirmClear");
         confirmationContent.Children.Add(SetupVisuals.Text(Strings.Get("ClearConfirmation"), 12, "DangerBrush"));
@@ -224,7 +222,7 @@ internal sealed partial class SettingsWindow : Window
             _recorder.BringIntoView();
             return;
         }
-        if (_startup is not null && (_startupChoiceChanged || !UsesSystemStartupState) &&
+        if (_startup is not null && (_startupChoiceChanged || !_history.IsStoreBuild) &&
             _platform.Startup.IsEnabled != _draft.StartAtLogin && !_platform.Startup.TrySetEnabled(_draft.StartAtLogin))
         {
             _draft.StartAtLogin = _platform.Startup.IsEnabled;

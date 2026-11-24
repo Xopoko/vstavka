@@ -5,19 +5,14 @@ namespace Vstavka.Core;
 
 internal static class SourceIconPng
 {
-    private static ReadOnlySpan<byte> Signature => [137, 80, 78, 71, 13, 10, 26, 10];
-
     internal static bool IsValid(ReadOnlySpan<byte> png)
     {
-        if (png.Length is < 45 or > HistoryStore.MaxSourceIconBytes || !png.StartsWith(Signature))
+        if (png.Length > HistoryStore.MaxSourceIconBytes ||
+            !ClipboardImageLimits.TryReadPngSize(png, out var width, out var height) || width > 32 || height > 32)
             return false;
         var header = png[8..];
-        if (BinaryPrimitives.ReadUInt32BigEndian(header) != 13 || !header[4..8].SequenceEqual("IHDR"u8))
-            return false;
-        var width = BinaryPrimitives.ReadUInt32BigEndian(header[8..]);
-        var height = BinaryPrimitives.ReadUInt32BigEndian(header[12..]);
         // Application icon encoders write small, non-interlaced PNGs.
-        if (width is < 1 or > 32 || height is < 1 or > 32 || header[18] != 0 || header[19] != 0 || header[20] != 0)
+        if (header[18] != 0 || header[19] != 0 || header[20] != 0)
             return false;
         var depth = header[16];
         var color = header[17];

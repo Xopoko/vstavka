@@ -12,11 +12,11 @@ The adapter prefers file URLs, then PNG or TIFF, then URL and plain text. Finder
 
 ## Hotkey, panel and paste
 
-The default shortcut is `Shift+Meta+V` (⇧⌘V). The other suggestions are `Ctrl+Meta+V` and `Alt+Meta+V`. The adapter registers usable `HotkeyGesture` combinations through Carbon. Ctrl is Control, Alt is Option, Shift is Shift, and Meta is Command. Letters A–Z and digits 0–9 use physical ANSI US keyboard positions. F1–F20 and Space are supported. F21–F24 are unsupported. A replacement is registered before releasing the current shortcut.
+The default shortcut is `Shift+Meta+V` (⇧⌘V). The adapter registers usable `HotkeyGesture` combinations through Carbon. Ctrl is Control, Alt is Option, Shift is Shift, and Meta is Command. Letters A–Z and digits 0–9 use physical ANSI US keyboard positions. F1–F20 and Space are supported. F21–F24 are unsupported. A replacement is registered before releasing the current shortcut.
 
 The panel uses the status window level and `canJoinAllSpaces | fullScreenAuxiliary` so a single window can join the active Space, including a full-screen Space. Activation and keyboard focus still depend on the system and the packaged app's activation policy.
 
-Call `CaptureTarget()` before showing the panel and `PasteAsync()` after hiding it and writing the clipboard. The adapter waits up to 500 ms for the retained target app to become frontmost before posting Cmd+V. `Permissions` reports `accessibility` as optional and reads trust from `AXIsProcessTrusted()`. The first request in a process invokes the system Accessibility prompt. Subsequent requests open Privacy & Security → Accessibility. Clipboard replay remains available for manual paste.
+Call `CaptureTarget()` before showing the panel and `PasteAsync()` after hiding it and writing the clipboard. The adapter activates the retained target app even without Accessibility permission. With permission, it waits up to 500 ms for the target to become frontmost before posting Cmd+V. `Permissions` reports `accessibility` as optional and reads trust from `AXIsProcessTrusted()`. The first request in a process invokes the system Accessibility prompt. Subsequent requests open Privacy & Security → Accessibility.
 
 The Mac App Store build (`-p:VstavkaMacAppStore=true`) puts the chosen item on the clipboard and returns focus to the previous app for a manual Cmd+V. Its onboarding asks only for clipboard access. Start at login is opt-in, and Settings contains a link to the privacy policy.
 
@@ -28,7 +28,7 @@ Packaged apps on macOS 13 and later use `SMAppService.mainAppService`. Only `Ena
 
 ## History
 
-History data lives in `Library/Application Support/Vstavka`, under the user's home for the preview or inside the app's container for the Mac App Store build. The adapter checks the login Keychain on first use for a generic password with account `history-key`. The preview uses service `io.github.xopoko.Vstavka` and the Mac App Store build uses `io.github.xopoko.Vstavka.AppStore`. Successful lookup or creation enables the Core AES-GCM protector. Keychain errors at initialization select in-memory history for the process.
+History data lives in `Library/Application Support/Vstavka`, under the user's home for the preview or inside the app's container for the Mac App Store build. The adapter checks the login Keychain for a generic password with account `history-key`. The preview uses service `io.github.xopoko.Vstavka` and the Mac App Store build uses `io.github.xopoko.Vstavka.AppStore`. When there is no saved history or key, the first save creates the key. Keychain errors at initialization select in-memory history for the process.
 
 ## Diagnostics
 

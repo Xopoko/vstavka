@@ -2,7 +2,7 @@ Vstavka merkt sich, was du kopierst, und zeigt den Verlauf als Karten in einem B
 
 WAS VSTAVKA SPEICHERT
 • Text, Links, Farben, Bilder und Dateien
-• Jede Karte zeigt eine Vorschau und die App, aus der der Eintrag kopiert wurde
+• Jede Karte zeigt eine Vorschau und, wenn verfügbar, die Quell-App
 • Standardmäßig bleiben die 500 neuesten Einträge der letzten 30 Tage erhalten. Du kannst festlegen, wie viele Einträge du wie lange aufbewahrst
 
 SCHNELL WIEDERFINDEN
@@ -13,7 +13,7 @@ SCHNELL WIEDERFINDEN
 
 DEIN VERLAUF BLEIBT BEI DIR
 • Der Verlauf wird vor dem Speichern verschlüsselt und nur auf deinem Mac gespeichert
-• Vstavka hat keine Konten, keine Werbung, keine Nutzungsanalyse und keine Netzwerkfunktionen
+• Vstavka hat keine Konten, keine Werbung und keine Nutzungsanalyse
 • Passwortmanager sind standardmäßig ausgeschlossen. Unter „Ausgeschlossene Apps“ kannst du weitere Apps hinzufügen
 • Wähle „Speichern pausieren“, bevor du vertrauliche Inhalte kopierst. Du kannst einzelne Einträge löschen oder den gesamten Verlauf über „Verlauf leeren“ entfernen
 

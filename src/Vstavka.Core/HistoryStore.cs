@@ -32,9 +32,6 @@ public sealed class HistoryStore
     private readonly object _saveQueueLock = new();
     private Task _pendingWrite = Task.CompletedTask;
 
-    /// <summary>Protects history with Windows DPAPI, as earlier releases did.</summary>
-    public HistoryStore(string directory) : this(directory, new WindowsHistoryProtector()) { }
-
     /// <summary>Keeps history in memory when <paramref name="protector"/> is null.</summary>
     public HistoryStore(string directory, IHistoryProtector? protector)
     {
@@ -67,17 +64,17 @@ public sealed class HistoryStore
         Settings = new AppSettings();
         LoadWarning = null;
         SavingBlocked = false;
+        LastRejectionReason = null;
         if (_protector is not { } protector)
-        {
-            LastRejectionReason = null;
             return;
-        }
 
+        var opened = false;
         byte[]? plaintext = null;
         try
         {
             using (var stream = File.OpenRead(_filePath))
             {
+                opened = true;
                 var length = stream.Length;
                 if (length > MaxStorageFileBytes)
                     throw new InvalidDataException("History exceeds its storage limit.");
@@ -112,7 +109,7 @@ public sealed class HistoryStore
                     _sourceIcons.Add(source, png);
             ApplyRetention();
         }
-        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
+        catch (Exception exception) when (!opened && exception is (FileNotFoundException or DirectoryNotFoundException))
         {
             // A new profile has no history file yet.
         }
@@ -250,7 +247,7 @@ public sealed class HistoryStore
             LastRejectionReason = Strings.Get("AppExcluded");
             return false;
         }
-        Settings.Normalize();
+        Settings.NormalizeRetention();
         // Compare only the candidate's kind and content. Rehashing every retained image here
         // stalled the UI thread even when the new clipboard entry was a few characters long.
         // Do not cache mutable text/file arrays: edits must be reflected in the next capture.

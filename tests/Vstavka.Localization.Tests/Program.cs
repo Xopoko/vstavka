@@ -28,7 +28,6 @@ foreach(var language in Strings.AvailableLanguages)
         try { string.Format(value,123,456); }catch(FormatException){failures.Add($"Invalid format: {language.Code}.{key}");}
     }
     Strings.SetLanguage(language.Code);
-    Check(Strings.Format("WelcomeDescription", "<shortcut>").Contains("<shortcut>"), $"Welcome includes the configured shortcut: {language.Code}");
     Check(Strings.Language==language.Code,$"Language selection: {language.Code}");
     Check(Strings.IsRightToLeft==(language.Code is "ar" or "fa" or "ur"),$"Direction: {language.Code}");
     Check(Strings.Get("Settings")==catalog["Settings"],$"Selected locale lookup: {language.Code}");

@@ -2,7 +2,7 @@ Vstavka lưu lại nội dung bạn đã sao chép và hiển thị từng mục
 
 Nội dung được lưu
 • Văn bản, liên kết, màu, hình ảnh và tệp
-• Mỗi thẻ hiển thị bản xem trước nội dung và cho biết bạn đã sao chép từ ứng dụng nào
+• Mỗi thẻ hiển thị bản xem trước và ứng dụng nguồn nếu xác định được
 • Mặc định lưu tối đa 500 mục mới nhất trong 30 ngày qua. Bạn có thể đổi số mục và thời gian lưu
 
 Tìm nhanh nội dung cần dùng
@@ -13,7 +13,7 @@ Tìm nhanh nội dung cần dùng
 
 Lịch sử chỉ lưu trên máy Mac của bạn
 • Lịch sử được mã hóa trước khi lưu và chỉ được lưu trên máy Mac của bạn
-• Không có tài khoản, quảng cáo, phân tích dữ liệu sử dụng hay tính năng mạng
+• Không có tài khoản, quảng cáo hay phân tích dữ liệu sử dụng
 • Các ứng dụng quản lý mật khẩu được loại trừ mặc định. Bạn có thể thêm ứng dụng khác vào danh sách “Ứng dụng bị loại trừ”
 • Dùng “Tạm dừng lưu” trước khi sao chép nội dung riêng tư. Bạn có thể xóa từng mục hoặc chọn “Xóa lịch sử” để xóa toàn bộ
 

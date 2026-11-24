@@ -7,7 +7,8 @@ public interface IHistoryProtector
 {
     byte[] Protect(byte[] clearBytes);
 
-    /// <exception cref="CryptographicException">The payload is damaged, foreign, or its key is unavailable.</exception>
+    /// <exception cref="CryptographicException">The payload cannot be decrypted with the current key.</exception>
+    /// <exception cref="IOException">The key could not be loaded.</exception>
     byte[] Unprotect(byte[] protectedBytes);
 }
 
@@ -41,13 +42,13 @@ public sealed class AesGcmHistoryProtector(IHistoryKeyStore keyStore) : IHistory
     {
         ArgumentNullException.ThrowIfNull(clearBytes);
         var key = keyStore.TryLoadKey();
-        if (key is null)
-        {
-            key = RandomNumberGenerator.GetBytes(KeySize);
-            keyStore.SaveKey(key);
-        }
         try
         {
+            if (key is null)
+            {
+                key = RandomNumberGenerator.GetBytes(KeySize);
+                keyStore.SaveKey(key);
+            }
             if (key.Length != KeySize)
                 throw new CryptographicException("The stored history key has an unexpected length.");
             var output = new byte[HeaderSize + clearBytes.Length];
@@ -60,7 +61,8 @@ public sealed class AesGcmHistoryProtector(IHistoryKeyStore keyStore) : IHistory
         }
         finally
         {
-            CryptographicOperations.ZeroMemory(key);
+            if (key is not null)
+                CryptographicOperations.ZeroMemory(key);
         }
     }
 
@@ -69,11 +71,21 @@ public sealed class AesGcmHistoryProtector(IHistoryKeyStore keyStore) : IHistory
         ArgumentNullException.ThrowIfNull(protectedBytes);
         if (protectedBytes.Length < HeaderSize || !protectedBytes.AsSpan(0, Marker.Length).SequenceEqual(Marker))
             throw new CryptographicException("The history file is not in the expected encrypted format.");
-        var key = keyStore.TryLoadKey() ?? throw new CryptographicException("The history key is missing from the system credential store.");
+        byte[]? key;
+        try
+        {
+            key = keyStore.TryLoadKey();
+        }
+        catch (CryptographicException error)
+        {
+            throw new IOException("Could not read the history key from the system credential store.", error);
+        }
+        if (key is null)
+            throw new IOException("The history key is missing from the system credential store.");
         try
         {
             if (key.Length != KeySize)
-                throw new CryptographicException("The stored history key has an unexpected length.");
+                throw new IOException("The stored history key has an unexpected length.");
             var clear = new byte[protectedBytes.Length - HeaderSize];
             using var aes = new AesGcm(key, TagSize);
             aes.Decrypt(protectedBytes.AsSpan(Marker.Length, NonceSize), protectedBytes.AsSpan(HeaderSize),

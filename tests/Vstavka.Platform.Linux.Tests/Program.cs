@@ -4,8 +4,8 @@ using Vstavka.Platform;
 using Vstavka.Platform.Linux;
 
 Run("Session selects the extension first and never uses Xwayland as the clipboard fallback", TestModes);
-Run("Clipboard maps supported formats, caps data and skips private selections", TestClipboardFormats);
-Run("Clipboard and shortcut use their registration contexts and keep external copies after a write", TestCallbacks);
+Run("Clipboard maps supported formats, caps data and checks privacy markers", TestClipboardFormats);
+Run("Clipboard and shortcut use their registration contexts", TestCallbacks);
 Run("Linux shortcuts map usable gestures to GNOME accelerators and X11 keysyms", TestGestures);
 Run("X11 recognizes terminal instance and class names for Ctrl+Shift+V", TestTerminalClasses);
 Run("GNOME helper reflects installation, enablement and access, and offers GNOME sign-out only when available", TestGnomeHelper);
@@ -28,8 +28,9 @@ static void TestModes()
 
     using (var platform = Create(() => new(shell), () => key))
     {
-        Check(platform.Capabilities == (shell.Capabilities | PlatformCapabilities.PersistentHistory));
+        Check(platform.Capabilities == shell.Capabilities);
         Check(platform.DataDirectory == Path.Combine(environment["XDG_DATA_HOME"]!, "vstavka"));
+        Check(platform.Paste.PasteAsync().Result == PasteResult.ShortcutSent);
         var encrypted = platform.HistoryProtector!.Protect("history"u8.ToArray());
         Check(platform.HistoryProtector.Unprotect(encrypted).AsSpan().SequenceEqual("history"u8));
     }
@@ -37,10 +38,10 @@ static void TestModes()
     environment["XDG_DATA_HOME"] = "relative";
     using (var platform = Create(() => default, () => null))
     {
-        Check(platform.Notices.Single().Code == "gnome-extension-missing");
+        Check(platform.Notices.Single().Code == "linux-desktop-unavailable");
         Check(platform.Permissions.Count == 0);
         Check(platform.Capabilities == PlatformCapabilities.None && platform.HistoryProtector is null);
-        Check(platform.Paste.Permission == PermissionState.Missing && !platform.Paste.PasteAsync().Result);
+        Check(platform.Paste.PasteAsync().Result == PasteResult.Manual);
         Check(platform.DataDirectory == Path.Combine(home, ".local", "share", "vstavka"));
     }
     using (var platform = Create(() => new(null, GnomeAccess.Denied), () => null))
@@ -65,9 +66,8 @@ static void TestClipboardFormats()
 {
     byte[] Encode(string value) => Encoding.UTF8.GetBytes(value);
     var png = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGMQMgn7DwAClAGcHVtGXwAAAABJRU5ErkJggg==");
-    ClipboardCapture? Capture(string mime, byte[] bytes, IReadOnlyList<string>? formats = null, string? hint = null,
-        string iconPath = "/some/editor.png") =>
-        LinuxClipboard.Read(new(mime, bytes, "editor.desktop", "Editor", iconPath, formats, hint), _ => png);
+    ClipboardCapture? Capture(string mime, byte[] bytes, string iconPath = "/some/editor.png") =>
+        LinuxClipboard.Read(new(mime, bytes, "editor.desktop", "Editor", iconPath), _ => png);
 
     var link = Capture("UTF8_STRING", Encode("https://example.com/"));
     Check(link?.Item is { Kind: ClipKind.Link, SourceApp: "Editor" } &&
@@ -81,10 +81,12 @@ static void TestClipboardFormats()
     var files = Capture(LinuxClipboard.Files, Encode(
         "# Comment\r\nfile:///home/test/a%20b\r\nfile://localhost/home/test/c\r\nfile://remote/share/d\r\nhttps://example.com/"));
     Check(files?.Item.Kind == ClipKind.Files && files.Item.Files.SequenceEqual(["/home/test/a b", "/home/test/c"]));
-    Check(Capture(LinuxClipboard.Text, Encode("private"), ["application/x-keepassxc"]) is null);
-    Check(Capture(LinuxClipboard.Text, Encode("private"), [LinuxClipboard.PasswordHint], " secret ") is null);
-    Check(Capture(LinuxClipboard.Text, Encode("unknown"), [LinuxClipboard.PasswordHint]) is null);
-    Check(Capture(LinuxClipboard.Text, Encode("normal"), [LinuxClipboard.PasswordHint], "public") is not null);
+    Check(LinuxClipboard.HasPrivateMarker(["Application/X-KeePassXC"]));
+    Check(!LinuxClipboard.HasPrivateMarker([LinuxClipboard.Text]));
+    Check(LinuxClipboard.IsPrivateHint(" SECRET \0"u8));
+    Check(LinuxClipboard.IsPrivateHint([]));
+    Check(LinuxClipboard.IsPrivateHint([0x80]));
+    Check(!LinuxClipboard.IsPrivateHint("public"u8));
 }
 
 static void TestCallbacks()
@@ -105,7 +107,6 @@ static void TestCallbacks()
         platform.Clipboard.Start();
         SynchronizationContext.SetSynchronizationContext(shortcutContext);
         Check(platform.DefaultGesture == "Ctrl+Alt+V");
-        Check(platform.SupportedGestures.SequenceEqual(["Ctrl+Alt+V", "Ctrl+Shift+V", "Alt+V"]));
         Check(platform.Hotkey.TryRegister("Shift+Meta+F12") && desktop.Accelerator == "<Shift><Super>F12");
         SynchronizationContext.SetSynchronizationContext(clipboardContext);
         desktop.AcceptHotkey = false;
@@ -119,9 +120,6 @@ static void TestCallbacks()
 
     Task.Run(() =>
     {
-        platform.Clipboard.SuppressNextChange();
-        desktop.Copy("explicitly suppressed");
-        platform.Clipboard.SuppressNextChange();
         platform.ClipboardWriter.Write(new ClipItem { Kind = ClipKind.Files, Files = ["/tmp/a", "/tmp/b"] }, false);
         desktop.Copy("external copy");
         desktop.Press();
@@ -213,8 +211,14 @@ static void TestGnomeHelper()
         using var platform = CreatePlatform();
         var missing = platform.Permissions.Single();
         Check(missing is { Code: "gnome-helper", Requirement: PermissionRequirement.Required, State: PermissionState.Missing, Request: not null });
+        Check(platform.Notices.Single().Code == "gnome-extension-missing");
         platform.Clipboard.Start();
-        missing.Request!();
+        try
+        {
+            missing.Request!();
+            throw new InvalidOperationException("GNOME helper setup succeeded without compiled schemas.");
+        }
+        catch (IOException) { }
         Check(!File.Exists(Path.Combine(destination, "metadata.json")) && commands.Count == 1);
         Check(platform.Permissions.Single() is { State: PermissionState.Missing, Request: not null });
         commands.Clear();
@@ -331,8 +335,7 @@ static void Check(bool value, [System.Runtime.CompilerServices.CallerArgumentExp
 
 sealed class FakeDesktop : ILinuxDesktop
 {
-    public PlatformCapabilities Capabilities { get; init; } = PlatformCapabilities.WatchClipboard |
-        PlatformCapabilities.GlobalHotkey | PlatformCapabilities.AutoPaste | PlatformCapabilities.PanelPlacement;
+    public PlatformCapabilities Capabilities { get; init; } = PlatformCapabilities.WatchClipboard | PlatformCapabilities.GlobalHotkey;
     public int Starts { get; private set; }
     public bool AcceptHotkey { get; set; } = true;
     public string? Accelerator { get; private set; }
@@ -346,7 +349,6 @@ sealed class FakeDesktop : ILinuxDesktop
     public bool Write(string mime, byte[] data)
     {
         Written = (mime, Encoding.UTF8.GetString(data));
-        ClipboardChanged?.Invoke(new(mime, data, OwnWrite: true));
         return true;
     }
     public bool RegisterHotkey(LinuxGesture gesture)

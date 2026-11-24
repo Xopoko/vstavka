@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
@@ -31,7 +30,7 @@ internal sealed class WindowsSourceIcons : IWindowsSourceIcons
             return stream.Length <= HistoryStore.MaxSourceIconBytes ? stream.ToArray() : null;
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or ExternalException or
-            ArgumentException or InvalidOperationException or NotSupportedException or OutOfMemoryException or Win32Exception)
+            ArgumentException or InvalidOperationException or NotSupportedException or OutOfMemoryException)
         {
             return null;
         }

@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Vstavka.Core;
 
 [Flags]
@@ -18,9 +20,10 @@ public enum HotkeyModifiers
 public readonly record struct HotkeyGesture(HotkeyModifiers Modifiers, string Key)
 {
     private const HotkeyModifiers Command = HotkeyModifiers.Ctrl | HotkeyModifiers.Alt | HotkeyModifiers.Meta;
+    private const HotkeyModifiers SupportedModifiers = Command | HotkeyModifiers.Shift;
 
-    /// <summary>True when the gesture has Ctrl, Alt or Meta, so ordinary typing, with or without Shift, never triggers it.</summary>
-    public bool IsUsable => (Modifiers & Command) != 0 && NormalizeKey(Key) == Key;
+    /// <summary>Requires a supported key and Ctrl, Alt or Meta so ordinary typing cannot trigger the gesture.</summary>
+    public bool IsUsable => UsableModifiers(Modifiers) && NormalizeKey(Key) is { } canonical && canonical == Key;
 
     /// <summary>Modifiers in the order Ctrl, Alt, Shift, Meta, then the key, joined by "+".</summary>
     public override string ToString()
@@ -40,7 +43,7 @@ public readonly record struct HotkeyGesture(HotkeyModifiers Modifiers, string Ke
         gesture = default;
         if (string.IsNullOrWhiteSpace(text))
             return false;
-        var parts = text.Split('+', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        var parts = text.Split('+', StringSplitOptions.TrimEntries);
         if (parts.Length < 2)
             return false;
         var modifiers = HotkeyModifiers.None;
@@ -51,11 +54,14 @@ public readonly record struct HotkeyGesture(HotkeyModifiers Modifiers, string Ke
                 return false;
             modifiers |= modifier;
         }
-        if (NormalizeKey(parts[^1]) is not { } key)
+        if (!UsableModifiers(modifiers) || NormalizeKey(parts[^1]) is not { } key)
             return false;
         gesture = new HotkeyGesture(modifiers, key);
-        return gesture.IsUsable;
+        return true;
     }
+
+    private static bool UsableModifiers(HotkeyModifiers modifiers) =>
+        (modifiers & Command) != 0 && (modifiers & ~SupportedModifiers) == 0;
 
     private static HotkeyModifiers ParseModifier(string name) => name.ToLowerInvariant() switch
     {
@@ -74,8 +80,9 @@ public readonly record struct HotkeyGesture(HotkeyModifiers Modifiers, string Ke
             return char.ToUpperInvariant(key[0]).ToString();
         if (key.Equals("Space", StringComparison.OrdinalIgnoreCase))
             return "Space";
-        if (key.Length is 2 or 3 && (key[0] is 'F' or 'f') && int.TryParse(key.AsSpan(1), out var number) && number is >= 1 and <= 24 && key[1] != '0')
-            return "F" + number;
+        if (key.Length is 2 or 3 && (key[0] is 'F' or 'f') && key[1] != '0' && char.IsAsciiDigit(key[^1]) &&
+            int.TryParse(key.AsSpan(1), NumberStyles.None, CultureInfo.InvariantCulture, out var number) && number is >= 1 and <= 24)
+            return key[0] == 'F' ? key : "F" + key[1..];
         return null;
     }
 }

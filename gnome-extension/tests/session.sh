@@ -26,9 +26,6 @@ mkdir -p "$icons"
 printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGMQMgn7DwAClAGcHVtGXwAAAABJRU5ErkJggg==' |
     base64 --decode > "$icons/vstavka-test-editor.png"
 glib-compile-schemas --strict "$extensions/$uuid/schemas"
-test "$(gsettings --schemadir "$extensions/$uuid/schemas" get io.github.xopoko.Vstavka.Shell vstavka-hotkey)" \
-    = "['<Control><Alt>v']"
-echo 'PASS schema defaults to Ctrl+Alt+V'
 cp "$(command -v gjs)" "$VSTAVKA_ALLOWED_CLIENT"
 cp "$(command -v gjs)" "$VSTAVKA_UNLISTED_CLIENT"
 # Noble creates this empty directory even in a container without systemd-logind.

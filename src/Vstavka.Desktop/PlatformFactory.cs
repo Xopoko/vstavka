@@ -31,7 +31,6 @@ internal static class PlatformFactory
             [new("adapter-not-wired", "Clipboard integration is unavailable in this build.")];
         public string DataDirectory => demo.DataDirectory;
         public string DefaultGesture => demo.DefaultGesture;
-        public IReadOnlyList<string> SupportedGestures => demo.SupportedGestures;
         public IClipboardMonitor Clipboard => demo.Clipboard;
         public IClipboardWriter ClipboardWriter => demo.ClipboardWriter;
         public IGlobalHotkey Hotkey => demo.Hotkey;

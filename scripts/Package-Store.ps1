@@ -20,11 +20,10 @@ param(
     [ValidateNotNullOrEmpty()]
     [string] $PublisherDisplayName,
 
+    [Parameter(Mandatory, ParameterSetName = 'StoreIdentity')]
+    [Parameter(ParameterSetName = 'LocalValidation')]
     [ValidatePattern('^\d+\.\d+\.\d+\.0$')]
-    [string] $PackageVersion = '1.1.4.0',
-
-    [ValidateSet('Wpf', 'Avalonia')]
-    [string] $Application = 'Wpf',
+    [string] $PackageVersion,
 
     [string] $OutputDirectory,
 
@@ -90,11 +89,6 @@ if ($outputRoot.Equals($publishRoot, [StringComparison]::OrdinalIgnoreCase) -or
     $outputRoot.StartsWith($publishPrefix, [StringComparison]::OrdinalIgnoreCase)) {
     throw 'OutputDirectory must be outside PublishDirectory.'
 }
-$version = [Version]::Parse($PackageVersion)
-if ($version.Major -eq 0 -or $version.Major -gt 65535 -or $version.Minor -gt 65535 -or $version.Build -gt 65535) {
-    throw 'Store package version needs a nonzero major, components at most 65535, and final component 0.'
-}
-
 $identityScope = 'local_validation_only'
 if ($PSCmdlet.ParameterSetName -eq 'LocalValidation') {
     $IdentityName = 'Vstavka.LocalPreview'
@@ -115,18 +109,14 @@ if (-not (Test-Path -LiteralPath $makeAppx -PathType Leaf)) {
 if (-not (Test-Path -LiteralPath $makePri -PathType Leaf)) {
     throw "Windows SDK MakePri was not found at the configured version: $WindowsSdkVersion. No tools were installed."
 }
-$entryName = 'Vstavka'
-$uiLibraries = @('PresentationFramework.dll')
-if ($Application -eq 'Avalonia') {
-    $entryName = 'Vstavka.Desktop'
-    $uiLibraries = @('Avalonia.Controls.dll', 'Vstavka.Platform.Windows.dll', 'libSkiaSharp.dll')
-}
+$entryName = 'Vstavka.Desktop'
 $requiredPayload = @("$entryName.exe", "$entryName.dll", 'Vstavka.Core.dll',
     "$entryName.runtimeconfig.json", "$entryName.deps.json", 'coreclr.dll', 'hostfxr.dll',
-    'hostpolicy.dll', 'System.Private.CoreLib.dll') + $uiLibraries
+    'hostpolicy.dll', 'System.Private.CoreLib.dll', 'Avalonia.Controls.dll', 'Vstavka.Platform.Windows.dll',
+    'libSkiaSharp.dll')
 foreach ($name in $requiredPayload) {
     if (-not (Test-Path -LiteralPath (Join-Path $publishRoot $name) -PathType Leaf)) {
-        throw "Missing self-contained $Application payload: $name. Publish Release with -r win-x64 --self-contained true."
+        throw "Missing self-contained Windows Store payload: $name. Publish Release with -r win-x64 --self-contained true."
     }
 }
 
@@ -135,12 +125,18 @@ foreach ($name in $requiredPayload) {
 [xml] $appProject = Get-Content -LiteralPath (Join-Path $projectRoot "src/$entryName/$entryName.csproj") -Raw
 $expectedProductVersion = $appProject.SelectSingleNode('/Project/PropertyGroup/Version').InnerText
 $appAssembly = Join-Path $publishRoot "$entryName.dll"
-if ($Application -eq 'Avalonia' -and -not (Test-WindowsStoreBuild -AssemblyPath $appAssembly)) {
-    throw 'This Avalonia build is missing the Windows Store configuration. Publish with -p:VstavkaWindowsStore=true.'
+if (-not (Test-WindowsStoreBuild -AssemblyPath $appAssembly)) {
+    throw 'This app build is missing the Windows Store configuration. Publish with -p:VstavkaWindowsStore=true.'
 }
 $productVersion = (Get-Item -LiteralPath $appAssembly).VersionInfo.ProductVersion
 if ([string]::IsNullOrWhiteSpace($productVersion) -or $productVersion.Split('+')[0] -cne $expectedProductVersion) {
-    throw "The published product version does not match source $expectedProductVersion. Rebuild the preview before packaging."
+    throw "The published product version does not match source $expectedProductVersion. Publish the Store build again."
+}
+if (-not $PackageVersion) { $PackageVersion = "$expectedProductVersion.0" }
+$version = [Version]::Parse($PackageVersion)
+if ($version.Revision -ne 0 -or $version.Major -eq 0 -or $version.Major -gt 65535 -or
+    $version.Minor -gt 65535 -or $version.Build -lt 0 -or $version.Build -gt 65535) {
+    throw 'Store package version needs a nonzero major, components at most 65535, and final component 0.'
 }
 $localizationRoot = Join-Path $projectRoot 'src/Vstavka.Core/Localization'
 $stringsSource = Get-Content -LiteralPath (Join-Path $localizationRoot 'Strings.cs') -Raw
@@ -169,13 +165,13 @@ try {
         [Array]::Copy($resourceBytes, $offset + 4, $catalogBytes, 0, $length)
         $embeddedResources[$resourceName] = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($catalogBytes)).ToLowerInvariant()
     }
-    if ($embeddedResources.Count -ne $languageCodes.Count) { throw 'Published localization count does not match the runtime list. Rebuild the preview.' }
+    if ($embeddedResources.Count -ne $languageCodes.Count) { throw 'Published localization count does not match the runtime list. Publish the Store build again.' }
     $localizationCatalogs = @($languageCodes | ForEach-Object {
         $catalogPath = Join-Path $localizationRoot "$_.json"
         $resourceName = "Vstavka.Core.Localization.$_.json"
         $catalogHash = (Get-FileHash -LiteralPath $catalogPath -Algorithm SHA256).Hash.ToLowerInvariant()
         if (-not $embeddedResources.ContainsKey($resourceName) -or $embeddedResources[$resourceName] -cne $catalogHash) {
-            throw "Published localization differs from source: $_. Rebuild the preview."
+            throw "Published localization differs from source: $_. Publish the Store build again."
         }
         [ordered]@{ language = $_; resource = $resourceName; sha256 = $catalogHash }
     })
@@ -230,12 +226,10 @@ $runName = (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [Guid]::NewGuid().ToStri
 $runRoot = Join-Path $outputRoot $runName
 $stageRoot = Join-Path $runRoot 'payload'
 [void][IO.Directory]::CreateDirectory($stageRoot)
-foreach ($item in $publishItems | Where-Object {
-    -not $_.PSIsContainer -and $_.Extension -ne '.pdb' -and $_.Name -notin @('Install-Preview.ps1', 'Uninstall-Preview.ps1')
-}) {
+foreach ($item in $publishItems | Where-Object { -not $_.PSIsContainer -and $_.Extension -ne '.pdb' }) {
     $relativePath = [IO.Path]::GetRelativePath($publishRoot, $item.FullName)
-    if ($relativePath -in @('AppxManifest.xml', 'resources.pri') -or $relativePath -like 'Assets\*' -or
-        ($Application -eq 'Avalonia' -and $relativePath -in @('Vstavka.exe', 'License.txt', 'ThirdPartyNotices.txt'))) {
+    if ($relativePath -in @('AppxManifest.xml', 'resources.pri', 'Vstavka.exe', 'License.txt', 'ThirdPartyNotices.txt') -or
+        $relativePath -like 'Assets\*') {
         throw 'PublishDirectory contains packaging-owned files. Use a clean application publish directory.'
     }
     # Keep the installed Start menu and startup target stable across the WPF upgrade.
@@ -244,11 +238,9 @@ foreach ($item in $publishItems | Where-Object {
     [void][IO.Directory]::CreateDirectory((Split-Path -Parent $targetPath))
     Copy-Item -LiteralPath $item.FullName -Destination $targetPath
 }
-if ($Application -eq 'Avalonia') {
-    Copy-Item -LiteralPath (Join-Path $projectRoot 'LICENSE') -Destination (Join-Path $stageRoot 'License.txt')
-    Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging/WindowsThirdPartyNotices.txt') `
-        -Destination (Join-Path $stageRoot 'ThirdPartyNotices.txt')
-}
+Copy-Item -LiteralPath (Join-Path $projectRoot 'LICENSE') -Destination (Join-Path $stageRoot 'License.txt')
+Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging/WindowsThirdPartyNotices.txt') `
+    -Destination (Join-Path $stageRoot 'ThirdPartyNotices.txt')
 $stageAssets = Join-Path $stageRoot 'Assets'
 [void][IO.Directory]::CreateDirectory($stageAssets)
 foreach ($name in $packageAssets.Keys) {
@@ -280,8 +272,7 @@ $priConfigPath = Join-Path $projectRoot 'packaging/priconfig.xml'
 [xml] $priConfig = Get-Content -LiteralPath $priConfigPath -Raw
 $defaultLanguage = @($priConfig.resources.index.default.qualifier | Where-Object name -eq 'Language')[0].value
 if ($defaultLanguage -cne 'en-US') { throw 'MakePri must use the English en-US default language.' }
-# Only Windows shell logos use MRT. WPF/.NET satellite assemblies and the app's
-# embedded JSON catalogs use their own loaders and must not become MRT resources.
+# Only Windows shell logos use MRT. The app loads its embedded JSON catalogs directly.
 # Keep Assets beneath this isolated root so Files/Assets/... identities survive.
 $priInputRoot = Join-Path $runRoot 'pri-input'
 $priInputAssets = Join-Path $priInputRoot 'Assets'
@@ -387,9 +378,6 @@ try {
 $receipt = [ordered]@{
     schema = 'vstavka.package-preparation.v1'
     preparedAtUtc = [DateTimeOffset]::UtcNow.ToString('o')
-    phase = 'prepared'
-    requestedEffect = 'local_preparation_only'
-    application = $Application
     productVersion = $productVersion
     identityScope = $identityScope
     identityName = $IdentityName
@@ -412,20 +400,13 @@ $receipt = [ordered]@{
     startupTask = 'VstavkaStartup'
     startupInitiallyEnabled = $false
     signature = 'unsigned'
-    installed = $false
-    wack = 'not_run'
-    partnerCenterState = 'not_accessed'
-    userAcceptance = 'pending'
     payload = $payloadInventory
 }
 $receiptPath = Join-Path $runRoot 'package-receipt.json'
 $receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $receiptPath -Encoding utf8
 [pscustomobject]@{
-    Phase = 'prepared'
     Package = $packagePath
     Receipt = $receiptPath
     IdentityScope = $identityScope
     SHA256 = $receipt.sha256
-    Wack = 'not_run'
-    StoreDelivery = 'stopped_before_user_review'
 }

@@ -1,4 +1,3 @@
-using System.Buffers.Binary;
 using Vstavka.Core;
 
 namespace Vstavka.Platform.MacOS;
@@ -23,7 +22,6 @@ internal static class ClipboardCapturePolicy
     internal const string FileUrl = "public.file-url";
     internal const string Png = "public.png";
     internal const string Tiff = "public.tiff";
-    internal const int MaxImagePixels = 16_000_000;
 
     private static readonly HashSet<string> IgnoredTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -56,9 +54,10 @@ internal static class ClipboardCapturePolicy
         if (types.Contains(Png) || types.Contains(Tiff))
         {
             var png = types.Contains(Png) ? board.ReadPng() : null;
-            if (!IsClipboardPng(png) && types.Contains(Tiff) && board.ChangeCount == changeCount)
-                png = board.ConvertTiffToPng();
-            return IsClipboardPng(png) ? new ClipItem { Kind = ClipKind.Image, ImageBytes = png } : null;
+            if (FitsClipboardPngLimits(png))
+                return new ClipItem { Kind = ClipKind.Image, ImageBytes = png };
+            var converted = types.Contains(Tiff) && board.ChangeCount == changeCount ? board.ConvertTiffToPng() : null;
+            return FitsClipboardPngLimits(converted) ? new ClipItem { Kind = ClipKind.Image, ImageBytes = converted } : null;
         }
 
         if (types.Contains(Url) && board.ReadString(Url) is { } url &&
@@ -71,22 +70,6 @@ internal static class ClipboardCapturePolicy
             : null;
     }
 
-    internal static bool IsClipboardPng(byte[]? png) =>
-        png is { Length: <= HistoryStore.MaxImageBytes } &&
-        TryGetPngSize(png, out var width, out var height) && (ulong)width * height <= MaxImagePixels;
-
-    internal static bool IsSourceIconPng(byte[]? png) =>
-        png is { Length: <= HistoryStore.MaxSourceIconBytes } &&
-        TryGetPngSize(png, out var width, out var height) && width <= 32 && height <= 32 && png[28] == 0;
-
-    internal static bool TryGetPngSize(ReadOnlySpan<byte> png, out uint width, out uint height)
-    {
-        width = height = 0;
-        ReadOnlySpan<byte> signature = [137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13];
-        if (png.Length < 45 || !png.StartsWith(signature) || !png[12..16].SequenceEqual("IHDR"u8))
-            return false;
-        width = BinaryPrimitives.ReadUInt32BigEndian(png[16..]);
-        height = BinaryPrimitives.ReadUInt32BigEndian(png[20..]);
-        return width > 0 && height > 0;
-    }
+    internal static bool FitsClipboardPngLimits(byte[]? png) =>
+        png is { Length: <= HistoryStore.MaxImageBytes } && ClipboardImageLimits.FitsPngDimensions(png);
 }

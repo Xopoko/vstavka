@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src/Vstavka/Assets/Vstavka.png" width="96" alt="Vstavka icon">
+  <img src="assets/Vstavka.png" width="96" alt="Vstavka icon">
 </p>
 
 <h1 align="center">Vstavka</h1>
@@ -25,53 +25,45 @@
 </picture>
 
 Vstavka remembers the text, links, color values, images and file paths you copy.
-Press the shortcut, pick a card and press **Enter**: Vstavka returns focus to
-the window you were in and pastes the item there. Each card shows the icon of
-the app it came from.
+Press the shortcut, pick a card and press **Enter** to put it back on the
+clipboard. When automatic paste is available, Vstavka also pastes it into your
+previous window. Cards show the source app when available.
 
 Pin the items you use often, search the rest, and pause saving before you copy
-something private. History stays on your computer and is encrypted. Vstavka has
-no accounts, analytics or network features, and its interface is translated
+something private. Vstavka encrypts history when it saves it to disk. The app has
+no accounts, analytics or cloud sync, and its interface is translated
 into 24 languages.
 
 ## Get Vstavka
 
-| | Windows 11 | macOS 13 or later | Ubuntu 24.04 or later |
+| | Windows 11 (x64) | macOS 13 or later (local build) | Ubuntu 24.04 or later |
 | --- | --- | --- | --- |
 | Install | [Microsoft Store](https://apps.microsoft.com/detail/9NVXW230R4PX) | [Build from source](#macos) | [Build from source](#ubuntu) |
 | Status | Stable | Preview | Preview |
 | Panel shortcut | Ctrl+Shift+V | ⇧⌘V | Ctrl+Alt+V |
 
 The desktop app uses [Avalonia](https://avaloniaui.net/) on all three platforms.
-The Avalonia package for Microsoft Store upgrades earlier Windows installs in
-place. Windows builds also play optional clipboard sounds. There are no prebuilt
-macOS or Ubuntu downloads yet. On Linux, Vstavka supports GNOME 46 to 51 on
-Wayland, and X11 sessions.
+Windows builds play optional clipboard sounds. On Ubuntu, use a GNOME Wayland
+or X11 session. The GNOME helper declares compatibility with GNOME 46–51.
 
 ## Using Vstavka
 
 ### First run
 
-The cross-platform app opens a short guide: a welcome screen, the panel
-shortcut (press a new combination to change it), the permissions your system
-needs, and a step where you copy and paste something to check that everything
-works.
+The first-run guide lets you choose a language, record the panel shortcut,
+grant permissions and try a copy and paste.
 
 ![First-run guide on macOS: the welcome screen, then the shortcut step with animated keys](docs/images/onboarding.gif)
 
-- **Windows** asks before saving clipboard history on a new Store installation.
-- **macOS** asks whether Vstavka may read the clipboard (recent macOS
-  versions ask this of every app that does) and for **Accessibility**, which
-  lets Vstavka press ⌘V for you. Without Accessibility, Vstavka copies the
-  item and you paste it yourself.
+- **Windows** asks you to select **Enable history** on a new Store installation.
+- **macOS** may ask for permission to read the clipboard. The local app can
+  also request **Accessibility** for automatic paste. With the App Store build
+  or without Accessibility, paste the selected item yourself with **⌘V**.
 - **Ubuntu** on Wayland needs the small GNOME Shell helper that comes with
   Vstavka. The guide installs and turns it on; GNOME loads it after you sign
   out and back in once. X11 sessions need nothing.
 
 <img src="docs/images/onboarding-permissions.png" width="560" alt="Permissions step on macOS: clipboard access is required and allowed, paste for you is optional, open at login is on">
-
-The Microsoft Store app asks you to choose a language and select **Enable
-history**.
 
 ### Keys
 
@@ -79,23 +71,22 @@ history**.
 | --- | --- | --- |
 | Open or hide the panel | **Ctrl+Shift+V** on Windows, **Ctrl+Alt+V** on Ubuntu | **⇧⌘V** |
 | Move from search to the cards, then between cards | **↓**, then **← / →** | **↓**, then **← / →** |
-| Paste the selected card | **Enter** or double-click | **Enter** or double-click |
-| Paste as plain text; file cards paste their paths | **Shift+Enter** | **Shift+Enter** |
-| Paste the matching visible card | **Ctrl+1 … 9** | **⌘1 … 9** |
+| Use the selected card | **Enter** or double-click | **Enter** or double-click |
+| Use as plain text, or copy the paths from a file card | **Shift+Enter** | **Shift+Enter** |
+| Use a visible card by position | **Ctrl+1 … 9** | **⌘1 … 9** |
 | Search | **Ctrl+F** | **⌘F** |
 | Delete the selected card | **Delete** | **Delete** (⌫) |
 | Hide the panel | **Esc** | **Esc** |
 
-Right-click a card to paste it, paste it as plain text, copy, pin or delete
-it. In the Store app you can also keep prompts and snippets in named, colored
-collections, out of your everyday history: create one with **+** next to the
-filters, and right-click it to rename it, change its color or delete it.
+Right-click a card for copy, pin and delete options. Keep prompts and snippets
+in named, colored collections outside your everyday history. Create one with
+**+** next to the filters, and right-click it to rename it, change its color or
+delete it.
 Deleting a collection also deletes the items in it.
 
 Text is saved without formatting. File cards store paths, so the files must
-still exist when you paste them. Windows does not let apps paste into programs
-running as administrator; the item is still copied, so press Ctrl+V there
-yourself.
+still exist when you paste them. If Windows blocks automatic paste into a
+program running as administrator, press **Ctrl+V** there yourself.
 
 ### Settings
 
@@ -103,11 +94,10 @@ Settings hold the language, theme and accent color, the panel shortcut, start
 at login, the permissions your system needs, how long to keep history and which
 apps to ignore.
 
-The cross-platform app takes any shortcut with Ctrl, Alt (Option) or ⌘ (Super);
-the Store app offers Ctrl+Shift+V, Ctrl+Alt+V and Alt+V. Ubuntu defaults to
-Ctrl+Alt+V because terminals paste with Ctrl+Shift+V. On Windows, while
-Vstavka uses Ctrl+Shift+V, other apps stop receiving it, so their
-paste-without-formatting command on that shortcut stops working.
+Record an available shortcut with Ctrl, Alt (Option on macOS), or the Windows,
+Command or Super key. Ubuntu defaults to Ctrl+Alt+V because terminals paste
+with Ctrl+Shift+V. On Windows, choose a different shortcut if you use
+Ctrl+Shift+V to paste without formatting in other apps.
 
 <details>
 <summary>Settings window on macOS</summary>
@@ -120,12 +110,12 @@ paste-without-formatting command on that shortcut stops working.
 | | History and settings | Encryption |
 | --- | --- | --- |
 | Windows, Store app | `%LOCALAPPDATA%\Vstavka` | Windows Data Protection (DPAPI) for your account |
-| Windows, cross-platform app | `%LOCALAPPDATA%\Vstavka.Preview` | Windows Data Protection (DPAPI) for your account |
-| macOS | `~/Library/Application Support/Vstavka` | AES-256-GCM, key in your login Keychain |
-| Ubuntu | `~/.local/share/vstavka` | AES-256-GCM, key in GNOME Keyring (Secret Service) |
+| Windows, local build | `%LOCALAPPDATA%\Vstavka.Preview` | Windows Data Protection (DPAPI) for your account |
+| macOS | `~/Library/Application Support/Vstavka` for the local build, or `Library/Application Support/Vstavka` in the App Store sandbox | AES-256-GCM, key in your login Keychain |
+| Ubuntu | `$XDG_DATA_HOME/vstavka` (defaults to `~/.local/share/vstavka`) | AES-256-GCM, key in GNOME Keyring (Secret Service) |
 
-- If the Keychain or GNOME Keyring is unavailable, the cross-platform app keeps
-  history in memory until you quit and says so in Settings.
+- If the Keychain or GNOME Keyring is unavailable, Vstavka keeps history in
+  memory until you quit.
 - Vstavka skips content while saving is paused, content copied from apps in the
   **Excluded apps** list (password managers by default), and content that apps
   mark as private: the Windows clipboard history flags, the
@@ -183,22 +173,16 @@ helper up by hand, see [gnome-extension/README.md](gnome-extension/README.md).
 
 ### Windows
 
-The Microsoft Store app lives in `src/Vstavka`. With PowerShell 7 on Windows 11
-x64:
+To run a local build on Windows 11 x64:
 
 ```powershell
-pwsh -File scripts/Build-Preview.ps1
-pwsh -File scripts/Install-Preview.ps1
+dotnet publish src/Vstavka.Desktop -c Release -r win-x64 --self-contained -o artifacts/windows-preview
+& ./artifacts/windows-preview/Vstavka.Desktop.exe
 ```
 
-`Build-Preview.ps1` runs the test suites, publishes a self-contained `win-x64`
-build to `artifacts/preview` and runs the app's self-test on it.
-`Install-Preview.ps1` copies that build to `%LOCALAPPDATA%\Programs\Vstavka` and
-adds a Start menu shortcut; exit Vstavka from its tray menu before updating.
-`Uninstall-Preview.ps1` removes the local build and keeps your history.
-
-To try the cross-platform app on Windows, exit the Store app first if both use
-the same shortcut. The two apps keep separate histories.
+Exit the Store app first if it uses the same shortcut. The local build has a
+separate history. See the [MSIX instructions](packaging/README.md) to build for
+Microsoft Store.
 
 ### Tests
 
@@ -217,15 +201,14 @@ system boundaries; none of them reads your clipboard. See
 
 | Path | Contents |
 | --- | --- |
-| `src/Vstavka.Core` | History, search, pins, collections, encrypted storage and the 24 language catalogs, shared by both apps |
-| `src/Vstavka` | Original Windows app (WPF) |
-| `src/Vstavka.Desktop` | Cross-platform app (Avalonia): panel, first-run guide, settings and tray icon |
+| `src/Vstavka.Core` | History, search, pins, collections, encrypted storage and language catalogs |
+| `src/Vstavka.Desktop` | Avalonia panel, first-run guide, settings and tray icon |
 | `src/Vstavka.Platform*` | Clipboard, shortcut, paste and window adapters for Windows, macOS and Linux |
 | `gnome-extension` | GNOME Shell helper for Wayland |
-| `tests` | Test suites, performance probes and the Store screenshot harness |
-| `scripts` | Build, local install, MSIX and macOS app bundle scripts |
+| `tests` | Test suites and performance probes |
+| `scripts` | MSIX and macOS app bundle scripts |
 | `packaging` | MSIX manifest template and package assets, see [packaging/README.md](packaging/README.md) |
-| `store` | Store listing text and screenshots |
+| `store` | Store listing text, Mac screenshots and archived Windows WPF screenshots |
 | `docs` | [Cross-platform notes](docs/cross-platform.md), [localization notes](docs/localization.md) and the [manual acceptance checklist](docs/acceptance.md) |
 
 ## Support and contributing

@@ -10,7 +10,6 @@ import {Windows} from './windows.js';
 
 const BUS = 'io.github.xopoko.Vstavka.Shell1';
 const PATH = '/io/github/xopoko/Vstavka/Shell';
-const KEY = 'vstavka-hotkey';
 const MODIFIERS = ['<Control>', '<Alt>', '<Shift>', '<Super>'];
 const ACCELERATOR = /^(?<modifiers>(?:<(?:Control|Alt|Shift|Super)>){1,4})(?<key>[a-z0-9]|F(?:[1-9]|1[0-9]|2[0-4])|space)(?![\s\S])/;
 
@@ -27,8 +26,7 @@ function normalizeAccelerator(accelerator) {
 export default class VstavkaExtension extends Extension {
     enable() {
         try {
-            this.settings = this.getSettings();
-            this.authorization = new AuthorizedClients(this.settings, sender => this.revoke(sender));
+            this.authorization = new AuthorizedClients(this.getSettings(), sender => this.revoke(sender));
             this.hotkeySignal = global.display.connect('accelerator-activated', (_display, action) => {
                 if (action === this.hotkeyAction && this.sessionAvailable() && this.authorization.isAllowed(this.hotkeySender))
                     Gio.DBus.session.emit_signal(this.hotkeySender, PATH, BUS, 'HotkeyPressed', null);
@@ -67,7 +65,6 @@ export default class VstavkaExtension extends Extension {
         this.clipboard = null;
         this.windows?.dispose();
         this.windows = null;
-        this.settings = null;
     }
 
     sessionAvailable() {
@@ -159,10 +156,6 @@ export default class VstavkaExtension extends Extension {
         const action = global.display.grab_accelerator(accelerator, Meta.KeyBindingFlags.IGNORE_AUTOREPEAT);
         if (action === Meta.KeyBindingAction.NONE)
             return false;
-        if (!this.settings.set_strv(KEY, [accelerator])) {
-            global.display.ungrab_accelerator(action);
-            return false;
-        }
         this.releaseHotkey();
         Main.wm.allowKeybinding(Meta.external_binding_name_for_action(action), Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW);
         this.hotkeyAction = action;

@@ -18,42 +18,6 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
-  store-app:
-    name: Windows Store app (WPF)
-    runs-on: windows-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-dotnet@v6
-        with:
-          global-json-file: global.json
-
-      - name: Test suites, self-contained build and app self-test
-        shell: pwsh
-        run: ./scripts/Build-Preview.ps1
-
-      - name: Store screenshot harness
-        shell: pwsh
-        run: |
-          dotnet build tests/Vstavka.StoreScenes/Vstavka.StoreScenes.csproj -c Release
-          if ($LASTEXITCODE -ne 0) { throw 'Store scene harness build failed.' }
-          $exe = 'tests/Vstavka.StoreScenes/bin/Release/net10.0-windows10.0.19041.0/Vstavka.StoreScenes.exe'
-          $report = Join-Path $env:RUNNER_TEMP 'store-scenes.json'
-          $scenes = Start-Process -FilePath $exe -ArgumentList @('--verify', '--output', ('"{0}"' -f $report)) -Wait -PassThru
-          if ($scenes.ExitCode -ne 0) {
-            if (Test-Path -LiteralPath $report) { Get-Content -LiteralPath $report }
-            throw "Store scene verification failed (exit $($scenes.ExitCode))."
-          }
-
-      - name: Upload app check report
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: app-checks
-          path: artifacts/app-checks.json
-          if-no-files-found: ignore
-
   desktop:
     name: Cross-platform app on ${{ matrix.os }}
     strategy:
@@ -96,8 +60,24 @@ jobs:
         run: dotnet run --project tests/Vstavka.Desktop.Tests -c Release -- --render "$RUNNER_TEMP/renders"
 
       - name: Build the app
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && runner.os != 'Windows' }}
         run: dotnet build src/Vstavka.Desktop/Vstavka.Desktop.csproj -c Release
+
+      - name: Build and validate the Windows Store package
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
+        shell: pwsh
+        run: |
+          dotnet publish src/Vstavka.Desktop -c Release -r win-x64 --self-contained -p:VstavkaWindowsStore=true -o artifacts/windows-store
+          if ($LASTEXITCODE -ne 0) { throw 'Windows Store publish failed.' }
+          ./scripts/Package-Store.ps1 -PublishDirectory artifacts/windows-store -LocalValidation
+
+      - name: Upload Windows packaging logs
+        if: ${{ failure() && runner.os == 'Windows' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-packaging-logs
+          path: artifacts/packages/*/*.log
+          if-no-files-found: ignore
 
       - name: Upload panel renders
         if: always()

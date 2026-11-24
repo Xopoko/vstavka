@@ -7,7 +7,6 @@ namespace Vstavka.Platform.MacOS;
 internal sealed class MacGlobalHotkey(Func<uint, uint, Action, IDisposable?> register) : IGlobalHotkey
 {
     internal const string DefaultGesture = "Shift+Meta+V";
-    internal static IReadOnlyList<string> SupportedGestures { get; } = Array.AsReadOnly([DefaultGesture, "Ctrl+Meta+V", "Alt+Meta+V"]);
 
     private Binding? current;
     private bool disposed;

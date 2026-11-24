@@ -13,7 +13,6 @@ public sealed class DemoPlatformServices : IPlatformServices, IClipboardMonitor,
     public IReadOnlyList<PlatformNotice> Notices { get; } = [];
     public string DataDirectory { get; } = Path.Combine(Path.GetTempPath(), "Vstavka.Demo");
     public string DefaultGesture => "Ctrl+Shift+V";
-    public IReadOnlyList<string> SupportedGestures { get; } = ["Ctrl+Shift+V"];
     public IClipboardMonitor Clipboard => this;
     public IClipboardWriter ClipboardWriter => this;
     public IGlobalHotkey Hotkey => this;
@@ -25,7 +24,6 @@ public sealed class DemoPlatformServices : IPlatformServices, IClipboardMonitor,
     public List<PlatformPermission> DemoPermissions { get; } = [];
     public IReadOnlyList<PlatformPermission> Permissions => DemoPermissions;
     public IStartupRegistration Startup { get; } = new MemoryStartup();
-    public PermissionState Permission => PermissionState.NotNeeded;
 
     /// <summary>The last item the UI asked to write; demo mode never touches the real clipboard.</summary>
     public ClipItem? LastWritten { get; private set; }
@@ -36,18 +34,16 @@ public sealed class DemoPlatformServices : IPlatformServices, IClipboardMonitor,
     event Action? IGlobalHotkey.Pressed { add { } remove { } }
 
     public void Start() { }
-    public void SuppressNextChange() { }
     public void Write(ClipItem item, bool plainText) => LastWritten = item;
     public bool TryRegister(string gesture) => HotkeyGesture.TryParse(gesture, out _);
     public void CaptureTarget() { }
 
-    public Task<bool> PasteAsync()
+    public Task<PasteResult> PasteAsync()
     {
         PasteRequests++;
-        return Task.FromResult(false);
+        return Task.FromResult(PasteResult.Manual);
     }
 
-    public void RequestPermission() { }
     public void Attach(nint handle, string descriptor) { }
     public void Showing() { }
     public void Hidden() { }

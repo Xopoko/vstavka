@@ -1,9 +1,8 @@
 # Reporting security issues
 
 Report vulnerabilities privately through **Security → Report a vulnerability** on
-this GitHub repository. Include the Vstavka version, which app you use (the
-Microsoft Store app or the cross-platform app), your operating system and its
-version, and the impact. Use synthetic clipboard content in reports. Do not
+this GitHub repository. Include the Vstavka version, how you installed it,
+your OS version and the impact. Use synthetic clipboard content in reports. Do not
 attach a real `history.vstavka` file, screenshots of your own history, or copied
 passwords and tokens.
 
@@ -17,14 +16,13 @@ Vstavka stores clipboard history and settings in your user profile (the
 - **Linux:** AES-256-GCM with a random key kept in the Secret Service, usually
   GNOME Keyring.
 
-This protects the history file from other user accounts and from copies taken
-off the computer. It does not fully protect history from programs running under
-your own account: on Windows they can decrypt it the same way Vstavka does, and
-on Linux any app in your session can ask the Secret Service for the key. On
-macOS the Keychain asks you before another app reads the key. When no key store
-is available, the cross-platform app keeps history in memory only.
+Reading the encrypted history requires the account’s DPAPI credentials or the
+matching key. Programs under your Windows account can use DPAPI, and apps in
+your Linux session can also ask Secret Service for the key. On macOS, Keychain
+controls access to the key. When no key store is available, Vstavka keeps
+history in memory only.
 
-Vstavka has no network code, accounts or telemetry. It skips clipboard content
+Vstavka has no cloud sync, accounts or telemetry. It skips clipboard content
 while saving is paused, content from apps in the exclusion list, and content
 that apps mark as private:
 

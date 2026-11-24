@@ -20,32 +20,6 @@ internal sealed partial class KeychainHistoryKeyStore : IHistoryKeyStore
 
     private static nint Library { get; } = NativeLibrary.Load(Security);
 
-    internal void EnsureKey()
-    {
-        var key = TryLoadKey();
-        if (key is not null)
-        {
-            CryptographicOperations.ZeroMemory(key);
-            return;
-        }
-
-        key = RandomNumberGenerator.GetBytes(KeySize);
-        try
-        {
-            var status = Add(key);
-            if (status != DuplicateItem)
-                ThrowIfFailed(status, "add");
-
-            // Another instance may have created its own key after the lookup. Keep that key.
-            var existing = TryLoadKey() ?? throw new CryptographicException("The Keychain history key disappeared.");
-            CryptographicOperations.ZeroMemory(existing);
-        }
-        finally
-        {
-            CryptographicOperations.ZeroMemory(key);
-        }
-    }
-
     public byte[]? TryLoadKey()
     {
         using var pool = new AutoreleasePool();
@@ -92,7 +66,6 @@ internal sealed partial class KeychainHistoryKeyStore : IHistoryKeyStore
         {
             if (!CryptographicOperations.FixedTimeEquals(existing, key))
                 throw new CryptographicException("A different Keychain history key already exists.");
-            Update(key);
         }
         finally
         {
@@ -111,23 +84,6 @@ internal sealed partial class KeychainHistoryKeyStore : IHistoryKeyStore
         }
         finally
         {
-            CoreFoundation.Release(query);
-        }
-    }
-
-    private static void Update(byte[] key)
-    {
-        using var pool = new AutoreleasePool();
-        var query = CreateItemQuery();
-        var changes = CoreFoundation.CreateDictionary();
-        try
-        {
-            Set(changes, "kSecValueData", ObjC.Data(key));
-            ThrowIfFailed(SecItemUpdate(query, changes), "update");
-        }
-        finally
-        {
-            CoreFoundation.Release(changes);
             CoreFoundation.Release(query);
         }
     }
@@ -163,6 +119,4 @@ internal sealed partial class KeychainHistoryKeyStore : IHistoryKeyStore
     private static partial int SecItemCopyMatching(nint query, out nint result);
     [LibraryImport(Security)]
     private static partial int SecItemAdd(nint attributes, nint result);
-    [LibraryImport(Security)]
-    private static partial int SecItemUpdate(nint query, nint attributesToUpdate);
 }

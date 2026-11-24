@@ -13,6 +13,7 @@ internal sealed class GnomeDesktop : ILinuxDesktop
     private IDisposable? _clipboardMatch;
     private IDisposable? _hotkeyMatch;
     private bool _supportsCheckAccess = true;
+    private bool _targetCaptured;
 
     private GnomeDesktop(DBusConnection connection, string owner) => (_connection, _owner) = (connection, owner);
 
@@ -87,9 +88,7 @@ internal sealed class GnomeDesktop : ILinuxDesktop
         _ => GnomeAccess.Unknown,
     };
 
-    public PlatformCapabilities Capabilities => PlatformCapabilities.WatchClipboard |
-        PlatformCapabilities.GlobalHotkey | PlatformCapabilities.AutoPaste |
-        PlatformCapabilities.SourceIcons | PlatformCapabilities.PanelPlacement;
+    public PlatformCapabilities Capabilities => PlatformCapabilities.WatchClipboard | PlatformCapabilities.GlobalHotkey;
 
     public event Action<LinuxClipboardData>? ClipboardChanged;
     public event Action? HotkeyPressed;
@@ -165,11 +164,14 @@ internal sealed class GnomeDesktop : ILinuxDesktop
         }
     }
 
-    public void CaptureTarget() => TryCall("CaptureTarget");
+    public void CaptureTarget() => _targetCaptured = TryCall("CaptureTarget");
     public void PreparePanel() => TryCall("PreparePanel");
 
     public async Task<bool> PasteAsync()
     {
+        if (!_targetCaptured)
+            return false;
+        _targetCaptured = false;
         try
         {
             return await CallBoolean(CreateCall("Paste")).WaitAsync(Timeout).ConfigureAwait(false);

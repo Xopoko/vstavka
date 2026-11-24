@@ -13,11 +13,16 @@
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <Version>1.2.0</Version>
   </PropertyGroup>
+  <PropertyGroup Condition="$(RuntimeIdentifier.StartsWith('win')) Or ('$(RuntimeIdentifier)' == '' And $([MSBuild]::IsOSPlatform('Windows')))">
+    <ApplicationManifest>Windows.manifest</ApplicationManifest>
+    <ApplicationIcon>../../assets/Vstavka.ico</ApplicationIcon>
+  </PropertyGroup>
   <ItemGroup Condition="'$(VstavkaWindowsStore)' == 'true'">
     <AssemblyMetadata Include="VstavkaDistribution" Value="WindowsStore" />
   </ItemGroup>
   <ItemGroup>
-    <AvaloniaResource Include="../Vstavka/Assets/Vstavka.png" Link="Assets/Vstavka.png" />
+    <AvaloniaResource Include="../../assets/Vstavka.png" Link="Assets/Vstavka.png" />
+    <AvaloniaResource Include="../../assets/Vstavka.ico" Link="Assets/Vstavka.ico" />
     <PackageReference Include="Avalonia" Version="12.1.6" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.6" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.6" />

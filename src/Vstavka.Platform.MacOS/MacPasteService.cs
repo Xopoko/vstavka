@@ -6,10 +6,10 @@ internal sealed class MacPasteService : IPasteService, IDisposable
 {
     private const int IgnoreOtherApps = 1 << 1;
     private nint target;
+#if !VSTAVKA_MAC_APP_STORE
     private int targetGeneration;
+#endif
     private bool disposed;
-
-    public PermissionState Permission => MacPermissions.System.AccessibilityState;
 
     public void CaptureTarget()
     {
@@ -22,42 +22,30 @@ internal sealed class MacPasteService : IPasteService, IDisposable
             app = 0;
         ObjC.Release(target);
         target = app;
+#if !VSTAVKA_MAC_APP_STORE
         targetGeneration++;
+#endif
     }
 
-    public async Task<bool> PasteAsync()
+    public Task<PasteResult> PasteAsync()
     {
-        if (disposed || target == 0 || Permission == PermissionState.Missing)
-            return false;
+        if (disposed || target == 0)
+            return Task.FromResult(PasteResult.Manual);
 
         var app = target;
         target = 0;
-        var generation = ++targetGeneration;
         try
         {
-            using (var pool = new AutoreleasePool())
-            {
-                if (ObjC.Is(app, "isTerminated"))
-                    return false;
-                Activate(app);
-            }
+            using var pool = new AutoreleasePool();
+            if (ObjC.Is(app, "isTerminated"))
+                return Task.FromResult(PasteResult.Manual);
+            Activate(app);
 
-            if (Permission == PermissionState.NotNeeded)
-                return false;
-
-            for (var i = 0; i < 10; i++)
-            {
-                // Resume on the UI context so AppKit can process the activation between checks.
-                await Task.Delay(50);
-                if (generation != targetGeneration)
-                    return false;
-                using var pool = new AutoreleasePool();
-                if (ObjC.Is(app, "isTerminated"))
-                    return false;
-                if (RunningApps.ProcessId(app) == RunningApps.ProcessId(RunningApps.Frontmost))
-                    return PostPaste();
-            }
-            return false;
+#if !VSTAVKA_MAC_APP_STORE
+            if (MacPermissions.System.AccessibilityState == PermissionState.Granted)
+                return PostPasteWhenActiveAsync(app, ++targetGeneration);
+#endif
+            return Task.FromResult(PasteResult.Manual);
         }
         finally
         {
@@ -65,14 +53,34 @@ internal sealed class MacPasteService : IPasteService, IDisposable
         }
     }
 
-    private bool PostPaste()
+#if !VSTAVKA_MAC_APP_STORE
+    private async Task<PasteResult> PostPasteWhenActiveAsync(nint app, int generation)
     {
-#if VSTAVKA_MAC_APP_STORE
-        return false;
-#else
-        return Permission == PermissionState.Granted && Accessibility.PostPaste();
-#endif
+        ObjC.Retain(app);
+        try
+        {
+            for (var i = 0; i < 10; i++)
+            {
+                // Resume on the UI context so AppKit can process the activation between checks.
+                await Task.Delay(50);
+                if (generation != targetGeneration)
+                    return PasteResult.Manual;
+                using var pool = new AutoreleasePool();
+                if (ObjC.Is(app, "isTerminated"))
+                    return PasteResult.Manual;
+                if (RunningApps.ProcessId(app) == RunningApps.ProcessId(RunningApps.Frontmost))
+                    return MacPermissions.System.AccessibilityState == PermissionState.Granted && Accessibility.PostPaste()
+                        ? PasteResult.ShortcutSent
+                        : PasteResult.Manual;
+            }
+            return PasteResult.Manual;
+        }
+        finally
+        {
+            ObjC.Release(app);
+        }
     }
+#endif
 
     private static void Activate(nint app)
     {
@@ -88,16 +96,12 @@ internal sealed class MacPasteService : IPasteService, IDisposable
         }
     }
 
-    public void RequestPermission()
-    {
-        ObjectDisposedException.ThrowIf(disposed, this);
-        MacPermissions.System.RequestAccessibility();
-    }
-
     public void Dispose()
     {
         disposed = true;
+#if !VSTAVKA_MAC_APP_STORE
         targetGeneration++;
+#endif
         ObjC.Release(target);
         target = 0;
     }

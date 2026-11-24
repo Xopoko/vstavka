@@ -10,7 +10,7 @@
   "features": [
     "Open clipboard history with a customizable keyboard shortcut",
     "Preview text, links, colors, images, and copied file paths",
-    "See the icon of the app each item came from",
+    "See source app icons where available",
     "Search, filter by type, and pin items you use often",
     "Keep prompts and snippets in named, colored collections",
     "Navigate and paste with keyboard shortcuts",

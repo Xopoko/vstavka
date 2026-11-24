@@ -2,7 +2,7 @@ Vstavka kopyaladıklarınızın geçmişini tutar ve ekranın altındaki bir pan
 
 NELERİ SAKLAR?
 • Metin, bağlantılar, renkler, görseller ve dosyalar
-• Her kart, öğenin önizlemesini ve kopyalandığı uygulamayı gösterir
+• Her kart öğenin önizlemesini ve biliniyorsa kopyalandığı uygulamayı gösterir
 • Varsayılan olarak son 30 günde kopyalanan en yeni 500 öğe saklanır. Kaç öğenin ne kadar süreyle saklanacağını siz belirleyin
 
 ARADIĞINIZI HEMEN BULUN
@@ -13,7 +13,7 @@ ARADIĞINIZI HEMEN BULUN
 
 GEÇMİŞİNİZ SİZE AİT
 • Geçmiş kaydedilmeden önce şifrelenir ve yalnızca Mac’inizde saklanır
-• Vstavka’da hesap, reklam, kullanım analizi veya ağ özelliği yoktur
+• Vstavka’da hesap, reklam veya kullanım analizi yoktur
 • Parola yöneticileri varsayılan olarak hariç tutulur. Diğer uygulamaları “Hariç tutulan uygulamalar” listesine ekleyebilirsiniz
 • Özel bir şey kopyalamadan önce “Kaydetmeyi duraklat” seçeneğini kullanın. Tek tek öğeleri silebilir veya “Geçmişi temizle” ile tüm geçmişi silebilirsiniz
 

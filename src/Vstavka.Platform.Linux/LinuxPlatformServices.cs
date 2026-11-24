@@ -2,7 +2,7 @@ using Vstavka.Core;
 
 namespace Vstavka.Platform.Linux;
 
-public sealed class LinuxPlatformServices : IPlatformServices
+public sealed class LinuxPlatformServices : IPlatformServices, IPasteService, IPanelWindow
 {
     private ILinuxDesktop? _desktop;
     private readonly ClipboardAccess _clipboard;
@@ -26,11 +26,9 @@ public sealed class LinuxPlatformServices : IPlatformServices
         _session = LinuxDesktop.DetectSession(environment);
         _connectShell = connectShell;
         _shell = connectShell();
-        _desktop = LinuxDesktop.Connect(_session, _shell, connectX11);
+        _desktop = _shell.Desktop ?? (_session == LinuxSession.X11 ? connectX11() : null);
         _clipboard = new ClipboardAccess(_desktop);
         _hotkey = new HotkeyAccess(_desktop);
-        Paste = new PasteAccess(() => _desktop);
-        PanelWindow = new PanelAccess(() => _desktop);
 
         var dataHome = HomeDirectory(environment("XDG_DATA_HOME"), Path.Combine(home, ".local", "share"));
         DataDirectory = Path.Combine(dataHome, "vstavka");
@@ -47,18 +45,22 @@ public sealed class LinuxPlatformServices : IPlatformServices
     private static string HomeDirectory(string? configured, string fallback) =>
         Path.IsPathFullyQualified(configured ?? "") ? configured! : fallback;
 
-    public static bool IsSupported => OperatingSystem.IsLinux();
     public string Name => "Linux";
-    public PlatformCapabilities Capabilities => (_desktop?.Capabilities ?? PlatformCapabilities.None) |
-        (HistoryProtector is null ? PlatformCapabilities.None : PlatformCapabilities.PersistentHistory);
+    public PlatformCapabilities Capabilities => _desktop?.Capabilities ?? PlatformCapabilities.None;
     public IReadOnlyList<PlatformNotice> Notices => _shell.Access switch
     {
         GnomeAccess.Denied => [new("gnome-extension-not-allowed", "Allow the Vstavka executable to use the GNOME Shell extension.")],
         GnomeAccess.Busy => [new("gnome-extension-busy", "Another Vstavka process is using the GNOME clipboard.")],
-        _ when _helper?.Permission(_shell) is { State: PermissionState.RestartRequired } helper =>
-            [new("gnome-helper-restart", "Sign out and back in to finish.", helper.Request)],
         _ when _desktop is not null => [],
-        _ when _session == LinuxSession.Wayland => [new("gnome-extension-missing", "Install and enable the Vstavka GNOME Shell extension.")],
+        _ when _helper is not null => [_helper.Permission(_shell) switch
+        {
+            { State: PermissionState.RestartRequired } helper =>
+                new("gnome-helper-restart", "Sign out and back in to finish.", helper.Request),
+            { Request: not null } => new("gnome-extension-missing", "Install and enable the Vstavka GNOME Shell extension."),
+            _ => new("gnome-extension-unavailable", "Vstavka could not connect to the GNOME Shell extension."),
+        }],
+        _ when _session == LinuxSession.Wayland =>
+            [new("linux-desktop-unavailable", "Clipboard capture on Wayland requires GNOME and the Vstavka Shell extension.")],
         _ => [new("linux-desktop-unavailable", "Vstavka could not connect to a GNOME Shell extension or an X11 desktop.")],
     };
     public IReadOnlyList<PlatformPermission> Permissions
@@ -73,14 +75,22 @@ public sealed class LinuxPlatformServices : IPlatformServices
     }
     public IStartupRegistration Startup { get; }
     public string DataDirectory { get; }
-    public string DefaultGesture => LinuxGesture.Suggestions[0];
-    public IReadOnlyList<string> SupportedGestures => LinuxGesture.Suggestions;
+    public string DefaultGesture => "Ctrl+Alt+V";
     public IClipboardMonitor Clipboard => _clipboard;
     public IClipboardWriter ClipboardWriter => _clipboard;
     public IGlobalHotkey Hotkey => _hotkey;
-    public IPasteService Paste { get; }
-    public IPanelWindow PanelWindow { get; }
+    public IPasteService Paste => this;
+    public IPanelWindow PanelWindow => this;
     public IHistoryProtector? HistoryProtector { get; }
+
+    void IPasteService.CaptureTarget() => _desktop?.CaptureTarget();
+    async Task<PasteResult> IPasteService.PasteAsync() =>
+        _desktop is { } desktop && await desktop.PasteAsync().ConfigureAwait(false)
+            ? PasteResult.ShortcutSent : PasteResult.Manual;
+
+    void IPanelWindow.Attach(nint handle, string descriptor) { }
+    void IPanelWindow.Showing() => _desktop?.PreparePanel();
+    void IPanelWindow.Hidden() { }
 
     private void RefreshGnome()
     {
@@ -113,7 +123,6 @@ public sealed class LinuxPlatformServices : IPlatformServices
         private SynchronizationContext? _context;
         private volatile bool _started;
         private volatile bool _disposed;
-        private int _suppress;
 
         public event Action<ClipboardCapture>? Captured;
 
@@ -153,13 +162,8 @@ public sealed class LinuxPlatformServices : IPlatformServices
             }
         }
 
-        public void SuppressNextChange() => Interlocked.Exchange(ref _suppress, 1);
-
         public void Write(ClipItem item, bool plainText)
         {
-            // Each transport identifies its own writes by selection ownership. Do not
-            // leave the manual suppression armed when a write produces no notification.
-            Interlocked.Exchange(ref _suppress, 0);
             var (mime, data) = LinuxClipboard.Write(item, plainText);
             if (_desktop is not { } desktop)
                 throw new NotSupportedException("Clipboard writing requires the GNOME Shell extension or an X11 display.");
@@ -169,7 +173,7 @@ public sealed class LinuxPlatformServices : IPlatformServices
 
         private void Receive(LinuxClipboardData payload)
         {
-            if (!_started || payload.OwnWrite || Interlocked.Exchange(ref _suppress, 0) != 0)
+            if (!_started)
                 return;
             var capture = LinuxClipboard.Read(payload, LinuxClipboard.LoadIcon);
             if (capture is not null)
@@ -259,22 +263,6 @@ public sealed class LinuxPlatformServices : IPlatformServices
                 _desktop.ReleaseHotkey();
             }
         }
-    }
-
-    private sealed class PasteAccess(Func<ILinuxDesktop?> desktop) : IPasteService
-    {
-        public PermissionState Permission => desktop()?.Capabilities.HasFlag(PlatformCapabilities.AutoPaste) == true
-            ? PermissionState.NotNeeded : PermissionState.Missing;
-        public void CaptureTarget() => desktop()?.CaptureTarget();
-        public Task<bool> PasteAsync() => desktop()?.PasteAsync() ?? Task.FromResult(false);
-        public void RequestPermission() { }
-    }
-
-    private sealed class PanelAccess(Func<ILinuxDesktop?> desktop) : IPanelWindow
-    {
-        public void Attach(nint handle, string descriptor) { }
-        public void Showing() => desktop()?.PreparePanel();
-        public void Hidden() { }
     }
 
     private static void Dispatch(SynchronizationContext? context, Action action)

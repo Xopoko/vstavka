@@ -26,10 +26,10 @@ internal sealed partial class X11Desktop : ILinuxDesktop
     private (byte Keycode, uint[] Masks)? _hotkey;
     private (nuint Window, bool IsTerminal) _pasteTarget;
 
-    private X11Desktop(nint display, int fixesEvent, bool hasXTest)
+    private X11Desktop(nint display, nint xcb, int fixesEvent, bool hasXTest)
     {
         _display = display;
-        _xcb = XGetXCBConnection(display);
+        _xcb = xcb;
         _fixesEvent = fixesEvent;
         _hasXTest = hasXTest;
         _root = XDefaultRootWindow(display);
@@ -52,6 +52,9 @@ internal sealed partial class X11Desktop : ILinuxDesktop
             display = XOpenDisplay(0);
             if (display == 0)
                 return null;
+            var xcb = XGetXCBConnection(display);
+            if (xcb == 0)
+                return null;
             var fixes = -1;
             try
             {
@@ -66,7 +69,7 @@ internal sealed partial class X11Desktop : ILinuxDesktop
                 xTest = XTestQueryExtension(display, out _, out _, out _, out _) != 0;
             }
             catch (DllNotFoundException) { }
-            var backend = new X11Desktop(display, fixes, xTest);
+            var backend = new X11Desktop(display, xcb, fixes, xTest);
             display = 0; // The worker owns the connection.
             return backend;
         }
@@ -81,10 +84,8 @@ internal sealed partial class X11Desktop : ILinuxDesktop
         }
     }
 
-    public PlatformCapabilities Capabilities =>
-        (_fixesEvent >= 0 ? PlatformCapabilities.WatchClipboard : PlatformCapabilities.None) |
-        (_xcb != 0 ? PlatformCapabilities.GlobalHotkey : PlatformCapabilities.None) |
-        (_hasXTest && _control != 0 && _v != 0 ? PlatformCapabilities.AutoPaste : PlatformCapabilities.None);
+    public PlatformCapabilities Capabilities => PlatformCapabilities.GlobalHotkey |
+        (_fixesEvent >= 0 ? PlatformCapabilities.WatchClipboard : PlatformCapabilities.None);
 
     public event Action<LinuxClipboardData>? ClipboardChanged;
     public event Action? HotkeyPressed;
@@ -181,7 +182,7 @@ internal sealed partial class X11Desktop : ILinuxDesktop
     public void CaptureTarget() => Invoke(() =>
     {
         XGetInputFocus(_display, out var window, out _);
-        _pasteTarget = (window, _xcb != 0 && LinuxTerminals.IsTerminalClass(ActiveWindowClass()));
+        _pasteTarget = (window, LinuxTerminals.IsTerminalClass(ActiveWindowClass()));
     });
     public void PreparePanel() { }
 
@@ -189,7 +190,7 @@ internal sealed partial class X11Desktop : ILinuxDesktop
     {
         var (target, isTerminal) = _pasteTarget;
         _pasteTarget = default;
-        if (!Capabilities.HasFlag(PlatformCapabilities.AutoPaste) || target <= 1 || target == _root || target == _window ||
+        if (!_hasXTest || _control == 0 || _v == 0 || target <= 1 || target == _root || target == _window ||
             (isTerminal && _shift == 0))
             return false;
         XGetInputFocus(_display, out var focus, out _);

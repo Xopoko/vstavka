@@ -123,9 +123,7 @@ function focusedApp(theme) {
 
     const icon = app.get_app_info()?.get_icon();
     const png = icon && theme.lookup_by_gicon(icon, 32, St.IconLookupFlags.NO_SVG)?.get_filename();
-    const path = png?.toLowerCase().endsWith('.png') ? png :
-        icon && theme.lookup_by_gicon(icon, 32, 0)?.get_filename();
-    return [app.get_id() ?? '', app.get_name() ?? '', path ?? ''];
+    return [app.get_id() ?? '', app.get_name() ?? '', png?.toLowerCase().endsWith('.png') ? png : ''];
 }
 
 function decodeHint(data) {

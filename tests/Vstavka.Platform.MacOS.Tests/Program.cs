@@ -41,13 +41,8 @@ Run("Clipboard changes honor privacy, foreground app and ownership", () =>
     board.ChangeCount++;
     Check(poll.Check() is null && board.TypeReads == previousTypeReads, "Copies detected while Vstavka is frontmost are skipped.");
     currentProcess = false;
-    poll.SuppressNextChange();
-    Check(poll.Check() is null, "An idle poll leaves suppression armed.");
-    board.ChangeCount++;
-    Check(poll.Check() is null, "External writer can use SuppressNextChange on the next change.");
     poll.RecordOwnWrite(++board.ChangeCount);
     Check(poll.Check() is null, "The writer's exact count is suppressed even when another app is frontmost.");
-    poll.SuppressNextChange();
     poll.RecordOwnWrite(++board.ChangeCount);
     board.ChangeCount++;
     var capture = poll.Check();
@@ -90,11 +85,11 @@ Run("Representations follow priority and PNG limits", () =>
     Check(url?.Kind == ClipKind.Link && url.Text == board.Url, "A valid native URL wins over text.");
     board.Url = "invalid URL";
     Check(ClipboardCapturePolicy.Read(board, board.ChangeCount)?.Text == board.Text, "Invalid native URLs fall back to plain text.");
-    Check(ClipboardCapturePolicy.IsSourceIconPng(png) &&
-        !ClipboardCapturePolicy.IsSourceIconPng(PngHeader(33, 32)) &&
-        !ClipboardCapturePolicy.IsSourceIconPng(PngHeader(32, 32, HistoryStore.MaxSourceIconBytes + 1)) &&
-        !ClipboardCapturePolicy.IsClipboardPng(PngHeader(32, 32, HistoryStore.MaxImageBytes + 1)) &&
-        !ClipboardCapturePolicy.IsSourceIconPng(new byte[45]), "PNG signature, pixel dimensions and byte limits are enforced.");
+    board.Types = [ClipboardCapturePolicy.Png];
+    board.Png = PngHeader(32, 32, HistoryStore.MaxImageBytes + 1);
+    Check(ClipboardCapturePolicy.Read(board, board.ChangeCount) is null, "An oversized PNG is skipped.");
+    board.Png = new byte[45];
+    Check(ClipboardCapturePolicy.Read(board, board.ChangeCount) is null, "An invalid PNG header is skipped.");
 });
 
 Run("Permissions refresh and route only user requests", () =>
@@ -195,9 +190,6 @@ Run("Start at login reflects system status and errors", () =>
 
 Run("Hotkey mapping, failed replacement and synchronization context", () =>
 {
-    Check(MacGlobalHotkey.DefaultGesture == "Shift+Meta+V" &&
-        MacGlobalHotkey.SupportedGestures.SequenceEqual(["Shift+Meta+V", "Ctrl+Meta+V", "Alt+Meta+V"]),
-        "The default and suggestions use the shared gesture syntax.");
     (string Gesture, uint Key, uint Modifiers)[] examples =
     [
         ("Shift+Meta+V", 0x09, 0x0300), ("Ctrl+Meta+V", 0x09, 0x1100), ("Option+Cmd+V", 0x09, 0x0900),
@@ -213,7 +205,8 @@ Run("Hotkey mapping, failed replacement and synchronization context", () =>
         return new FakeRegistration(callback);
     }))
     {
-        foreach (var (gesture, _, _) in examples)
+        Check(hotkey.TryRegister(MacGlobalHotkey.DefaultGesture), "The default shortcut reaches native registration.");
+        foreach (var (gesture, _, _) in examples.Skip(1))
             Check(hotkey.TryRegister(gesture), $"{gesture} reaches native registration.");
         foreach (var gesture in new[] { "V", "Shift+V", "Ctrl+Escape", "Ctrl+F21", "Meta+F22", "Alt+F23", "Ctrl+F24" })
             Check(!hotkey.TryRegister(gesture), $"{gesture} is unusable or unsupported.");

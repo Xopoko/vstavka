@@ -1,15 +1,15 @@
-# Cross-platform Vstavka (preview)
+# Platform integration
 
-Vstavka uses Avalonia for Windows, macOS and Ubuntu. The Windows Store profile upgrades the
-existing WPF package and uses its history, settings and startup registration. See
-[MSIX preparation](../packaging/README.md) for the Windows Store build.
+Vstavka uses Avalonia for Windows, macOS and Ubuntu. The Windows Store profile
+reads history and settings from the earlier WPF app and retains its startup
+task. See [MSIX preparation](../packaging/README.md).
 
 ## How it is built
 
 | Project | Role |
 | --- | --- |
 | `src/Vstavka.Core` | History, search, pins, collections, retention, the 24 language catalogs and encrypted storage: DPAPI on Windows, AES-256-GCM with a key in the Keychain or the Secret Service elsewhere |
-| `src/Vstavka.Platform` | Contracts for clipboard, shortcut, paste, panel window and history protection, plus a demo implementation |
+| `src/Vstavka.Platform` | Interfaces for clipboard, shortcut, paste and window adapters, plus demo services |
 | `src/Vstavka.Platform.Windows` | Win32 clipboard listener, `RegisterHotKey`, `SendInput` paste |
 | `src/Vstavka.Platform.MacOS` | `NSPasteboard` polling, Carbon shortcut, Cmd+V with Accessibility permission, Keychain key; see [Integration.md](../src/Vstavka.Platform.MacOS/Integration.md) |
 | `src/Vstavka.Platform.Linux` | GNOME Shell extension client over D-Bus, X11 fallback, Secret Service key |
@@ -22,7 +22,7 @@ Platform differences that shape the design:
 | --- | --- | --- | --- |
 | Clipboard changes | system notification | polling `changeCount`; access may need approval (macOS 15.4+) | only through the extension; X11 sessions use XFixes |
 | Global shortcut | Ctrl+Shift+V | ⇧⌘V | Ctrl+Alt+V via the extension |
-| Paste into the previous app | `SendInput` | Cmd+V, needs Accessibility | virtual keyboard in the extension |
+| Paste into the previous app | `SendInput` | Local build uses Cmd+V with Accessibility. App Store build copies for manual paste. | virtual keyboard in the extension |
 | Panel at the bottom | native | status window level on all Spaces | placed by the extension |
 
 ## Status
@@ -37,16 +37,4 @@ Tried on real hardware: macOS 27 on a MacBook (panel, Settings and permissions) 
 with GNOME on Wayland (first-run guide and installing the GNOME helper). The GNOME helper
 after signing out and back in still needs a check on a real session.
 
-The new app has a four-step first-run window (welcome, shortcut with a recorder, the
-permissions this platform needs, and a try-it step), a Settings window and start at login on
-all three systems. Shortcuts can be any combination with Ctrl, Alt/Option or Meta; the
-defaults are Ctrl+Shift+V on Windows, ⇧⌘V on macOS and Ctrl+Alt+V on Linux, where
-Ctrl+Shift+V is paste in terminals. Inside the panel, macOS uses ⌘ where Windows and Linux
-use Ctrl.
-
-Collections work in the Avalonia panel. Windows also supports separate copy and paste sounds.
-
-## Trying the app
-
-See [Building from source](../README.md#building-from-source) in the README. The unpackaged
-Windows preview keeps its history separate from the Store app.
+For release checks on a real desktop, see the [manual checklist](acceptance.md).

@@ -1,11 +1,9 @@
-using System.Buffers.Binary;
 using Avalonia;
 using Avalonia.Animation;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
-using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using Vstavka.Core;
@@ -78,7 +76,8 @@ public sealed partial class App : Application
         welcome.Click += (_, _) => windows.OpenOnboarding();
         quit.Click += (_, _) => desktop.Shutdown();
         history.Changed += () => pause.Header = Strings.Get(history.Paused ? "Resume" : "Pause");
-        using var iconStream = CreateTrayIcon();
+        var iconFormat = OperatingSystem.IsWindows() ? "ico" : "png";
+        using var iconStream = AssetLoader.Open(new Uri($"avares://Vstavka.Desktop/Assets/Vstavka.{iconFormat}"));
         var tray = new TrayIcon
         {
             Icon = new WindowIcon(iconStream),
@@ -171,39 +170,5 @@ public sealed partial class App : Application
         {
             return null;
         }
-    }
-
-    private static MemoryStream CreateTrayIcon()
-    {
-        using var bitmap = new RenderTargetBitmap(new PixelSize(32, 32));
-        using (var drawing = bitmap.CreateDrawingContext())
-        {
-            var blue = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#246AC5"));
-            drawing.DrawRectangle(blue, null, new Rect(1, 1, 30, 30), 7, 7);
-            var white = new Avalonia.Media.Pen(Avalonia.Media.Brushes.White, 3);
-            drawing.DrawLine(white, new Point(8, 10), new Point(15, 23));
-            drawing.DrawLine(white, new Point(15, 23), new Point(24, 10));
-        }
-        using var png = new MemoryStream();
-        bitmap.Save(png, PngBitmapEncoderOptions.Default);
-        // Win32's tray backend expects an ICO stream. PNG payloads inside ICO work on modern Windows.
-        if (!OperatingSystem.IsWindows())
-            return new MemoryStream(png.ToArray());
-        var ico = new MemoryStream();
-        Span<byte> header = stackalloc byte[22];
-        header.Clear();
-        header[2] = 1;
-        header[4] = 1;
-        header[6] = 32;
-        header[7] = 32;
-        header[10] = 1;
-        header[12] = 32;
-        BinaryPrimitives.WriteInt32LittleEndian(header[14..], (int)png.Length);
-        BinaryPrimitives.WriteInt32LittleEndian(header[18..], header.Length);
-        ico.Write(header);
-        png.Position = 0;
-        png.CopyTo(ico);
-        ico.Position = 0;
-        return ico;
     }
 }

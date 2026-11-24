@@ -18,8 +18,7 @@ internal interface ILinuxDesktop : IDisposable
 }
 
 internal sealed record LinuxClipboardData(
-    string Mime, byte[] Data, string? DesktopId = null, string? Name = null, string? IconPath = null,
-    IReadOnlyList<string>? Formats = null, string? PasswordHint = null, bool OwnWrite = false);
+    string Mime, byte[] Data, string? DesktopId = null, string? Name = null, string? IconPath = null);
 
 internal sealed record LinuxGesture(string Accelerator, nuint XKeySym, uint XModifiers)
 {
@@ -30,8 +29,6 @@ internal sealed record LinuxGesture(string Accelerator, nuint XKeySym, uint XMod
         (HotkeyModifiers.Shift, "<Shift>", X11Native.ShiftMask),
         (HotkeyModifiers.Meta, "<Super>", X11Native.Mod4Mask),
     ];
-
-    public static IReadOnlyList<string> Suggestions { get; } = Array.AsReadOnly(new[] { "Ctrl+Alt+V", "Ctrl+Shift+V", "Alt+V" });
 
     public static LinuxGesture? Parse(string text)
     {
@@ -77,9 +74,6 @@ internal static class LinuxDesktop
             _ => LinuxSession.Unknown,
         };
     }
-
-    public static ILinuxDesktop? Connect(LinuxSession session, GnomeConnection shell, Func<ILinuxDesktop?> connectX11) =>
-        shell.Desktop ?? (session == LinuxSession.X11 ? connectX11() : null);
 
     public static bool IsGnome(Func<string, string?> environment) =>
         (environment("XDG_CURRENT_DESKTOP") ?? environment("XDG_SESSION_DESKTOP") ?? environment("DESKTOP_SESSION") ?? "")

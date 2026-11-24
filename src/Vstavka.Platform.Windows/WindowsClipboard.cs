@@ -1,5 +1,4 @@
 using System.Buffers.Binary;
-using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Text;
 using Vstavka.Core;
@@ -42,7 +41,6 @@ internal sealed class WindowsClipboard(
     private uint latestSequence;
     private uint lastWrittenSequence;
     private long writeGeneration;
-    private bool suppressNext;
     private bool listening;
     private bool disposed;
 
@@ -74,15 +72,6 @@ internal sealed class WindowsClipboard(
         }
     }
 
-    public void SuppressNextChange()
-    {
-        lock (state)
-        {
-            ObjectDisposedException.ThrowIf(disposed, this);
-            suppressNext = true;
-        }
-    }
-
     private void OnClipboardChanged()
     {
         var sequence = backend.Sequence;
@@ -91,22 +80,21 @@ internal sealed class WindowsClipboard(
             if (!listening || sequence == 0 || sequence == latestSequence)
                 return;
             latestSequence = sequence;
-            var suppressed = suppressNext;
-            suppressNext = false;
-            if (suppressed || sequence == LastWrittenSequence)
+            if (sequence == LastWrittenSequence)
                 return;
         }
+        var capturedAt = DateTimeOffset.Now;
         Post(() =>
         {
             if (!IsCurrent(sequence))
                 return;
             CopyDetected?.Invoke();
             var currentSettings = settings();
-            _ = CaptureAsync(sequence, currentSettings, currentSettings.Copy());
+            _ = CaptureAsync(sequence, capturedAt, currentSettings, currentSettings.Copy());
         });
     }
 
-    private async Task CaptureAsync(uint sequence, AppSettings currentSettings, AppSettings settingsSnapshot)
+    private async Task CaptureAsync(uint sequence, DateTimeOffset capturedAt, AppSettings currentSettings, AppSettings settingsSnapshot)
     {
         try
         {
@@ -124,7 +112,7 @@ internal sealed class WindowsClipboard(
                         continue;
                     if (!IsCurrent(sequence))
                         return;
-                    snapshot = ReadSnapshot(read, settingsSnapshot, out notice);
+                    snapshot = ReadSnapshot(read, capturedAt, settingsSnapshot, out notice);
 
                     // Rendering a delayed clipboard format can advance the sequence while we hold the lock.
                     var renderedSequence = backend.Sequence;
@@ -144,14 +132,15 @@ internal sealed class WindowsClipboard(
             }
             PublishNotice(sequence, ClipboardBusy);
         }
-        catch (Exception error) when (error is Win32Exception or ExternalException or ArgumentException or
+        catch (Exception error) when (error is ExternalException or ArgumentException or
             InvalidOperationException or IOException or NotSupportedException or OutOfMemoryException)
         {
             PublishNotice(sequence, ReadFailed);
         }
     }
 
-    private static CaptureSnapshot? ReadSnapshot(IClipboardRead read, AppSettings settings, out PlatformNotice? notice)
+    private static CaptureSnapshot? ReadSnapshot(IClipboardRead read, DateTimeOffset capturedAt, AppSettings settings,
+        out PlatformNotice? notice)
     {
         notice = null;
         if (read.Has(ClipboardFormat.Exclude) || read.Has(ClipboardFormat.ViewerIgnore) ||
@@ -161,33 +150,29 @@ internal sealed class WindowsClipboard(
         var foreground = read.ForegroundProcessName;
         if (settings.IsAppExcluded(owner.Name) || settings.IsAppExcluded(foreground))
             return null;
-        if (read.Size(ClipboardFormat.Text) > MaxTextBuffer || read.Size(ClipboardFormat.Files) > MaxBinaryBuffer ||
-            ImageFormats.Any(format => read.Size(format) > MaxBinaryBuffer))
-        {
-            notice = TooLarge;
-            return null;
-        }
-
-        var item = new ClipItem { SourceApp = owner.Name, CapturedAt = DateTimeOffset.Now };
+        var item = new ClipItem { SourceApp = owner.Name, CapturedAt = capturedAt };
         if (read.Has(ClipboardFormat.Files))
         {
-            var files = read.ReadFiles(out var tooMany);
-            if (tooMany)
+            var files = read.ReadFiles(MaxBinaryBuffer, out var tooLarge, out var tooMany);
+            if (files is not { Length: > 0 })
             {
-                notice = TooManyFiles;
+                notice = tooLarge ? TooLarge : tooMany ? TooManyFiles : ReadFailed;
                 return null;
             }
-            if (files is not { Length: > 0 })
-                return null;
             item.Kind = ClipKind.Files;
             item.Files = files;
             return new CaptureSnapshot(item, owner, foreground);
         }
+        PlatformNotice? imageFailure = null;
         foreach (var format in ImageFormats)
         {
-            var bytes = read.ReadBytes(format, MaxBinaryBuffer);
-            if (bytes is null)
+            if (!read.Has(format))
                 continue;
+            if (read.ReadBytes(format, MaxBinaryBuffer, out var tooLarge) is not { } bytes)
+            {
+                imageFailure ??= tooLarge ? TooLarge : ReadFailed;
+                continue;
+            }
             item.Kind = ClipKind.Image;
             return new CaptureSnapshot(item, owner, foreground, new ClipboardData(format, bytes));
         }
@@ -196,8 +181,16 @@ internal sealed class WindowsClipboard(
             item.Kind = ClipKind.Image;
             return new CaptureSnapshot(item, owner, foreground, new ClipboardData(ClipboardFormat.Dib, bitmap));
         }
-        if (read.ReadBytes(ClipboardFormat.Text, MaxTextBuffer) is not { } textBytes)
+        if (!read.Has(ClipboardFormat.Text))
+        {
+            notice = imageFailure;
             return null;
+        }
+        if (read.ReadBytes(ClipboardFormat.Text, MaxTextBuffer, out var textTooLarge) is not { Length: >= sizeof(char) } textBytes)
+        {
+            notice = textTooLarge ? TooLarge : ReadFailed;
+            return null;
+        }
         var text = MemoryMarshal.Cast<byte, char>(textBytes);
         var terminator = text.IndexOf('\0');
         text = terminator < 0 ? text : text[..terminator];
@@ -219,16 +212,15 @@ internal sealed class WindowsClipboard(
             return;
         if (snapshot.Image is { } image)
         {
-            snapshot.Item.ImageBytes = images.CapturePng(image.Format, image.Bytes);
-            if (snapshot.Item.ImageBytes is not { Length: > 0 and <= HistoryStore.MaxImageBytes })
+            if (images.CapturePng(image.Format, image.Bytes) is not { } imagePng)
             {
-                PublishNotice(sequence, TooLarge);
+                PublishNotice(sequence, ReadFailed);
                 return;
             }
+            snapshot.Item.ImageBytes = imagePng;
         }
-        var png = snapshot.Owner.Path is { } path ? icons.GetPng(path) : null;
         var source = string.IsNullOrWhiteSpace(snapshot.Owner.Name) ? null : new SourceApp(
-            snapshot.Owner.Name, snapshot.Owner.Path, png is { Length: > 0 and <= HistoryStore.MaxSourceIconBytes } ? png : null);
+            snapshot.Owner.Name, snapshot.Owner.Path, snapshot.Owner.Path is { } path ? icons.GetPng(path) : null);
         Post(() =>
         {
             if (!IsCurrent(sequence))
@@ -264,11 +256,7 @@ internal sealed class WindowsClipboard(
     public void Write(ClipItem item, bool plainText)
     {
         lock (state)
-        {
             ObjectDisposedException.ThrowIf(disposed, this);
-            // Our writer tags its own update. A failed or canceled write must not consume an external copy.
-            suppressNext = false;
-        }
         ArgumentNullException.ThrowIfNull(item);
         var generation = Interlocked.Increment(ref writeGeneration);
         Volatile.Write(ref lastWrittenSequence, 0);
@@ -310,9 +298,11 @@ internal sealed class WindowsClipboard(
                 break;
             case ClipKind.Files when !plainText:
                 if (item.Files.Length is 0 or > HistoryStore.MaxFilesPerItem ||
-                    item.Files.Any(path => path.Length > 32768 || path.Contains('\0') ||
-                        (!File.Exists(path) && !Directory.Exists(path))))
-                    throw new InvalidOperationException("One or more clipboard files are invalid or missing.");
+                    item.Files.Any(path => string.IsNullOrWhiteSpace(path) || path.Length > 32768 || path.Contains('\0')))
+                    throw new ArgumentException("The clipboard file paths are invalid.", nameof(item));
+                foreach (var path in item.Files)
+                    if (!File.Exists(path) && !Directory.Exists(path))
+                        throw new FileNotFoundException("A clipboard file was moved or deleted.", path);
                 const int headerBytes = 20;
                 var paths = Encoding.Unicode.GetBytes(string.Join('\0', item.Files) + "\0\0");
                 var drop = new byte[headerBytes + paths.Length];

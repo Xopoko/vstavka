@@ -27,7 +27,7 @@ version="${3:-0.3.0}"
 build="${4:-$version}"
 mode="${5:-}"
 script_dir="$(cd "$(dirname "$0")" && pwd)"
-icon_source="$script_dir/../src/Vstavka/Assets/Vstavka.png"
+icon_source="$script_dir/../assets/Vstavka.png"
 executable="Vstavka.Desktop"
 app_identity="-"
 case "$mode" in

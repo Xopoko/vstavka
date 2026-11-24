@@ -17,10 +17,6 @@ public enum PlatformCapabilities
     None = 0,
     WatchClipboard = 1 << 0,
     GlobalHotkey = 1 << 1,
-    AutoPaste = 1 << 2,
-    SourceIcons = 1 << 3,
-    PersistentHistory = 1 << 4,
-    PanelPlacement = 1 << 5,
 }
 
 /// <summary>
@@ -75,9 +71,6 @@ public interface IClipboardMonitor : IDisposable
     event Action<ClipboardCapture>? Captured;
 
     void Start();
-
-    /// <summary>The next change comes from Vstavka itself and must not become a new entry.</summary>
-    void SuppressNextChange();
 }
 
 public interface IClipboardWriter
@@ -96,20 +89,16 @@ public interface IGlobalHotkey : IDisposable
     bool TryRegister(string gesture);
 }
 
+public enum PasteResult { ShortcutSent, Manual, ClipboardChanged }
+
 /// <summary>Returns focus to the app the user came from and sends the platform paste shortcut.</summary>
 public interface IPasteService
 {
-    PermissionState Permission { get; }
-
     /// <summary>Called right before the panel opens: remember the app or window that should receive the paste.</summary>
     void CaptureTarget();
 
     /// <summary>Called after the panel hides. The clipboard already holds the chosen item.</summary>
-    /// <returns>False when the platform could not paste; the item then stays on the clipboard for a manual paste.</returns>
-    Task<bool> PasteAsync();
-
-    /// <summary>Asks the system for the permission that automatic paste needs, for example macOS Accessibility.</summary>
-    void RequestPermission();
+    Task<PasteResult> PasteAsync();
 }
 
 /// <summary>Native tweaks for the panel window: level, spaces, placement, taskbar visibility.</summary>
@@ -154,9 +143,6 @@ public interface IPlatformServices : IDisposable
 
     /// <summary>The platform's default shortcut in <see cref="HotkeyGesture"/> text form.</summary>
     string DefaultGesture { get; }
-
-    /// <summary>Suggested shortcuts for this platform; any usable gesture can be registered.</summary>
-    IReadOnlyList<string> SupportedGestures { get; }
 
     /// <summary>Permissions and helpers, evaluated on every read. The UI re-reads them while a permission screen is visible.</summary>
     IReadOnlyList<PlatformPermission> Permissions => [];

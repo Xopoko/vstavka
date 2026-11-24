@@ -4,7 +4,7 @@ $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Drawing
 $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $assets=Join-Path $projectRoot 'packaging\Assets'
-$appAssets=Join-Path $projectRoot 'src\Vstavka\Assets'
+$appAssets=Join-Path $projectRoot 'assets'
 [IO.Directory]::CreateDirectory($assets) | Out-Null
 [IO.Directory]::CreateDirectory($appAssets) | Out-Null
 function New-IconPng([int]$Size,[string]$Path) {

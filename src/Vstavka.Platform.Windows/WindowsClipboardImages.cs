@@ -17,7 +17,7 @@ internal sealed class WindowsClipboardImages : IWindowsClipboardImages
     {
         if (format == ClipboardFormat.Png)
         {
-            if (!ValidPngDimensions(bytes))
+            if (!ClipboardImageLimits.FitsPngDimensions(bytes))
                 return null;
             using var stream = new MemoryStream(bytes, writable: false);
             using var image = Image.FromStream(stream, useEmbeddedColorManagement: false, validateImageData: true);
@@ -66,7 +66,7 @@ internal sealed class WindowsClipboardImages : IWindowsClipboardImages
 
     public byte[] CreateDibV5(byte[] png)
     {
-        if (!ValidPngDimensions(png))
+        if (!ClipboardImageLimits.FitsPngDimensions(png))
             throw new ArgumentException("The clipboard image has invalid or unsupported dimensions.", nameof(png));
         using var stream = new MemoryStream(png, writable: false);
         using var image = Image.FromStream(stream, useEmbeddedColorManagement: false, validateImageData: true);
@@ -104,12 +104,6 @@ internal sealed class WindowsClipboardImages : IWindowsClipboardImages
         return dib;
     }
 
-    private static bool ValidPngDimensions(ReadOnlySpan<byte> bytes) =>
-        bytes.Length >= 33 && bytes.StartsWith(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }) &&
-        BinaryPrimitives.ReadUInt32BigEndian(bytes[8..]) == 13 && bytes[12..16].SequenceEqual("IHDR"u8) &&
-        DibLayout.ValidDimensions(BinaryPrimitives.ReadInt32BigEndian(bytes[16..]), BinaryPrimitives.ReadInt32BigEndian(bytes[20..])) &&
-        BinaryPrimitives.ReadInt32BigEndian(bytes[20..]) > 0;
-
     private static byte[]? SavePng(Image image)
     {
         if (!DibLayout.ValidDimensions(image.Width, image.Height))
@@ -123,7 +117,7 @@ internal sealed class WindowsClipboardImages : IWindowsClipboardImages
 internal readonly record struct DibLayout(int HeaderSize, int Width, int Height, int PixelOffset, bool TopDown, bool HasBgraAlpha)
 {
     internal static bool ValidDimensions(int width, int height) =>
-        width > 0 && height != 0 && width * Math.Abs((long)height) <= 16_000_000;
+        ClipboardImageLimits.FitsPixelLimit(width, Math.Abs((long)height));
 
     internal static DibLayout? Parse(ReadOnlySpan<byte> dib)
     {

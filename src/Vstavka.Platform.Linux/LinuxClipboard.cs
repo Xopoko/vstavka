@@ -1,4 +1,3 @@
-using System.Buffers.Binary;
 using System.Text;
 using Vstavka.Core;
 
@@ -26,25 +25,31 @@ internal static class LinuxClipboard
     };
 
     private static readonly UTF8Encoding Utf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
-    private static ReadOnlySpan<byte> PngSignature => [137, 80, 78, 71, 13, 10, 26, 10];
 
     public static bool HasPrivateMarker(IEnumerable<string> formats) => formats.Any(PrivateTypes.Contains);
 
-    public static bool IsPrivate(IReadOnlyList<string> formats, string? hint) =>
-        HasPrivateMarker(formats) ||
-        (formats.Contains(PasswordHint, StringComparer.OrdinalIgnoreCase) &&
-         (string.IsNullOrWhiteSpace(hint) || string.Equals(hint.Trim(), "secret", StringComparison.OrdinalIgnoreCase)));
+    public static bool IsPrivateHint(ReadOnlySpan<byte> data)
+    {
+        try
+        {
+            var hint = Utf8.GetString(data).TrimEnd('\0').Trim();
+            return hint.Length == 0 || hint.Equals("secret", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (DecoderFallbackException)
+        {
+            return true;
+        }
+    }
 
     public static ClipboardCapture? Read(LinuxClipboardData payload, Func<string, byte[]?> loadIcon)
     {
-        if (payload.OwnWrite || IsPrivate(payload.Formats ?? [], payload.PasswordHint) ||
-            payload.Data.Length == 0)
+        if (payload.Data.Length == 0)
             return null;
 
         var item = new ClipItem();
         if (string.Equals(payload.Mime, Image, StringComparison.OrdinalIgnoreCase))
         {
-            if (payload.Data.Length > HistoryStore.MaxImageBytes || !HasPngDimensions(payload.Data, 16_000_000))
+            if (payload.Data.Length > HistoryStore.MaxImageBytes || !ClipboardImageLimits.FitsPngDimensions(payload.Data))
                 return null;
             item.Kind = ClipKind.Image;
             item.ImageBytes = payload.Data;
@@ -121,7 +126,8 @@ internal static class LinuxClipboard
             return null;
         var png = loadIcon(path);
         return png is { Length: <= HistoryStore.MaxSourceIconBytes } &&
-            HasPngDimensions(png, 32 * 32, 32) ? png : null;
+            ClipboardImageLimits.TryReadPngSize(png, out var width, out var height) && width <= 32 && height <= 32
+            ? png : null;
     }
 
     public static byte[]? LoadIcon(string path)
@@ -142,14 +148,5 @@ internal static class LinuxClipboard
         {
             return null;
         }
-    }
-
-    private static bool HasPngDimensions(ReadOnlySpan<byte> bytes, uint maxPixels, uint maxSide = uint.MaxValue)
-    {
-        if (bytes.Length < 45 || !bytes.StartsWith(PngSignature) || !bytes[8..16].SequenceEqual("\0\0\0\rIHDR"u8))
-            return false;
-        var width = BinaryPrimitives.ReadUInt32BigEndian(bytes[16..]);
-        var height = BinaryPrimitives.ReadUInt32BigEndian(bytes[20..]);
-        return width > 0 && height > 0 && width <= maxSide && height <= maxSide && (ulong)width * height <= maxPixels;
     }
 }

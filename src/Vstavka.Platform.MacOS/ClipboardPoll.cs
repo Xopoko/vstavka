@@ -6,24 +6,10 @@ internal sealed class ClipboardPoll(IPasteboard board, Func<FrontmostSource> get
 {
     private long lastCount;
     private long? ownCount;
-    private long? suppressAfter;
 
     internal void Start() => lastCount = board.ChangeCount;
 
-    internal void SuppressNextChange()
-    {
-        var count = board.ChangeCount;
-        if (count != ownCount)
-            suppressAfter = count;
-    }
-
-    internal void RecordOwnWrite(long count)
-    {
-        ownCount = count;
-        suppressAfter = null;
-    }
-
-    internal void CancelSuppression() => suppressAfter = null;
+    internal void RecordOwnWrite(long count) => ownCount = count;
 
     internal ClipboardCapture? Check()
     {
@@ -32,12 +18,9 @@ internal sealed class ClipboardPoll(IPasteboard board, Func<FrontmostSource> get
             return null;
         lastCount = count;
 
-        var suppress = suppressAfter is { } baseline && count != baseline;
-        if (suppress)
-            suppressAfter = null;
         var ownWrite = count == ownCount;
         ownCount = null;
-        if (ownWrite || suppress || !ClipboardCapturePolicy.CanReadInBackground(board.Access))
+        if (ownWrite || !ClipboardCapturePolicy.CanReadInBackground(board.Access))
             return null;
 
         var source = getSource();
@@ -78,13 +61,6 @@ internal sealed class MacClipboardMonitor(ClipboardPoll poll) : IClipboardMonito
             if (Interlocked.Exchange(ref tickPending, 1) == 0)
                 context.Post(static state => ((MacClipboardMonitor)state!).Check(), this);
         }, null, 300, 300);
-    }
-
-    public void SuppressNextChange()
-    {
-        ObjectDisposedException.ThrowIf(disposed, this);
-        using var pool = new AutoreleasePool();
-        poll.SuppressNextChange();
     }
 
     private void Check()

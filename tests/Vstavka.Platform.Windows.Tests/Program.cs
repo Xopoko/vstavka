@@ -13,6 +13,8 @@ internal static class Program
         Run("Clipboard retries and suppresses own writes", ClipboardRetryAndSuppression);
         Run("Hotkey mappings and safe replacement", Hotkeys);
         Run("Paste sound shortcuts ignore other chords and held keys", PasteSoundShortcuts);
+        if (OperatingSystem.IsWindows())
+            Run("Copy and paste sounds contain distinct, volume-scaled PCM", Waveforms);
         Run("Preview startup registration and failure", StartupRegistration);
         Run("Store profile preserves legacy history and separates first-run consent", StoreUpgrade);
         Run("Paste restores the target and handles failure", Paste);
@@ -35,6 +37,34 @@ internal static class Program
             "A second shortcut within the debounce window is silent.");
     }
 
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static void Waveforms()
+    {
+        var copy = SoundService.CreateWave(false, 1);
+        var paste = SoundService.CreateWave(true, 1);
+        var quiet = SoundService.CreateWave(false, 0.25);
+        var mute = SoundService.CreateWave(true, 0);
+        foreach (var wave in new[] { copy, paste })
+            Check(wave.AsSpan(0, 4).SequenceEqual("RIFF"u8) && wave.AsSpan(8, 8).SequenceEqual("WAVEfmt "u8) &&
+                BinaryPrimitives.ReadInt32LittleEndian(wave.AsSpan(24)) == 44100 &&
+                BinaryPrimitives.ReadInt32LittleEndian(wave.AsSpan(40)) == wave.Length - 44,
+                "The WAV header describes its sample rate and payload.");
+
+        Check(copy.Length > paste.Length && paste.Length < 6000 && mute.AsSpan(44).IndexOfAnyExcept((byte)0) < 0,
+            "Paste is a shorter sound and mute has no signal.");
+        var copyPeak = Peak(copy);
+        Check(copyPeak is > 0 and < short.MaxValue && Math.Abs(Peak(quiet) * 4 - copyPeak) < 4,
+            "Reducing the volume reduces the PCM amplitude without clipping.");
+
+        static int Peak(byte[] wave)
+        {
+            var peak = 0;
+            for (var offset = 44; offset < wave.Length; offset += sizeof(short))
+                peak = Math.Max(peak, Math.Abs((int)BinaryPrimitives.ReadInt16LittleEndian(wave.AsSpan(offset))));
+            return peak;
+        }
+    }
+
     private static void CaptureFormats()
     {
         var messages = new MessageDouble();
@@ -45,6 +75,8 @@ internal static class Program
         using var monitor = new WindowsClipboard(messages, native, images, icons, () => settings, _ => Task.CompletedTask);
         var ui = new QueueContext();
         var captures = new List<ClipboardCapture>();
+        var notices = new List<string>();
+        monitor.Notice += notice => notices.Add(notice.Code);
         monitor.Captured += capture =>
         {
             Check(ReferenceEquals(SynchronizationContext.Current, ui), "Capture is delivered on the Start context.");
@@ -64,8 +96,8 @@ internal static class Program
             messages.Update();
             ui.Drain();
         }
-        Check(captures.Count == 0 && native.PayloadReads == 0 && icons.Paths.Count == 0,
-            "Privacy formats must skip data and icon retrieval, including a malformed opt-in flag.");
+        Check(captures.Count == 0 && native.PayloadReads == 0 && icons.Paths.Count == 0 && notices.Count == 0,
+            "Privacy formats silently skip data and icon retrieval, including a malformed opt-in flag.");
 
         settings.ExcludedApps = ["Synthetic.Reader.exe"];
         native.NewText("excluded by foreground process");
@@ -85,14 +117,14 @@ internal static class Program
             text.Source.IconPng == icons.Png && icons.Paths.Single() == native.Owner.Path,
             "The owner, executable and icon are mapped to the capture.");
 
-        native.NewText("fallback text");
+        native.NewText(new string('a', 2 * 1024 * 1024));
         native.Data[ClipboardFormat.Png] = [21];
         native.Data[ClipboardFormat.Files] = [1];
         native.Files = [@"C:\Synthetic\test.txt"];
         messages.Update();
         ui.Drain();
         Check(captures[^1].Item is { Kind: ClipKind.Files } && captures[^1].Item.Files.SequenceEqual(native.Files) &&
-            images.Captures == 0, "A file drop takes precedence over image and text.");
+            images.Captures == 0 && notices.Count == 0, "A file drop takes precedence even when its alternate text is oversized.");
         native.NewText("fallback text");
         native.Data[ClipboardFormat.DibV5] = [37];
         messages.Update();
@@ -103,7 +135,13 @@ internal static class Program
         native.NewText(new string('a', HistoryStore.MaxTextLength + 1));
         messages.Update();
         ui.Drain();
-        Check(captures.Count == 3, "Text over the history limit is skipped.");
+        native.NewText("fallback text");
+        native.Data[ClipboardFormat.Files] = [1];
+        native.Files = null;
+        messages.Update();
+        ui.Drain();
+        Check(captures.Count == 3 && notices.SequenceEqual(["clipboard-item-too-large", "clipboard-read-failed"]),
+            "Oversized text and unreadable file drops report why they could not be captured.");
     }
 
     private static void ClipboardRetryAndSuppression()
@@ -136,16 +174,6 @@ internal static class Program
         ui.Drain();
         Check(native.ReadAttempts == 3 && captures.Count == 1, "A replay is suppressed before opening the clipboard.");
 
-        clipboard.SuppressNextChange();
-        native.NewText("explicitly suppressed");
-        messages.Update();
-        ui.Drain();
-        native.NewText("next external");
-        messages.Update();
-        ui.Drain();
-        Check(captures.SequenceEqual(["external", "next external"]), "Explicit suppression is consumed once.");
-
-        clipboard.SuppressNextChange();
         native.BusyWrites = 1;
         onWriteDelay = () => native.NewText("newer copy while writing");
         var failed = false;
@@ -166,6 +194,18 @@ internal static class Program
         clipboard.Write(file, true);
         Check(Encoding.Unicode.GetString(native.Data[ClipboardFormat.Text]) == AppContext.BaseDirectory + '\0',
             "Plain text file replay writes paths as text.");
+
+        var missing = new ClipItem { Kind = ClipKind.Files, Files = [Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))] };
+        var attemptsBeforeMissing = native.WriteAttempts;
+        try { clipboard.Write(missing, false); throw new Exception("A missing file was replayed."); }
+        catch (FileNotFoundException error)
+        {
+            Check(error.FileName == missing.Files[0] && native.WriteAttempts == attemptsBeforeMissing,
+                "A missing file is rejected before the clipboard is changed.");
+        }
+        clipboard.Write(missing, true);
+        Check(Encoding.Unicode.GetString(native.Data[ClipboardFormat.Text]) == missing.Files[0] + '\0',
+            "The missing file's path can still be copied as text.");
         clipboard.Dispose();
         Check(!messages.ListenerActive, "Disposal stops the listener.");
     }
@@ -271,28 +311,34 @@ internal static class Program
         paste.CaptureTarget();
         native.ForegroundWindow = 2;
         paste.CaptureTarget();
+        Check(paste.PasteAsync().GetAwaiter().GetResult() == PasteResult.Manual && native.Restored.Count == 0,
+            "Opening from Vstavka clears the previous external paste target.");
+
+        native.ForegroundWindow = 1;
+        paste.CaptureTarget();
+        native.ForegroundWindow = 2;
         native.ModifiersDown = true;
         var delays = 0;
         onDelay = () => { if (++delays == 2) native.ModifiersDown = false; };
-        Check(paste.PasteAsync().GetAwaiter().GetResult() && native.Restored.SequenceEqual(new nint[] { 1 }) &&
+        Check(paste.PasteAsync().GetAwaiter().GetResult() == PasteResult.ShortcutSent && native.Restored.SequenceEqual(new nint[] { 1 }) &&
             native.SendAttempts == 1 && delays == 2, "Paste restores the recorded external target and waits for released keys.");
 
         onDelay = null;
         native.CanRestore = false;
-        Check(!paste.PasteAsync().GetAwaiter().GetResult() && native.SendAttempts == 1,
-            "Failed foreground restoration does not send keys.");
+        Check(paste.PasteAsync().GetAwaiter().GetResult() == PasteResult.Manual && native.SendAttempts == 1,
+            "Failed foreground restoration does not send keys and leaves the item for manual paste.");
         native.CanRestore = true;
         native.CanSend = false;
-        Check(!paste.PasteAsync().GetAwaiter().GetResult() && native.SendAttempts == 2,
-            "Blocked input reports a failed paste.");
+        Check(paste.PasteAsync().GetAwaiter().GetResult() == PasteResult.Manual && native.SendAttempts == 2,
+            "Blocked input leaves the item for manual paste.");
 
         onDelay = () => sequence++;
         var restoreAttempts = native.Restored.Count;
-        Check(!paste.PasteAsync().GetAwaiter().GetResult() && native.Restored.Count == restoreAttempts &&
-            native.SendAttempts == 2, "Changing the clipboard before paste cancels the old request.");
+        Check(paste.PasteAsync().GetAwaiter().GetResult() == PasteResult.ClipboardChanged && native.Restored.Count == restoreAttempts &&
+            native.SendAttempts == 2, "Changing the clipboard before paste cancels the request without offering manual paste.");
         sequence = 7;
         native.Processes[1] = 13;
-        Check(!paste.PasteAsync().GetAwaiter().GetResult() && native.SendAttempts == 2,
+        Check(paste.PasteAsync().GetAwaiter().GetResult() == PasteResult.Manual && native.SendAttempts == 2,
             "A recycled window handle cannot receive the paste.");
     }
 
@@ -314,7 +360,7 @@ internal static class Program
             File.WriteAllText(Path.Combine(profile.DataDirectory, WindowsStoreProfile.LegacyConsentFile), "WPF consent");
             if (OperatingSystem.IsWindows())
             {
-                var wpfHistory = new HistoryStore(profile.DataDirectory) { Settings = settings };
+                var wpfHistory = new HistoryStore(profile.DataDirectory, new WindowsHistoryProtector()) { Settings = settings };
                 wpfHistory.Add(new ClipItem { Text = "existing clipboard item", IsPinned = true });
                 wpfHistory.Save();
                 var storeHistory = new HistoryStore(profile.DataDirectory, new WindowsHistoryProtector());
@@ -344,25 +390,14 @@ internal static class Program
 
     private static void IsolationAndCodecs()
     {
-        var root = Path.GetTempPath();
-        const string sid = "S-1-5-21-1";
-        Check(WindowsPlatformServices.PreviewDataDirectory(root) == Path.Combine(root, "Vstavka.Preview") &&
-            WindowsPlatformServices.PreviewInstanceName(sid) == $@"Local\Vstavka.Preview.{sid}" &&
-            WindowsPlatformServices.PreviewInstanceName(sid) != $@"Local\Vstavka.{sid}",
-            "The preview has separate history and single-instance names.");
-        Check(WindowsPlatformServices.IsSupported == OperatingSystem.IsWindows(), "The adapter is guarded by operating system.");
         if (!OperatingSystem.IsWindows())
             return;
 
         using var platform = new WindowsPlatformServices();
         var localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         Check(platform.DataDirectory == Path.Combine(localData, "Vstavka.Preview") &&
-            platform.HistoryProtector is WindowsHistoryProtector &&
-            WindowsPlatformServices.GetSingleInstanceName().StartsWith(@"Local\Vstavka.Preview.S-", StringComparison.Ordinal),
-            "The Windows entry point uses the preview directory, instance name and DPAPI.");
-        Check(platform.Permissions.Count == 0 && platform.Startup.IsSupported && platform.DefaultGesture == "Ctrl+Shift+V" &&
-            platform.SupportedGestures.SequenceEqual(["Ctrl+Shift+V", "Ctrl+Alt+V", "Alt+V"]),
-            "Windows exposes startup, the default shortcut and suggestions, and needs no permissions.");
+            platform.HistoryProtector is WindowsHistoryProtector,
+            "The Windows entry point uses the preview directory and DPAPI.");
         using var window = new WindowsMessageWindow();
         Check(window.Handle != 0, "A message-only window can be created without listening or registering a hotkey.");
 

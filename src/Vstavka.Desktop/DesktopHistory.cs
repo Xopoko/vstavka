@@ -2,6 +2,7 @@ using Avalonia.Threading;
 using Vstavka.Core;
 using Vstavka.Core.Localization;
 using Vstavka.Platform;
+using Vstavka.Platform.MacOS;
 using Vstavka.Platform.Windows;
 
 namespace Vstavka.Desktop;
@@ -11,17 +12,21 @@ internal sealed class DesktopHistory
     private readonly IPlatformServices _platform;
     private readonly WindowsStoreProfile? _windowsStoreProfile;
     private readonly DispatcherTimer _saveTimer;
-    private Task _pendingSave = Task.CompletedTask;
+    private Task<bool> _pendingSave = Task.FromResult(true);
+    private int _saveSequence;
     private IReadOnlyList<PlatformPermission>? _installingPermissions;
     private bool _signingOut;
     private bool _monitoringClipboard;
+    private DateTimeOffset _discardCapturesThrough;
     private string? _registeredGesture;
     private readonly HashSet<object> _recorders = [];
 
     public HistoryStore Store { get; }
     public bool Paused { get; private set; }
     public string? Warning { get; private set; }
+    public PlatformNotice? CaptureNotice { get; private set; }
     public bool ShortcutRegistrationFailed { get; private set; }
+    public bool IsStoreBuild => _windowsStoreProfile is not null || _platform is MacPlatformServices { IsAppStoreBuild: true };
     public bool ClipboardConsentRequired => _windowsStoreProfile is { HasClipboardConsent: false };
     public string Shortcut => Store.Settings.PanelShortcut ?? _platform.DefaultGesture;
     public IReadOnlyList<PlatformPermission> Permissions => _installingPermissions ?? _platform.Permissions;
@@ -43,11 +48,7 @@ internal sealed class DesktopHistory
         Warning = Store.LoadWarning;
 
         _saveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
-        _saveTimer.Tick += (_, _) =>
-        {
-            _saveTimer.Stop();
-            Save();
-        };
+        _saveTimer.Tick += (_, _) => QueueSave();
     }
 
     public void Start()
@@ -71,6 +72,9 @@ internal sealed class DesktopHistory
         if (_monitoringClipboard)
             return;
         _platform.Clipboard.Captured += OnCaptured;
+        var windows = _platform as WindowsPlatformServices;
+        if (windows is not null)
+            windows.ClipboardNotice += OnCaptureNotice;
         try
         {
             _platform.Clipboard.Start();
@@ -79,6 +83,8 @@ internal sealed class DesktopHistory
         catch
         {
             _platform.Clipboard.Captured -= OnCaptured;
+            if (windows is not null)
+                windows.ClipboardNotice -= OnCaptureNotice;
             throw;
         }
     }
@@ -121,17 +127,21 @@ internal sealed class DesktopHistory
         ScheduleSave();
     }
 
-    public bool TryWrite(ClipItem item, bool plainText = false)
+    public string? WriteToClipboard(ClipItem item, bool plainText = false)
     {
         try
         {
             _platform.ClipboardWriter.Write(item, plainText);
-            return true;
+            return null;
+        }
+        catch (FileNotFoundException) when (item.Kind == ClipKind.Files && !plainText)
+        {
+            return Strings.Get("FileMissing");
         }
         catch (Exception error) when (error is ArgumentException or IOException or InvalidOperationException
             or NotSupportedException or UnauthorizedAccessException or System.Runtime.InteropServices.ExternalException)
         {
-            return false;
+            return Strings.Get("ClipboardWriteFailed");
         }
     }
 
@@ -155,8 +165,7 @@ internal sealed class DesktopHistory
         if (review.AppVersion is not { } version || !state.ShouldRequest(version, DateTimeOffset.UtcNow) || !review.TryRequest())
             return;
         Store.Settings.StoreReview = state.MarkRequested(version);
-        _saveTimer.Stop();
-        Save();
+        QueueSave();
     }
 
     public async Task InstallGnomeHelperAsync(Action install)
@@ -188,6 +197,9 @@ internal sealed class DesktopHistory
     public void TogglePause()
     {
         Paused = !Paused;
+        if (!Paused)
+            _discardCapturesThrough = DateTimeOffset.UtcNow;
+        CaptureNotice = null;
         Changed?.Invoke();
     }
 
@@ -195,6 +207,17 @@ internal sealed class DesktopHistory
     {
         Changed?.Invoke();
         ScheduleSave();
+    }
+
+    public Task<bool> ClearHistoryAsync()
+    {
+        if (Store.SavingBlocked)
+            return Task.FromResult(false);
+        _discardCapturesThrough = DateTimeOffset.UtcNow;
+        Store.Clear(includePinned: true);
+        CaptureNotice = null;
+        Changed?.Invoke();
+        return QueueSave();
     }
 
     private void ScheduleSave()
@@ -208,6 +231,8 @@ internal sealed class DesktopHistory
     public void Stop()
     {
         _platform.Clipboard.Captured -= OnCaptured;
+        if (_platform is WindowsPlatformServices windows)
+            windows.ClipboardNotice -= OnCaptureNotice;
         _platform.Hotkey.Pressed -= OnHotkey;
         FlushSaveAsync().GetAwaiter().GetResult();
     }
@@ -225,14 +250,14 @@ internal sealed class DesktopHistory
         finally { _signingOut = false; }
     }
 
-    private Task FlushSaveAsync()
+    private Task FlushSaveAsync() => _saveTimer.IsEnabled ? QueueSave() : _pendingSave;
+
+    private void OnCaptureNotice(PlatformNotice notice)
     {
-        if (_saveTimer.IsEnabled)
-        {
-            _saveTimer.Stop();
-            Save();
-        }
-        return _pendingSave;
+        if (Paused)
+            return;
+        CaptureNotice = notice;
+        Changed?.Invoke();
     }
 
     private void OnCaptured(ClipboardCapture capture)
@@ -245,11 +270,12 @@ internal sealed class DesktopHistory
 
     private void Add(ClipboardCapture capture)
     {
-        if (Paused)
+        if (Paused || capture.Item.CapturedAt <= _discardCapturesThrough)
             return;
         // A repeated copy updates the original entry even when Add returns false.
         if (!Store.Add(capture.Item) && Store.LastRejectionReason is not null)
             return;
+        CaptureNotice = null;
         if (capture.Source is { IconPng: { } png } source)
             Store.SetSourceIcon(source.Name, png);
         HistoryChanged();
@@ -269,21 +295,33 @@ internal sealed class DesktopHistory
             ToggleRequested?.Invoke();
     }
 
-    private void Save() => _pendingSave = SaveAsync();
-
-    private async Task SaveAsync()
+    private Task<bool> QueueSave()
     {
+        _saveTimer.Stop();
+        return _pendingSave = SaveAsync(++_saveSequence);
+    }
+
+    private async Task<bool> SaveAsync(int sequence)
+    {
+        bool saved;
         try
         {
             await Store.SaveAsync().ConfigureAwait(false);
+            saved = true;
         }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException
+            or System.Security.Cryptography.CryptographicException)
         {
-            Dispatcher.UIThread.Post(() =>
-            {
-                Warning = Strings.Get("SaveFailed");
-                Changed?.Invoke();
-            });
+            saved = false;
         }
+        Dispatcher.UIThread.Post(() =>
+        {
+            var warning = saved ? Store.LoadWarning : Strings.Get("SaveFailed");
+            if (sequence != _saveSequence || Warning == warning)
+                return;
+            Warning = warning;
+            Changed?.Invoke();
+        });
+        return saved;
     }
 }

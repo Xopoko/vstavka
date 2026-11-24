@@ -1,77 +1,65 @@
-# Manual acceptance checklist
+# Manual release checks
 
-Use a separate user account and sample data, never your own clipboard history.
-For every result, note the app version or commit, how it was installed and the
-system version.
+Use sample data in a separate user account. Record the app version or commit,
+installation source and OS version. On Ubuntu, record whether you used a
+GNOME Wayland or X11 session.
 
-## Microsoft Store app (Windows)
+## All builds
 
-Note whether you tested the local build or the Microsoft Store version.
+1. **First run.** Use the keyboard and mouse to move through the guide. Quit
+   midway and check that the guide resumes at the same step. Record a new
+   shortcut, then cancel another recording with **Esc**. Check the animations
+   with reduced motion turned on and off.
+2. **Panel.** Open the panel on the active screen. Try search, the filters,
+   pinning, arrow navigation, the numbered shortcuts, **Delete** (**⌫** on
+   macOS), **Esc** and the tray or menu bar icon. Copy from multiple apps and
+   check the source icons, including the fallback when an icon is unavailable.
+3. **Clipboard.** Use **Enter** and double-click to select text, an image and
+   files. Try an editor, browser and terminal. Check **Shift+Enter** for file
+   paths. Move a copied file and check the message when selecting its card.
+4. **Collections.** Create a collection with **+**, rename it and change its
+   color. Move a card between collections and back to history. Collection
+   items should stay out of the history filters. Press **Enter** in the name
+   field to save the name. Delete a collection and check after restarting that
+   its contents are gone.
+5. **Layout.** Try a narrow screen and several scaling levels. Check that
+   search and buttons stay reachable as the filter row scrolls. Check keyboard
+   focus. Change theme and accent, then cancel. Save a right-to-left language
+   and check the direction of both the interface and clipboard content.
+6. **History.** Check that a copy made while paused, a copy from an excluded
+   app and a copy marked private stay out of history. Delete a card, then clear
+   history, and check each result after a restart. Check that clearing includes
+   pinned and collection items.
+7. **Start at login.** Enable it, sign out and back in, then disable it and
+   repeat.
 
-1. **First run.** Close the welcome window and confirm that history is not
-   running. Open Vstavka again, choose a language and enable history. Copy text,
-   a link and a color value in Notepad. Open the panel with **Ctrl+Shift+V** and
-   find the items with search and the type filters. Pin one item. Switch the
-   shortcut to **Ctrl+Alt+V** and then **Alt+V** in Settings and check each one.
-   **Esc** hides the panel and leaves Vstavka in the notification area.
-2. **Pasting.** Check **Enter** and double-click in an editor. Paste multi-line
-   text, an image, and files copied in File Explorer. Check **Shift+Enter** for
-   file paths. Move one of the files, paste it from history and check the
-   message. If an elevated window blocks automatic pasting, check manual paste.
-3. **Collections.** Create a collection with **+**, rename it and change its
-   color. Add a card from its context menu, move it to another collection and
-   remove it again. Items in a collection must not appear under **All** or the
-   type filters. Delete a collection and confirm that its items are gone after a
-   restart. Press **Enter** in the name field and confirm that it saves the
-   collection instead of pasting a card.
-4. **Source icons.** Copy from two or three apps and check that each card shows
-   the source app icon, or the neutral glyph when the icon is not available
-   (for example, an app running as administrator).
-5. **Sounds.** Listen to copy, paste from the panel, **Ctrl+V** and
-   **Shift+Insert**. Change the volume and turn each sound off separately.
-   Ordinary typing must stay silent.
-6. **Layout.** Check the panel on a narrow screen and at 100%, 125% and 150%
-   scaling. Search and buttons stay reachable while the categories scroll.
-   Change the theme and accent, then cancel. Save a right-to-left language and
-   check the direction of the interface, paths and links. Check keyboard focus:
-   rings appear for keyboard navigation and not after a mouse click.
-7. **Storage.** Copy a phrase while saving is paused, then copy from an app in
-   the exclusion list. Neither item may appear. Delete one card, restart the app
-   and confirm it does not come back. Clear history in Settings and check the
-   result after a restart.
-8. **Installation and startup.** Check the local preview and the Store version
-   separately. Sign in to Windows with startup enabled, disable Vstavka in the
-   Windows startup list and sign in again. When updating from an older Store
-   version, check that history, pins, collections and settings, including the
-   chosen shortcut, are kept. For a new package, record its hash and the results
-   of install, update, uninstall and the Windows App Certification Kit.
+## Windows
 
-## Cross-platform app
+- On a fresh Store install, close the guide before choosing **Enable history**
+  and check that clipboard history remains off. Reopen the app, enable history
+  and check that it records new copies.
+- Try automatic paste in an elevated window and check that manual paste works
+  if Windows blocks automatic paste. Check copy, panel paste, **Ctrl+V** and
+  **Shift+Insert** sounds, the volume, and each sound switch. Ordinary typing
+  should stay silent.
+- Disable startup in Windows Settings and check that the app respects the
+  change. When updating from the WPF release through Microsoft Store, verify
+  history, pins, collections, settings and the saved shortcut. Record the
+  package hash and the results of install, update, uninstall and Windows App
+  Certification Kit checks.
 
-Test on Windows, macOS and Ubuntu. On Linux, note whether the session is
-Wayland or X11.
+## macOS
 
-1. **First-run guide.** Start with an empty data folder. Go through the four
-   steps with the keyboard and with the mouse, go back from each step, and quit
-   in the middle: the next start resumes at the same step. Record a new
-   shortcut, then start recording again and cancel it with **Esc**. The logo,
-   the panel preview and the shortcut keys animate; with reduced motion turned
-   on in the system, everything appears at once.
-2. **Permissions.** On macOS, start without clipboard access and Accessibility,
-   grant each in System Settings and check that the guide notices without a
-   restart. Without Accessibility, pasting must copy the item and say so. On
-   Ubuntu with Wayland, let the guide install the GNOME helper, sign out and
-   back in, and check that the guide resumes and the shortcut works.
-3. **Panel.** The panel opens at the bottom of the active screen; on macOS it
-   also appears over full-screen apps. Check search, filters, pins, quick
-   paste with **Ctrl+1 … 9** (**⌘1 … 9** on macOS), **Shift+Enter**, delete
-   (**Delete**, or **⌫** on macOS), **Esc** and the tray or menu bar icon.
-4. **Pasting.** Paste text, an image and files into a text editor, a browser
-   and a terminal. Note every app where automatic paste does not work.
-5. **Privacy.** Pause saving, then copy from an excluded app and from a password
-   manager (KeePassXC on Linux, 1Password on macOS). None of it may appear.
-   Restart and check that history is kept. Without a key store (no GNOME
-   Keyring, or the Keychain request denied), Settings must say that history is
-   kept in memory only.
-6. **Start at login.** Turn it on in Settings, sign out and back in, then turn
-   it off and check again.
+- Check clipboard access on a macOS release that requires it. For the local
+  build, grant Accessibility and try automatic paste. Without Accessibility,
+  confirm the app copies the item for manual paste. The App Store build
+  should only copy the item for **⌘V**.
+- Open the panel while another app is full screen. Deny access to the history
+  key on a test profile and check that Settings reports in-memory history.
+
+## Ubuntu
+
+- On GNOME Wayland, install the GNOME helper from the guide, sign out and back
+  in, and confirm the guide resumes and the shortcut opens the panel.
+- With Secret Service unavailable, check that Settings reports in-memory
+  history.

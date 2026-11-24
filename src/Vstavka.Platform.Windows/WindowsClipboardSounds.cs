@@ -1,7 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using Vstavka.Core;
-using Vstavka.Services;
 
 namespace Vstavka.Platform.Windows;
 
@@ -18,7 +17,6 @@ internal sealed class WindowsClipboardSounds : IClipboardSounds
     private readonly PasteShortcutState shortcut = new();
     private readonly KeyboardHook callback;
     private nint hook;
-    private double? loadedVolume;
 
     public WindowsClipboardSounds(WindowsClipboard clipboard, Func<AppSettings> settings)
     {
@@ -28,20 +26,7 @@ internal sealed class WindowsClipboardSounds : IClipboardSounds
 
     public event Action? PasteShortcutPressed;
 
-    public void Play(bool paste, double volume)
-    {
-        if (volume <= 0)
-            return;
-        if (loadedVolume != volume)
-        {
-            player.SetVolume(volume);
-            loadedVolume = volume;
-        }
-        if (paste)
-            player.Paste();
-        else
-            player.Copy();
-    }
+    public void Play(bool paste, double volume) => player.Play(paste, volume);
 
     private void PlayCopy(AppSettings settings)
     {

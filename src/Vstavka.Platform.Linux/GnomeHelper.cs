@@ -47,44 +47,37 @@ internal sealed class GnomeHelper(string dataHome, string bundledRoot, string? e
     {
         lock (_setupLock)
         {
-            try
+            var installed = FindInstalled();
+            if (allowOnly)
             {
-                var installed = FindInstalled();
-                if (allowOnly)
-                {
-                    if (installed is not null && executable is not null)
-                        AllowExecutable(installed, executable);
-                    return;
-                }
-
-                if (installed is null)
-                {
-                    if (executable is null)
-                        return;
-                    var source = Path.Combine(bundledRoot, "gnome-extension", Uuid);
-                    CopyFiles(source, _userExtension);
-                    if (!AllowExecutable(_userExtension, executable, newInstall: true))
-                        return;
-                    // The manifest marks a prepared install and is copied last so setup can be retried.
-                    File.Copy(Path.Combine(source, "metadata.json"), Path.Combine(_userExtension, "metadata.json"));
-                }
-
-                Append(null, ShellSchema, EnabledKey, Uuid);
+                if (installed is null || executable is null)
+                    throw new IOException("The GNOME helper or the Vstavka executable is unavailable.");
+                AllowExecutable(installed, executable);
+                return;
             }
-            catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+
+            if (installed is null)
             {
-                System.Diagnostics.Trace.TraceWarning("Could not set up the Vstavka GNOME helper: {0}", error.Message);
+                if (executable is null)
+                    throw new IOException("The Vstavka executable is unavailable.");
+                var source = Path.Combine(bundledRoot, "gnome-extension", Uuid);
+                CopyFiles(source, _userExtension);
+                AllowExecutable(_userExtension, executable, newInstall: true);
+                // Copy the manifest last so a partial install can be retried.
+                File.Copy(Path.Combine(source, "metadata.json"), Path.Combine(_userExtension, "metadata.json"));
             }
+
+            Append(null, ShellSchema, EnabledKey, Uuid);
         }
     }
 
-    private bool AllowExecutable(string installed, string path, bool newInstall = false)
+    private void AllowExecutable(string installed, string path, bool newInstall = false)
     {
         var schemas = Path.Combine(installed, "schemas");
         if (installed == _userExtension && (newInstall || !File.Exists(Path.Combine(schemas, "gschemas.compiled"))) &&
             run("glib-compile-schemas", "--strict", schemas) is null)
-            return false;
-        return Append(schemas, HelperSchema, AllowedKey, path);
+            throw new IOException("Could not compile the GNOME helper schema.");
+        Append(schemas, HelperSchema, AllowedKey, path);
     }
 
     private string? FindInstalled()
@@ -102,13 +95,14 @@ internal sealed class GnomeHelper(string dataHome, string bundledRoot, string? e
         return null;
     }
 
-    private bool Append(string? schemaDir, string schema, string key, string value)
+    private void Append(string? schemaDir, string schema, string key, string value)
     {
         string[] prefix = schemaDir is null ? [] : ["--schemadir", schemaDir];
         var current = run("gsettings", [.. prefix, "get", schema, key]);
         if (current is null || !GVariantStringArray.TryAppend(current, value, out var updated))
-            return false;
-        return updated is null || run("gsettings", [.. prefix, "set", schema, key, updated]) is not null;
+            throw new IOException($"Could not read the GNOME setting {schema} {key}.");
+        if (updated is not null && run("gsettings", [.. prefix, "set", schema, key, updated]) is null)
+            throw new IOException($"Could not update the GNOME setting {schema} {key}.");
     }
 
     private static void CopyFiles(string source, string destination)

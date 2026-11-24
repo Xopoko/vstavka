@@ -118,10 +118,10 @@ export class Windows {
     }
 
     async paste(allowed) {
+        const target = this.target;
+        this.target = null;
         if (this.pasteWait || Main.actionMode !== Shell.ActionMode.NORMAL)
             return false;
-        const target = this.target ?? this.lastFocused;
-        this.target = null;
         if (!target?.get_compositor_private() || isApp(target))
             return false;
 
