@@ -8,6 +8,7 @@ using Avalonia.Platform;
 using Avalonia.Threading;
 using Vstavka.Core;
 using Vstavka.Core.Localization;
+using Vstavka.Platform.Linux;
 using Vstavka.Platform.Windows;
 
 namespace Vstavka.Desktop;
@@ -39,11 +40,15 @@ public sealed partial class App : Application
         var platform = PlatformFactory.Create(args, () => history?.Store.Settings ?? defaultSettings);
         var storeProfile = (platform as WindowsPlatformServices)?.StoreProfile;
         var background = args.Contains("--startup") || args.Contains("--background");
+        var snapWayland = platform is LinuxPlatformServices { RequiresExplicitShortcut: true };
+        var openRequest = snapWayland ? Path.Combine(platform.DataDirectory, ".open-request") : null;
         Action? activate = null;
         var instance = storeProfile is null ? TryLock(platform.DataDirectory) :
             storeProfile.TryAcquireInstance(() => Dispatcher.UIThread.Post(() => activate?.Invoke()), !background);
         if (instance is null)
         {
+            if (!background && openRequest is not null)
+                RequestOpen(openRequest);
             platform.Dispose();
             Dispatcher.UIThread.Post(() => desktop.Shutdown());
             return;
@@ -62,7 +67,7 @@ public sealed partial class App : Application
         var windows = new DesktopWindows(platform, history, ShowFeedback);
         activate = () =>
         {
-            if (history.ClipboardConsentRequired)
+            if (history.ClipboardConsentRequired || (snapWayland && !history.Store.Settings.OnboardingCompleted))
                 windows.OpenOnboarding();
             else
                 windows.OpenPanel();
@@ -97,8 +102,22 @@ public sealed partial class App : Application
             quit.Header = Strings.Get("Exit");
         };
         TrayIcon.SetIcons(this, new TrayIcons { tray });
+        DispatcherTimer? snapSessionPoll = null;
+        if (openRequest is not null && platform is LinuxPlatformServices linux)
+        {
+            snapSessionPoll = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            snapSessionPoll.Tick += (_, _) =>
+            {
+                if (linux.RefreshSnapSession())
+                    history.RestoreSettingsShortcut();
+                if (ConsumeOpenRequest(openRequest))
+                    activate();
+            };
+            snapSessionPoll.Start();
+        }
         desktop.Exit += (_, _) =>
         {
+            snapSessionPoll?.Stop();
             try
             {
                 history.Stop();
@@ -115,7 +134,7 @@ public sealed partial class App : Application
         if ((history.ClipboardConsentRequired || !history.Store.Settings.OnboardingCompleted) &&
             (!PlatformFactory.IsDemo(args) || args.Contains("--onboarding")))
             Dispatcher.UIThread.Post(windows.OpenOnboarding);
-        else if (storeProfile is not null && !background)
+        else if (!background && (storeProfile is not null || snapWayland))
             Dispatcher.UIThread.Post(windows.OpenPanel);
     }
 
@@ -175,6 +194,27 @@ public sealed partial class App : Application
         _feedbackTimer = null;
         _feedback?.Close();
         _feedback = null;
+    }
+
+    private static void RequestOpen(string path)
+    {
+        try { using var request = File.Open(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+    }
+
+    private static bool ConsumeOpenRequest(string path)
+    {
+        if (!File.Exists(path))
+            return false;
+        try
+        {
+            File.Delete(path);
+            return true;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     private static FileStream? TryLock(string directory)

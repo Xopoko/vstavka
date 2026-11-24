@@ -20,7 +20,8 @@ internal sealed class PermissionRows : UserControl
     {
         ["clipboard-access"] = ("ClipboardAccessTitle", "ClipboardAccessDescription", "Allowed", "Allow", Symbol.Clipboard),
         ["accessibility"] = ("PasteForYou", "PasteForYouDescription", "StatusOn", "OpenSettings", Symbol.Keyboard),
-        ["gnome-helper"] = ("GnomeHelperTitle", "GnomeHelperDescription", "Installed", "Install", Symbol.PuzzlePiece)
+        ["gnome-helper"] = ("GnomeHelperTitle", "GnomeHelperDescription", "Installed", "Install", Symbol.PuzzlePiece),
+        ["gnome-snap-helper"] = ("GnomeHelperTitle", "GnomeHelperDescription", "Installed", "OpenGnomeExtensions", Symbol.PuzzlePiece)
     };
 
     private readonly IPlatformServices _platform;

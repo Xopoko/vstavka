@@ -412,7 +412,7 @@ internal sealed class OnboardingWindow : Window
                 await Task.Delay(720, token);
                 if (recorder.Gesture != gesture)
                     (gesture, runs) = (recorder.Gesture, 0);
-                if (runs == 3 || recorder.IsRecording || recorder.Keycaps is not StackPanel strip)
+                if (runs == 3 || recorder.IsRecording || gesture.Length == 0 || recorder.Keycaps is not StackPanel strip)
                     continue;
 
                 foreach (var cap in strip.Children.OfType<Border>().ToArray())
@@ -455,7 +455,7 @@ internal sealed class OnboardingWindow : Window
         {
             "macOS" => "Mac",
             "Windows" => "Windows",
-            _ => _history.Permissions.Any(permission => permission.Code == "gnome-helper") ? "Gnome" : "Linux"
+            _ => _history.Permissions.Any(permission => permission.Code is "gnome-helper" or "gnome-snap-helper") ? "Gnome" : "Linux"
         };
         var content = new StackPanel
         {
@@ -527,7 +527,8 @@ internal sealed class OnboardingWindow : Window
         var blocker = _history.Permissions.FirstOrDefault(permission =>
             permission.Requirement == PermissionRequirement.Required && permission.State != PermissionState.Granted);
         const PlatformCapabilities required = PlatformCapabilities.WatchClipboard | PlatformCapabilities.GlobalHotkey;
-        return (blocker, blocker is null && (_platform is DemoPlatformServices || _platform.Capabilities.HasFlag(required)));
+        return (blocker, blocker is null && !_history.NeedsShortcut &&
+            (_platform is DemoPlatformServices || _platform.Capabilities.HasFlag(required)));
     }
 
     private void RefreshPracticeReadiness()
@@ -551,6 +552,7 @@ internal sealed class OnboardingWindow : Window
                 permission.Code == "gnome-helper" ? "PracticeGnomeRestart" : "PracticePermissionRestart",
                 SetupVisuals.ShortcutInText(ShortcutRecorder.GestureText(_history.Shortcut, _platform.Name))),
             not null => Strings.Format("PracticePermissionMissing", PermissionRows.Title(permission)),
+            _ when _history.NeedsShortcut => Strings.Get("ShortcutNotSet"),
             _ => _platform.Notices.FirstOrDefault(notice => notice.Code == "linux-snap-x11-required")?.Message
                 ?? Strings.Get("PracticeUnavailable")
         };
@@ -572,6 +574,8 @@ internal sealed class OnboardingWindow : Window
             action = SetupVisuals.Button("SignOut", () => RequestSignOut(signOut), "setup-tinted", "PracticeSignOut");
         else if (permission is not null)
             action = SetupVisuals.Button("BackToPermissions", Back, "secondary", "BackToPermissions");
+        else if (_history.NeedsShortcut)
+            action = SetupVisuals.Button("ChooseShortcut", () => NavigateTo(1), "secondary", "PracticeChooseShortcut");
         if (action is not null)
         {
             action.HorizontalAlignment = HorizontalAlignment.Left;

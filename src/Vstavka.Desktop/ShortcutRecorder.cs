@@ -22,6 +22,7 @@ internal sealed class ShortcutRecorder : UserControl
     private readonly Action<string> _saved;
     private readonly bool? _animate;
     private readonly bool _large;
+    private readonly bool _registerOnRecord;
     private readonly StackPanel _caps = SetupVisuals.Horizontal(Space.M);
     private readonly StackPanel _live = SetupVisuals.Horizontal(Space.Xs);
     private readonly Grid _field;
@@ -34,13 +35,17 @@ internal sealed class ShortcutRecorder : UserControl
     public bool IsRecording { get; private set; }
     public Control Keycaps => _caps;
 
-    public ShortcutRecorder(DesktopHistory history, string platform, string gesture, Action<string> saved, bool? animate, bool large)
+    private string ShortcutAction => Gesture.Length == 0 ? "ChooseShortcut" : "ChangeShortcut";
+
+    public ShortcutRecorder(DesktopHistory history, string platform, string gesture, Action<string> saved, bool? animate, bool large,
+        bool registerOnRecord = true)
     {
         _history = history;
         _platform = platform;
         _saved = saved;
         _animate = animate;
         _large = large;
+        _registerOnRecord = registerOnRecord;
         Gesture = gesture;
         Focusable = true;
         // The dashed field is the sign that the recorder has the keyboard; the system's focus frame would double it.
@@ -64,7 +69,7 @@ internal sealed class ShortcutRecorder : UserControl
             Children = { prompt, _live, _hint }
         };
         _field = new Grid { Width = large ? 380 : double.NaN, MaxWidth = 380, MinHeight = 80, Children = { dashed, message } };
-        _change = SetupVisuals.Button("ChangeShortcut", ToggleRecording, name: "ChangeShortcut", symbol: Symbol.Keyboard);
+        _change = SetupVisuals.Button(ShortcutAction, ToggleRecording, name: "ChangeShortcut", symbol: Symbol.Keyboard);
         _change.HorizontalAlignment = HorizontalAlignment.Center;
         _savedStatus = SetupVisuals.Horizontal(Space.S, PanelVisuals.Glyph(Symbol.Checkmark, IconSize.Inline, "SuccessBrush"),
             SetupVisuals.Text(Strings.Get("ShortcutSaved"), TextSize.Caption, "SuccessBrush"));
@@ -123,11 +128,12 @@ internal sealed class ShortcutRecorder : UserControl
         _savedStatus.IsVisible = false;
         _savedTimer.Stop();
         _hint.Text = Strings.Get("RecordEscapeHint");
-        _change.Content = new TextBlock { Text = Strings.Get(recording ? "Cancel" : "ChangeShortcut") };
+        var label = Strings.Get(recording ? "Cancel" : ShortcutAction);
+        _change.Content = new TextBlock { Text = label };
         if (!recording)
             _change.Content = SetupVisuals.Horizontal(Space.S, PanelVisuals.Glyph(Symbol.Keyboard, IconSize.Control),
-                new TextBlock { Text = Strings.Get("ChangeShortcut") });
-        Avalonia.Automation.AutomationProperties.SetName(_change, Strings.Get(recording ? "Cancel" : "ChangeShortcut"));
+                new TextBlock { Text = label });
+        Avalonia.Automation.AutomationProperties.SetName(_change, label);
         _live.Children.Clear();
         Refresh();
     }
@@ -161,13 +167,14 @@ internal sealed class ShortcutRecorder : UserControl
                 : "ShortcutUnsupported");
             return;
         }
-        if (!_history.TryRegisterShortcut(gesture.ToString()))
+        string requested = gesture.ToString();
+        if (_registerOnRecord && !_history.TryRegisterShortcut(requested))
         {
             ShowError("ShortcutTaken");
             return;
         }
 
-        Gesture = gesture.ToString();
+        Gesture = requested;
         SetRecording(false);
         _saved(Gesture);
         _savedStatus.IsVisible = true;
@@ -213,7 +220,7 @@ internal sealed class ShortcutRecorder : UserControl
     private static IEnumerable<string> GestureLabels(string gesture, string platform) =>
         HotkeyGesture.TryParse(gesture, out var parsed)
             ? Labels(parsed.Modifiers, platform).Append(parsed.Key == "Space" ? Strings.Get("SpaceKey") : parsed.Key)
-            : [gesture];
+            : gesture.Length == 0 ? [] : [gesture];
 
     private static IEnumerable<string> Labels(HotkeyModifiers modifiers, string platform)
     {

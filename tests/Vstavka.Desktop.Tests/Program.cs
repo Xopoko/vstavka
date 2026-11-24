@@ -692,6 +692,50 @@ Run("Permission requests, live state and startup use the adapter", () =>
     finally { window.Close(); }
 });
 
+Run("The GNOME Snap waits for a chosen shortcut and a live extension", () =>
+{
+    using var demo = new SetupDemo("Linux") { RequiresExplicitShortcut = true };
+    var opened = false;
+    var installed = new PlatformPermission("gnome-snap-helper", PermissionRequirement.Required, PermissionState.Granted);
+    demo.DemoPermissions.Add(installed);
+    var history = CreateHistory(demo, seed: false);
+    history.Start();
+    var window = new OnboardingWindow(demo, history, animate: false);
+    window.Show();
+    try
+    {
+        Advance(window, 3);
+        Check(demo.RegisteredShortcut is null && HasLabel(window, "ShortcutNotSet"), "The Snap installs no default shortcut.");
+        Click(window, Find<Button>(window, "PracticeChooseShortcut"));
+        Check(window.Step == 1, "The practice action returns to the shortcut picker.");
+        demo.Capabilities = PlatformCapabilities.None;
+        demo.DemoPermissions[0] = new("gnome-snap-helper", PermissionRequirement.Required, PermissionState.Missing,
+            () => opened = true);
+        var choose = Find<Button>(window, "ChangeShortcut");
+        Check(AutomationProperties.GetName(choose) == Strings.Get("ChooseShortcut"), "An unset shortcut says Choose shortcut.");
+        Click(window, choose);
+        Press(window, Key.V, PhysicalKey.V, RawInputModifiers.Control | RawInputModifiers.Alt);
+        Check(history.Store.Settings.PanelShortcut == "Ctrl+Alt+V" && demo.RegisteredShortcut is null,
+            "The chosen shortcut is saved but not registered while the extension is unavailable.");
+
+        Advance(window, 2);
+        var action = Find<Button>(window, "Request-gnome-snap-helper");
+        Check(HasLabel(window, "PermissionsGnomeTitle") && Equals(action.Content, Strings.Get("OpenGnomeExtensions")),
+            "The guide explains the GNOME requirement and offers to open the extension page.");
+        Click(window, action);
+        Check(opened && !history.InstallingGnomeHelper && !HasLabel(window, "SignOutToFinish"),
+            "The Snap action opens the page without a local installation or sign-out flow.");
+
+        demo.DemoPermissions[0] = installed;
+        demo.Capabilities = PlatformCapabilities.WatchClipboard | PlatformCapabilities.GlobalHotkey;
+        PumpUntil(() => HasLabel(window, "Installed") && demo.RegisteredShortcut == history.Shortcut,
+            "The permission poll detects installation and registers the shortcut.");
+        Advance(window, 3);
+        Check(window.Practicing, "The guide is ready for practice once the extension is available.");
+    }
+    finally { window.Close(); history.Stop(); }
+});
+
 Run("Signing out on permissions saves the step and starts the guide again at login", () =>
 {
     var directory = Path.Combine(Path.GetTempPath(), "Vstavka.OnboardingTests." + Guid.NewGuid().ToString("N"));
@@ -1498,6 +1542,7 @@ sealed class SetupDemo(string profile) : IPlatformServices, IGlobalHotkey
     public IReadOnlyList<PlatformNotice> Notices => _demo.Notices;
     public string DataDirectory { get; init; } = Path.Combine(Path.GetTempPath(), "Vstavka.Demo");
     public string DefaultGesture => profile == "macOS" ? "Shift+Meta+V" : _demo.DefaultGesture;
+    public bool RequiresExplicitShortcut { get; init; }
     public List<PlatformPermission> DemoPermissions => _demo.DemoPermissions;
     public IReadOnlyList<PlatformPermission> Permissions => _demo.Permissions;
     public IStartupRegistration Startup => _demo.Startup;

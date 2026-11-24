@@ -9,13 +9,21 @@ internal sealed class GnomeDesktop : ILinuxDesktop
     private const string BusDaemon = "org.freedesktop.DBus";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(2);
     private readonly DBusConnection _connection;
-    private readonly string _owner;
+    private readonly string? _owner;
+    private readonly Task<Exception?> _disconnected;
     private IDisposable? _clipboardMatch;
     private IDisposable? _hotkeyMatch;
     private bool _supportsCheckAccess = true;
     private bool _targetCaptured;
 
-    private GnomeDesktop(DBusConnection connection, string owner) => (_connection, _owner) = (connection, owner);
+    private GnomeDesktop(DBusConnection connection, string? owner)
+    {
+        _connection = connection;
+        _owner = owner;
+        _disconnected = connection.DisconnectedAsync();
+    }
+
+    public bool IsDisconnected => _disconnected.IsCompleted;
 
     public static GnomeConnection TryConnect()
     {
@@ -31,11 +39,7 @@ internal sealed class GnomeDesktop : ILinuxDesktop
             writer.WriteString(BusName);
             var owner = Wait(connection.CallMethodAsync(writer.CreateMessage(),
                 static (message, _) => message.GetBodyReader().ReadString()));
-            var desktop = new GnomeDesktop(connection, owner);
-            // Reserve the subscription at launch so the adapter can report a
-            // denied or busy extension before the UI starts its monitor.
-            Wait(connection.CallMethodAsync(desktop.CreateCall("SubscribeClipboard")));
-            return new(desktop);
+            return Subscribe(connection, owner);
         }
         catch (DBusErrorReplyException error)
         {
@@ -47,6 +51,34 @@ internal sealed class GnomeDesktop : ILinuxDesktop
             connection.Dispose();
             return new(null, GnomeAccess.Unknown);
         }
+    }
+
+    public static GnomeConnection TryConnectSnap()
+    {
+        DBusConnection? connection = null;
+        try
+        {
+            connection = GnomeSnapSocket.Connect();
+            return connection is null ? new(null, GnomeAccess.Unavailable) : Subscribe(connection, owner: null);
+        }
+        catch (DBusErrorReplyException error)
+        {
+            connection?.Dispose();
+            return new(null, AccessError(error));
+        }
+        catch (Exception error) when (IsBusFailure(error) || error is System.Net.Sockets.SocketException)
+        {
+            connection?.Dispose();
+            return new(null, GnomeAccess.Unavailable);
+        }
+    }
+
+    private static GnomeConnection Subscribe(DBusConnection connection, string? owner)
+    {
+        var desktop = new GnomeDesktop(connection, owner);
+        // Reserve the subscription before the UI starts monitoring.
+        Wait(connection.CallMethodAsync(desktop.CreateCall("SubscribeClipboard")));
+        return new(desktop);
     }
 
     public GnomeConnection RefreshAccess()
@@ -95,19 +127,27 @@ internal sealed class GnomeDesktop : ILinuxDesktop
 
     public void StartWatching()
     {
-        _clipboardMatch = Wait(_connection.AddMatchAsync(
-            Rule("ClipboardChanged"),
-            static (message, _) =>
-            {
-                var reader = message.GetBodyReader();
-                return new LinuxClipboardData(reader.ReadString(), reader.ReadArrayOfByte(),
-                    reader.ReadString(), reader.ReadString(), reader.ReadString());
-            },
-            notification =>
-            {
-                if (notification.HasValue)
-                    ClipboardChanged?.Invoke(notification.Value);
-            }, flags: ObserverFlags.NoSubscribe, emitOnCapturedContext: false).AsTask());
+        try
+        {
+            _clipboardMatch = Wait(_connection.AddMatchAsync(
+                Rule("ClipboardChanged"),
+                static (message, _) =>
+                {
+                    var reader = message.GetBodyReader();
+                    return new LinuxClipboardData(reader.ReadString(), reader.ReadArrayOfByte(),
+                        reader.ReadString(), reader.ReadString(), reader.ReadString());
+                },
+                notification =>
+                {
+                    if (notification.HasValue)
+                        ClipboardChanged?.Invoke(notification.Value);
+                }, flags: ObserverFlags.NoSubscribe, emitOnCapturedContext: false).AsTask());
+        }
+        catch (Exception error) when (_owner is null && IsBusFailure(error))
+        {
+            // The extension can be disabled between subscription and attaching the signal handler.
+            _connection.Dispose();
+        }
     }
 
     public void StopWatching()

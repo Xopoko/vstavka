@@ -28,7 +28,8 @@ internal sealed class DesktopHistory
     public bool ShortcutRegistrationFailed { get; private set; }
     public bool IsStoreBuild => _windowsStoreProfile is not null || _platform is MacPlatformServices { IsAppStoreBuild: true };
     public bool ClipboardConsentRequired => _windowsStoreProfile is { HasClipboardConsent: false };
-    public string Shortcut => Store.Settings.PanelShortcut ?? _platform.DefaultGesture;
+    public bool NeedsShortcut => _platform.RequiresExplicitShortcut && Store.Settings.PanelShortcut is null;
+    public string Shortcut => Store.Settings.PanelShortcut ?? (NeedsShortcut ? "" : _platform.DefaultGesture);
     public IReadOnlyList<PlatformPermission> Permissions => _installingPermissions ?? _platform.Permissions;
     public bool InstallingGnomeHelper => _installingPermissions is not null;
     public bool GnomeHelperInstallFailed { get; private set; }
@@ -101,6 +102,8 @@ internal sealed class DesktopHistory
     {
         if (_registeredGesture == gesture)
             return true;
+        if (_platform.RequiresExplicitShortcut && !_platform.Capabilities.HasFlag(PlatformCapabilities.GlobalHotkey))
+            return true;
         if (!_platform.Hotkey.TryRegister(gesture))
             return false;
         _registeredGesture = gesture;
@@ -108,8 +111,14 @@ internal sealed class DesktopHistory
     }
 
     public void RegisterSettingsShortcut() => ShortcutRegistrationFailed =
-        (_platform.Capabilities.HasFlag(PlatformCapabilities.GlobalHotkey) || _platform is DemoPlatformServices) &&
+        !NeedsShortcut && (_platform.Capabilities.HasFlag(PlatformCapabilities.GlobalHotkey) || _platform is DemoPlatformServices) &&
         !TryRegisterShortcut(Shortcut);
+
+    internal void RestoreSettingsShortcut()
+    {
+        _registeredGesture = null;
+        RegisterSettingsShortcut();
+    }
 
     public void ApplySettings(AppSettings settings)
     {

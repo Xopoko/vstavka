@@ -143,6 +143,7 @@ public interface IPlatformServices : IDisposable
 
     /// <summary>The platform's default shortcut in <see cref="HotkeyGesture"/> text form.</summary>
     string DefaultGesture { get; }
+    bool RequiresExplicitShortcut => false;
 
     /// <summary>Permissions and helpers, evaluated on every read. The UI re-reads them while a permission screen is visible.</summary>
     IReadOnlyList<PlatformPermission> Permissions => [];

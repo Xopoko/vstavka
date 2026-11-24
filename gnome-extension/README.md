@@ -2,7 +2,19 @@
 
 The extension lets Vstavka read clipboard changes, set the clipboard, register a shortcut, restore focus and paste, and place its panel on GNOME Wayland.
 
-## Installation
+## Snap companion
+
+[**Vstavka Clipboard for Snap**](https://extensions.gnome.org/extension/11930/vstavka-clipboard-for-snap/) is the companion for installations from the
+Snap Store. Enable it in GNOME Extensions, then choose a panel shortcut in
+Vstavka. The app detects the companion automatically. The companion talks only
+to the confined Vstavka process through a private connection in the app's local
+runtime directory. It does not keep its own history.
+
+To package the companion for the GNOME Extensions catalog, run
+`bash scripts/package-gnome-snap-extension.sh` from the repository root. The
+result is `artifacts/gnome-shell/vstavka-snap@xopoko.github.io.zip`.
+
+## Installation for the standalone build
 
 On GNOME Wayland, use the GNOME helper button in Vstavka's setup. It installs the bundled extension for your account, compiles its settings schema with `glib-compile-schemas`, adds the Vstavka executable to the allowlist and enables the extension. Sign out and back in to load a newly installed extension. If the extension is already active, granting access takes effect immediately.
 

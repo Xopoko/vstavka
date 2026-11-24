@@ -54,7 +54,8 @@ internal sealed partial class SettingsWindow : Window
             Field("Language", _language), Field("Theme", _theme), Field("Accent", _accent)));
 
         _recorder = new ShortcutRecorder(history, platform.Name, history.Shortcut,
-            shortcut => _draft.PanelShortcut = shortcut, animate, large: false) { Name = "ShortcutRecorder" };
+            shortcut => _draft.PanelShortcut = shortcut, animate, large: false,
+            registerOnRecord: !platform.RequiresExplicitShortcut) { Name = "ShortcutRecorder" };
         var shortcut = Section("Shortcut", Card(_recorder));
         var contents = new StackPanel { Spacing = Space.Xl, Margin = new Thickness(Space.Xxxl, Space.Xl), Children = { appearance, shortcut } };
         if (platform.ClipboardSounds is { } sounds)

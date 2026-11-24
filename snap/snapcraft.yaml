@@ -1,7 +1,7 @@
 name: vstavka
 title: Vstavka
 base: core24
-version: '1.0.0'
+version: '1.1.0'
 summary: Search, pin, and reuse clipboard history from one panel
 description: |
   Recall text, links, images, and files from your clipboard. Open the panel
@@ -9,7 +9,8 @@ description: |
   collections. Saved clipboard history is encrypted locally when your desktop
   provides the Secret portal.
 
-  This Snap supports X11 desktop sessions.
+  Use Vstavka on X11 or GNOME Wayland. On GNOME Wayland, install and enable
+  the Vstavka companion extension once.
 grade: stable
 confinement: strict
 license: MIT
@@ -79,7 +80,7 @@ parts:
 
       export NUGET_PACKAGES="$CRAFT_PART_BUILD/nuget-packages"
       "$sdk_dir/dotnet" publish src/Vstavka.Desktop/Vstavka.Desktop.csproj \
-        --configuration Release --runtime linux-x64 --self-contained -p:Version=1.0.0 \
+        --configuration Release --runtime linux-x64 --self-contained -p:Version=1.1.0 \
         --output "$CRAFT_PART_INSTALL/app"
       rm -rf "$CRAFT_PART_INSTALL/app/gnome-extension"
       install -Dm644 snap/local/fonts.conf "$CRAFT_PART_INSTALL/etc/fonts/vstavka.conf"

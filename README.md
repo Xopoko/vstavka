@@ -38,14 +38,21 @@ into 24 languages.
 
 | | Windows 11 (x64) | macOS 13 or later (local build) | Ubuntu 24.04 or later |
 | --- | --- | --- | --- |
-| Install | [Microsoft Store](https://apps.microsoft.com/detail/9NVXW230R4PX) | [Build from source](#macos) | [Snap Store, x64 and X11](https://snapcraft.io/vstavka) · [Build from source](#ubuntu) |
+| Install | [Microsoft Store](https://apps.microsoft.com/detail/9NVXW230R4PX) | [Build from source](#macos) | [Snap Store, x64](https://snapcraft.io/vstavka) · [Build from source](#ubuntu) |
 | Status | Stable | Preview | Preview |
-| Panel shortcut | Ctrl+Shift+V | ⇧⌘V | Ctrl+Alt+V |
+| Panel shortcut | Ctrl+Shift+V | ⇧⌘V | Ctrl+Alt+V by default on X11. Choose a shortcut on Snap with GNOME Wayland. |
 
 The desktop app uses [Avalonia](https://avaloniaui.net/) on all three platforms.
-Windows builds play optional clipboard sounds. The Snap requires an X11 desktop
-session. The Ubuntu source build also supports GNOME on Wayland with the bundled
-helper, which declares compatibility with GNOME 46–51.
+Windows builds play optional clipboard sounds. Vstavka 1.0.0 from the Snap Store
+requires X11. Version 1.1.0 adds [GNOME on Wayland](#snap-on-gnome-wayland).
+The Ubuntu source build uses a bundled GNOME helper compatible with GNOME 46–51.
+
+### Snap on GNOME Wayland
+
+In Vstavka 1.1.0, open **GNOME Extensions** from the first-run guide or
+**Settings → Permissions** and enable [Vstavka Clipboard for Snap](https://extensions.gnome.org/extension/11930/vstavka-clipboard-for-snap/).
+Choose a shortcut in Vstavka. The companion supports GNOME 46 and 50, and the
+Snap detects whether it is enabled.
 
 ## Using Vstavka
 

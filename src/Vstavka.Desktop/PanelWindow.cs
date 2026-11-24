@@ -567,9 +567,11 @@ internal sealed partial class PanelWindow : Window
     private void UpdateStatus()
     {
         var notice = _platform.Notices.FirstOrDefault() ?? (_history.Warning is null ? _history.CaptureNotice : null);
-        var warning = notice is not null || _history.ShortcutRegistrationFailed || _history.Warning is not null || _history.Paused;
         if (_history.ShortcutRegistrationFailed)
             notice = new PlatformNotice("shortcut-unavailable", Strings.Get("HotkeyBusy"), () => _ = OpenSettingsAsync());
+        else if (notice is null && _history.NeedsShortcut)
+            notice = new PlatformNotice("shortcut-not-set", Strings.Get("ShortcutNotSet"), () => _ = OpenSettingsAsync());
+        var warning = notice is not null || _history.Warning is not null || _history.Paused;
         var text = notice?.Code switch
         {
             "adapter-not-wired" => Strings.Get("PlatformUnavailable"),
@@ -577,7 +579,7 @@ internal sealed partial class PanelWindow : Window
             "pasteboard-access-approval" => Strings.Get("ClipboardApprovalNotice"),
             "pasteboard-access-denied" => Strings.Get("PasteboardAccessDenied"),
             "keychain-unavailable" => Strings.Get("KeychainUnavailable"),
-            "gnome-extension-missing" => Strings.Get("GnomeHelperNotice"),
+            "gnome-extension-missing" or "linux-snap-extension-needed" => Strings.Get("GnomeHelperNotice"),
             "gnome-helper-restart" => Strings.Get("GnomeRestartNotice"),
             "gnome-extension-not-allowed" => notice.Message,
             "clipboard-item-too-large" => Strings.Get("ItemTooLarge"),
@@ -606,8 +608,9 @@ internal sealed partial class PanelWindow : Window
                     "pasteboard-access-approval" => "Allow",
                     "pasteboard-access-denied" => "OpenSettings",
                     "gnome-extension-missing" => "Install",
+                    "linux-snap-extension-needed" => "OpenGnomeExtensions",
                     "gnome-helper-restart" => "SignOut",
-                    "shortcut-unavailable" => "Settings",
+                    "shortcut-unavailable" or "shortcut-not-set" => "Settings",
                     _ => "GrantAccess"
                 }),
                 Classes = { "panel-button", "permission" },

@@ -4,7 +4,7 @@ using Vstavka.Platform;
 using Vstavka.Platform.Linux;
 
 Run("Session selects the extension first and never uses Xwayland as the clipboard fallback", TestModes);
-Run("The Snap uses X11 directly and registers a revision-independent autostart command", TestSnapSession);
+Run("Snap enables an approved GNOME bridge or connects directly to X11", TestSnapSession);
 Run("Clipboard maps supported formats, caps data and checks privacy markers", TestClipboardFormats);
 Run("Clipboard and shortcut use their registration contexts", TestCallbacks);
 Run("Linux shortcuts map usable gestures to GNOME accelerators and X11 keysyms", TestGestures);
@@ -69,24 +69,40 @@ static void TestSnapSession()
     try
     {
         var x11 = new FakeDesktop { Capabilities = PlatformCapabilities.WatchClipboard };
+        var gnome = new FakeDesktop { Capabilities = PlatformCapabilities.WatchClipboard | PlatformCapabilities.GlobalHotkey };
         var session = "wayland";
+        var desktop = "GNOME";
+        GnomeConnection snapShell = default;
+        var offeredExtension = false;
         var x11Attempts = 0;
         LinuxPlatformServices Create(string executable) => new(name => name switch
         {
             "SNAP_NAME" => "vstavka",
             "XDG_CONFIG_HOME" => configHome.FullName,
-            "XDG_CURRENT_DESKTOP" => "GNOME",
+            "XDG_CURRENT_DESKTOP" => desktop,
             "XDG_SESSION_TYPE" => session,
             "DISPLAY" => ":55",
             _ => null,
         }, configHome.FullName, () => throw new InvalidOperationException("Snap tried to connect to GNOME Shell."),
-            () => { x11Attempts++; return x11; }, () => null, executable);
+            () => { x11Attempts++; return x11; }, () => null, executable,
+            connectSnapShell: () => snapShell, openSnapHelper: () => offeredExtension = true);
 
         using (var wayland = Create("/snap/vstavka/1/app/Vstavka.Desktop"))
         {
             Check(wayland.Capabilities == PlatformCapabilities.None && x11Attempts == 0);
-            Check(wayland.Permissions.Count == 0 && wayland.Notices.Single().Code == "linux-snap-x11-required");
+            var permission = wayland.Permissions.Single();
+            Check(wayland.RequiresExplicitShortcut && permission.Code == "gnome-snap-helper" &&
+                permission.State == PermissionState.Missing && wayland.Notices.Single().Code == "linux-snap-extension-needed");
+            permission.Request!();
+            Check(offeredExtension);
+            snapShell = new(gnome);
+            Check(wayland.Permissions.Single().State == PermissionState.Granted && wayland.Capabilities == gnome.Capabilities);
         }
+
+        desktop = "KDE";
+        using (var unsupported = Create("/snap/vstavka/1/app/Vstavka.Desktop"))
+            Check(unsupported.Permissions.Count == 0 && !unsupported.RequiresExplicitShortcut &&
+                unsupported.Notices.Single().Code == "linux-snap-x11-required");
 
         session = "x11";
         using (var first = Create("/snap/vstavka/1/app/Vstavka.Desktop"))

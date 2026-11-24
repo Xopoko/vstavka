@@ -16,10 +16,15 @@ export VSTAVKA_ALLOWED_CLIENT=$HOME/allowed-client
 export VSTAVKA_UNLISTED_CLIENT=$HOME/unlisted-client
 
 uuid=vstavka@xopoko.github.io
+snap_uuid=vstavka-snap@xopoko.github.io
 extensions=$XDG_DATA_HOME/gnome-shell/extensions
 mkdir -m 700 "$XDG_RUNTIME_DIR"
 mkdir -p "$extensions" "$XDG_DATA_HOME/applications" /run/dbus
 cp -r "/vstavka/$uuid" /vstavka/tests/probe@vstavka.test "$extensions"
+mkdir "$extensions/$snap_uuid"
+cp "/vstavka/$uuid/"{extension-core.js,snap-peer.js,clipboard.js,windows.js,shell.xml} "$extensions/$snap_uuid/"
+cp /vstavka/snap-extension.js "$extensions/$snap_uuid/extension.js"
+cp /vstavka/snap-metadata.json "$extensions/$snap_uuid/metadata.json"
 cp /vstavka/tests/io.github.xopoko.VstavkaTest{,Terminal}.desktop "$XDG_DATA_HOME/applications/"
 icons=$XDG_DATA_HOME/icons/hicolor/32x32/apps
 mkdir -p "$icons"
@@ -86,6 +91,36 @@ for attempt in {1..50}; do
 done
 test "$owner" = '(false,)'
 echo 'PASS disabling the extension removes its D-Bus name'
+
+snap_socket=$XDG_RUNTIME_DIR/snap.vstavka/vstavka-shell.sock
+test ! -e "$snap_socket"
+timeout 5 gnome-extensions enable "$snap_uuid"
+for attempt in {1..50}; do
+    if [[ -S "$snap_socket" ]]; then
+        break
+    fi
+    sleep 0.1
+done
+test -S "$snap_socket"
+owner=$(gdbus call --session --dest org.freedesktop.DBus --object-path /org/freedesktop/DBus \
+    --method org.freedesktop.DBus.NameHasOwner io.github.xopoko.Vstavka.Shell1)
+test "$owner" = '(false,)'
+if output=$(timeout 5 gdbus call --address "unix:path=$snap_socket" --dest io.github.xopoko.Vstavka.Shell1 \
+    --object-path /io/github/xopoko/Vstavka/Shell \
+    --method io.github.xopoko.Vstavka.Shell1.SubscribeClipboard 2>&1); then
+    echo 'Unexpected authorization of an unconfined process on the Snap socket' >&2
+    exit 1
+fi
+grep -Ei 'closed|reset by peer' <<<"$output"
+timeout 5 gnome-extensions disable "$snap_uuid"
+for attempt in {1..50}; do
+    if [[ ! -e "$snap_socket" ]]; then
+        break
+    fi
+    sleep 0.1
+done
+test ! -e "$snap_socket"
+echo 'PASS Snap-only extension rejects an unconfined same-user peer, claims no bus name and removes its socket on disable'
 if grep -Ei '(JS ERROR|Vstavka clipboard|Extension .* error|CRITICAL)' "$log"; then
     echo 'Unexpected Shell, JavaScript or extension errors in GNOME Shell log' >&2
     exit 1

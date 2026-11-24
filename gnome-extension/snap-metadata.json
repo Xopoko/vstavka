@@ -1,0 +1,7 @@
+{
+  "uuid": "vstavka-snap@xopoko.github.io",
+  "name": "Vstavka Clipboard for Snap",
+  "description": "Enables local clipboard history in the Vstavka Snap on GNOME Wayland. It reads clipboard changes, connects a shortcut you choose in Vstavka, and can paste a selected item into the previous window. Clipboard data is sent only to the Vstavka Snap over a private local connection. The extension does not use the network or keep its own history.",
+  "url": "https://github.com/Xopoko/vstavka",
+  "shell-version": ["46", "50"]
+}

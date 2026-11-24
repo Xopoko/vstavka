@@ -9,25 +9,34 @@ public sealed class LinuxPlatformServices : IPlatformServices, IPasteService, IP
     private readonly HotkeyAccess _hotkey;
     private readonly LinuxSession _session;
     private readonly bool _isSnap;
+    private readonly bool _isSnapGnome;
     private readonly Func<GnomeConnection> _connectShell;
     private readonly GnomeHelper? _helper;
+    private readonly Action? _openSnapHelper;
     private GnomeConnection _shell;
 
     public LinuxPlatformServices()
         : this(Environment.GetEnvironmentVariable, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             GnomeDesktop.TryConnect, X11Desktop.TryConnect, SecretServiceKeyStore.TryCreate,
-            LinuxProcess.GetExecutable(), AppContext.BaseDirectory, LinuxProcess.Run)
+            LinuxProcess.GetExecutable(), AppContext.BaseDirectory, LinuxProcess.Run,
+            GnomeDesktop.TryConnectSnap, GnomeSnapSocket.OpenCatalog)
     {
     }
 
     internal LinuxPlatformServices(Func<string, string?> environment, string home,
         Func<GnomeConnection> connectShell, Func<ILinuxDesktop?> connectX11, Func<IHistoryKeyStore?> keyStore,
-        string? executable = null, string? bundledRoot = null, LinuxCommand? run = null)
+        string? executable = null, string? bundledRoot = null, LinuxCommand? run = null,
+        Func<GnomeConnection>? connectSnapShell = null, Action? openSnapHelper = null)
     {
         _session = LinuxDesktop.DetectSession(environment);
         _isSnap = environment("SNAP_NAME") == "vstavka";
+        var isGnomeWayland = _session == LinuxSession.Wayland && LinuxDesktop.IsGnome(environment);
+        _isSnapGnome = _isSnap && isGnomeWayland;
+        _openSnapHelper = openSnapHelper;
         _connectShell = connectShell;
-        _shell = _isSnap ? default : connectShell();
+        if (_isSnap)
+            _connectShell = _isSnapGnome ? connectSnapShell ?? NoShell : NoShell;
+        _shell = _connectShell();
         _desktop = _shell.Desktop ?? (_session == LinuxSession.X11 ? connectX11() : null);
         _clipboard = new ClipboardAccess(_desktop);
         _hotkey = new HotkeyAccess(_desktop);
@@ -36,7 +45,7 @@ public sealed class LinuxPlatformServices : IPlatformServices, IPasteService, IP
         DataDirectory = Path.Combine(dataHome, "vstavka");
         Startup = new LinuxStartupRegistration(HomeDirectory(environment("XDG_CONFIG_HOME"), Path.Combine(home, ".config")),
             _isSnap ? "vstavka" : executable);
-        if (!_isSnap && _session == LinuxSession.Wayland && LinuxDesktop.IsGnome(environment))
+        if (!_isSnap && isGnomeWayland)
             _helper = new GnomeHelper(dataHome, bundledRoot ?? AppContext.BaseDirectory, executable,
                 run ?? LinuxProcess.Run, environment("XDG_DATA_DIRS"));
 
@@ -48,6 +57,8 @@ public sealed class LinuxPlatformServices : IPlatformServices, IPasteService, IP
     private static string HomeDirectory(string? configured, string fallback) =>
         Path.IsPathFullyQualified(configured ?? "") ? configured! : fallback;
 
+    private static GnomeConnection NoShell() => default;
+
     public string Name => "Linux";
     public PlatformCapabilities Capabilities => _desktop?.Capabilities ?? PlatformCapabilities.None;
     public IReadOnlyList<PlatformNotice> Notices => _shell.Access switch
@@ -55,8 +66,10 @@ public sealed class LinuxPlatformServices : IPlatformServices, IPasteService, IP
         GnomeAccess.Denied => [new("gnome-extension-not-allowed", "Allow the Vstavka executable to use the GNOME Shell extension.")],
         GnomeAccess.Busy => [new("gnome-extension-busy", "Another Vstavka process is using the GNOME clipboard.")],
         _ when _isSnap && _desktop is not null && HistoryProtector is null =>
-            [new("linux-snap-history-session-only", "Clipboard history lasts for this session. To keep it across restarts, unlock your keyring in an X11 desktop session with the Secret portal and reopen Vstavka.")],
+            [new("linux-snap-history-session-only", "Clipboard history lasts for this session. To keep it across restarts, unlock your keyring in a desktop session with the Secret portal and reopen Vstavka.")],
         _ when _desktop is not null => [],
+        _ when _isSnapGnome =>
+            [new("linux-snap-extension-needed", "Enable Vstavka in GNOME Extensions to use clipboard history on Wayland.", _openSnapHelper)],
         _ when _isSnap && _session == LinuxSession.Wayland =>
             [new("linux-snap-x11-required", "Sign in to an X11 desktop session to capture clipboard history with this Snap.")],
         _ when _helper is not null => [_helper.Permission(_shell) switch
@@ -74,6 +87,13 @@ public sealed class LinuxPlatformServices : IPlatformServices, IPasteService, IP
     {
         get
         {
+            if (_isSnapGnome)
+            {
+                RefreshGnome();
+                return [_shell.Desktop is not null || _shell.Access == GnomeAccess.Busy
+                    ? new("gnome-snap-helper", PermissionRequirement.Required, PermissionState.Granted)
+                    : new("gnome-snap-helper", PermissionRequirement.Required, PermissionState.Missing, _openSnapHelper)];
+            }
             if (_helper is null)
                 return [];
             RefreshGnome();
@@ -83,6 +103,7 @@ public sealed class LinuxPlatformServices : IPlatformServices, IPasteService, IP
     public IStartupRegistration Startup { get; }
     public string DataDirectory { get; }
     public string DefaultGesture => "Ctrl+Alt+V";
+    public bool RequiresExplicitShortcut => _isSnapGnome;
     public IClipboardMonitor Clipboard => _clipboard;
     public IClipboardWriter ClipboardWriter => _clipboard;
     public IGlobalHotkey Hotkey => _hotkey;
@@ -99,9 +120,18 @@ public sealed class LinuxPlatformServices : IPlatformServices, IPasteService, IP
     void IPanelWindow.Showing() => _desktop?.PreparePanel();
     void IPanelWindow.Hidden() { }
 
+    public bool RefreshSnapSession()
+    {
+        if (!_isSnapGnome || _desktop is GnomeDesktop { IsDisconnected: false })
+            return false;
+        var previous = _desktop;
+        RefreshGnome();
+        return !ReferenceEquals(previous, _desktop);
+    }
+
     private void RefreshGnome()
     {
-        _shell = _desktop is GnomeDesktop current ? current.RefreshAccess() : _connectShell();
+        _shell = _desktop is GnomeDesktop { IsDisconnected: false } current ? current.RefreshAccess() : _connectShell();
         if (_shell.Access == GnomeAccess.SessionUnavailable || ReferenceEquals(_desktop, _shell.Desktop))
             return;
         var previous = _desktop;
