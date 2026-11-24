@@ -21,14 +21,14 @@ internal sealed partial class SettingsWindow
             SmallChange = 0.05, LargeChange = 0.1, VerticalAlignment = VerticalAlignment.Center
         };
         AutomationProperties.SetName(volume, Strings.Get("Volume"));
-        var percent = SetupVisuals.Text(FormatVolume(_draft.Volume), 12, "MutedBrush");
+        var percent = SetupVisuals.Text(FormatVolume(_draft.Volume), TextSize.Caption, "MutedBrush");
         percent.VerticalAlignment = VerticalAlignment.Center;
         volume.ValueChanged += (_, e) =>
         {
             _draft.Volume = e.NewValue;
             percent.Text = FormatVolume(e.NewValue);
         };
-        var volumeControl = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
+        var volumeControl = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = Space.M };
         SetupVisuals.Add(volumeControl, volume);
         SetupVisuals.Add(volumeControl, percent, 1);
         return Section("Sound", Card(copy, paste, Field("Volume", volumeControl)));
@@ -41,7 +41,7 @@ internal sealed partial class SettingsWindow
         toggle.IsCheckedChanged += (_, _) => changed(toggle.IsChecked == true);
         var button = SetupVisuals.Button("PreviewSound", preview, name: previewName);
         AutomationProperties.SetName(button, Strings.Get(previewName));
-        var row = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 12 };
+        var row = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = Space.L };
         SetupVisuals.Add(row, toggle);
         SetupVisuals.Add(row, button, 1);
         return row;

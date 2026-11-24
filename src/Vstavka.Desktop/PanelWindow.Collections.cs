@@ -13,12 +13,7 @@ namespace Vstavka.Desktop;
 
 internal sealed partial class PanelWindow
 {
-    private readonly Grid _collectionOverlay = new()
-    {
-        Name = "CollectionDialog",
-        IsVisible = false,
-        Background = new SolidColorBrush(Color.FromArgb(128, 0, 0, 0))
-    };
+    private readonly Grid _collectionOverlay = new() { Name = "CollectionDialog", IsVisible = false };
     private Control? _collectionDialogOpener;
     private ComboBox? _collectionColorChooser;
 
@@ -72,7 +67,7 @@ internal sealed partial class PanelWindow
     {
         var option = new MenuItem
         {
-            Header = SetupVisuals.Horizontal(7, PanelVisuals.Dot(color), new TextBlock { Text = label })
+            Header = SetupVisuals.Horizontal(Space.S, PanelVisuals.Dot(color), new TextBlock { Text = label })
         };
         AutomationProperties.SetName(option, label);
         option.Click += (_, _) => click();
@@ -124,13 +119,13 @@ internal sealed partial class PanelWindow
             var label = Strings.Get(color);
             var swatch = new ComboBoxItem
             {
-                Content = SetupVisuals.Horizontal(7, PanelVisuals.Dot(color, 9), new TextBlock { Text = label })
+                Content = SetupVisuals.Horizontal(Space.S, PanelVisuals.Dot(color), new TextBlock { Text = label })
             };
             AutomationProperties.SetName(swatch, label);
             colorChooser.Items.Add(swatch);
         }
         colorChooser.SelectedIndex = colors.ToList().IndexOf(selectedColor);
-        var errorLabel = SetupVisuals.Text("", 12, "DangerBrush");
+        var errorLabel = SetupVisuals.Text("", TextSize.Caption, "DangerBrush");
         errorLabel.Name = "CollectionError";
         errorLabel.IsVisible = false;
         AutomationProperties.SetLiveSetting(errorLabel, AutomationLiveSetting.Polite);
@@ -173,7 +168,7 @@ internal sealed partial class PanelWindow
         };
         var cancel = SetupVisuals.Button("Cancel", () => CloseCollectionDialog(), "ghost", "CancelCollectionEdit");
         var save = SetupVisuals.Button(collection is null ? "CreateCollection" : "Save", Save, "primary", "SaveCollection");
-        var body = new StackPanel { Spacing = 8, Children = { name, colorChooser, errorLabel, DialogActions(cancel, save) } };
+        var body = new StackPanel { Spacing = Space.M, Children = { name, colorChooser, errorLabel, DialogActions(cancel, save) } };
         ShowCollectionDialog(opener, collection is null ? "NewCollection" : "RenameCollection", body, name);
         _collectionColorChooser = colorChooser;
         name.SelectAll();
@@ -191,26 +186,26 @@ internal sealed partial class PanelWindow
             else
                 CloseCollectionDialog();
         }, "danger-filled", "ConfirmCollectionDelete");
-        var body = new StackPanel { Spacing = 10, Children = { message, DialogActions(cancel, delete) } };
+        var body = new StackPanel { Spacing = Space.L, Children = { message, DialogActions(cancel, delete) } };
         ShowCollectionDialog(chip, "DeleteCollection", body, cancel);
     }
 
     private static StackPanel DialogActions(Button cancel, Button submit)
     {
-        var actions = SetupVisuals.Horizontal(8, cancel, submit);
+        var actions = SetupVisuals.Horizontal(Space.M, cancel, submit);
         actions.HorizontalAlignment = HorizontalAlignment.Right;
         return actions;
     }
 
     private void ShowCollectionDialog(Control opener, string titleKey, Control body, Control focus)
     {
-        var title = SetupVisuals.Text(Strings.Get(titleKey), 17, strong: true);
-        var contents = new StackPanel { Spacing = 12, Children = { title, body } };
+        var title = SetupVisuals.Text(Strings.Get(titleKey), TextSize.Subtitle, strong: true);
+        var contents = new StackPanel { Spacing = Space.L, Children = { title, body } };
         var surface = SetupVisuals.Surface(contents, background: "WindowBrush");
-        surface.Padding = new Thickness(16);
-        surface.Margin = new Thickness(16);
+        surface.Padding = new Thickness(Space.Xl);
+        surface.Margin = new Thickness(Space.Xl);
         surface.Width = 330;
-        surface.MaxWidth = Math.Max(1, Bounds.Width - 32);
+        surface.MaxWidth = Math.Max(1, Bounds.Width - Space.Xl * 2);
         surface.HorizontalAlignment = HorizontalAlignment.Center;
         surface.VerticalAlignment = VerticalAlignment.Center;
         KeyboardNavigation.SetTabNavigation(surface, KeyboardNavigationMode.Cycle);

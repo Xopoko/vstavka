@@ -26,7 +26,7 @@ internal static class PanelVisuals
         return icon;
     }
 
-    public static TextBlock Label(string text, double size = 14, string brush = "InkBrush")
+    public static TextBlock Label(string text, double size = TextSize.Body, string brush = "InkBrush")
     {
         var label = new TextBlock
         {
@@ -39,7 +39,7 @@ internal static class PanelVisuals
 
     public static Button IconButton(Symbol symbol, string label, Action action)
     {
-        var button = new Button { Classes = { "panel-button", "icon-button" }, Content = Glyph(symbol, 17) };
+        var button = new Button { Classes = { "panel-button", "icon-button" }, Content = Glyph(symbol, IconSize.Control) };
         NameButton(button, label);
         button.Click += (_, _) => action();
         return button;
@@ -51,11 +51,11 @@ internal static class PanelVisuals
         AutomationProperties.SetName(button, label);
     }
 
-    public static Border Dot(string brush, double size = 7)
+    public static Border Dot(string brush, double size = Space.M)
     {
         var dot = new Border
         {
-            Width = size, Height = size, CornerRadius = new CornerRadius(size / 2),
+            Width = size, Height = size, CornerRadius = Radius.Pill(size),
             VerticalAlignment = VerticalAlignment.Center
         };
         dot.Bind(Border.BackgroundProperty, dot.GetResourceObservable(brush));
@@ -66,20 +66,20 @@ internal static class PanelVisuals
     {
         var hint = Strings.Get(key).Split("  ", 2, StringSplitOptions.None);
         if (hint.Length != 2)
-            return Label(hint[0], 12, "MutedBrush");
+            return Label(hint[0], TextSize.Caption, "MutedBrush");
 
         var keycap = new Border
         {
-            BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4),
-            Padding = new Thickness(5, 1), FlowDirection = FlowDirection.LeftToRight,
-            Child = Label(hint[0], 12)
+            BorderThickness = new Thickness(Stroke.Hairline), CornerRadius = Radius.Small,
+            Padding = new Thickness(Space.Xs, Space.Xxs), FlowDirection = FlowDirection.LeftToRight,
+            Child = Label(hint[0], TextSize.Caption)
         };
         keycap.Bind(Border.BackgroundProperty, keycap.GetResourceObservable("SurfaceBrush"));
         keycap.Bind(Border.BorderBrushProperty, keycap.GetResourceObservable("LineBrush"));
         return new StackPanel
         {
-            Orientation = Orientation.Horizontal, Spacing = 5, VerticalAlignment = VerticalAlignment.Center,
-            Children = { keycap, Label(actionKey is null ? hint[1] : Strings.Get(actionKey), 12, "MutedBrush") }
+            Orientation = Orientation.Horizontal, Spacing = Space.S, VerticalAlignment = VerticalAlignment.Center,
+            Children = { keycap, Label(actionKey is null ? hint[1] : Strings.Get(actionKey), TextSize.Caption, "MutedBrush") }
         };
     }
 
@@ -90,8 +90,8 @@ internal static class PanelVisuals
         label.MaxLines = 2;
         var border = new Border
         {
-            CornerRadius = new CornerRadius(11), BorderThickness = new Thickness(1),
-            Padding = new Thickness(14, 8), Child = label
+            CornerRadius = Radius.Surface, BorderThickness = new Thickness(Stroke.Hairline),
+            Padding = new Thickness(Space.Xl, Space.M), Child = label
         };
         PanelTheme.Apply(border);
         border.ActualThemeVariantChanged += (_, _) => PanelTheme.Apply(border);

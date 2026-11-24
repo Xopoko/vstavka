@@ -22,11 +22,11 @@ internal sealed class ShortcutRecorder : UserControl
     private readonly Action<string> _saved;
     private readonly bool? _animate;
     private readonly bool _large;
-    private readonly StackPanel _caps = SetupVisuals.Horizontal(7);
-    private readonly StackPanel _live = SetupVisuals.Horizontal(5);
+    private readonly StackPanel _caps = SetupVisuals.Horizontal(Space.M);
+    private readonly StackPanel _live = SetupVisuals.Horizontal(Space.Xs);
     private readonly Grid _field;
     private readonly Button _change;
-    private readonly TextBlock _hint = SetupVisuals.Text("", 12, "MutedBrush");
+    private readonly TextBlock _hint = SetupVisuals.Text("", TextSize.Caption, "MutedBrush");
     private readonly StackPanel _savedStatus;
     private readonly DispatcherTimer _savedTimer;
 
@@ -43,45 +43,47 @@ internal sealed class ShortcutRecorder : UserControl
         _large = large;
         Gesture = gesture;
         Focusable = true;
+        // The dashed field is the sign that the recorder has the keyboard; the system's focus frame would double it.
+        FocusAdorner = null;
         _caps.FlowDirection = _live.FlowDirection = FlowDirection.LeftToRight;
         _caps.Name = "ShortcutKeycaps";
         _live.HorizontalAlignment = HorizontalAlignment.Center;
         var dashed = new Rectangle
         {
-            RadiusX = 14, RadiusY = 14, StrokeThickness = 1.5, StrokeDashArray = [4, 3],
+            RadiusX = Radius.Surface.TopLeft, RadiusY = Radius.Surface.TopLeft, StrokeThickness = 1.5, StrokeDashArray = [4, 3],
             IsHitTestVisible = false
         };
         dashed.Bind(Shape.StrokeProperty, dashed.GetResourceObservable("AccentBrush"));
         dashed.Bind(Shape.FillProperty, dashed.GetResourceObservable("SelectedSurfaceBrush"));
-        var prompt = SetupVisuals.Text(Strings.Get("RecordShortcut"), 14, strong: true);
+        var prompt = SetupVisuals.Text(Strings.Get("RecordShortcut"), strong: true);
         prompt.TextAlignment = _hint.TextAlignment = TextAlignment.Center;
         _hint.Name = "ShortcutHint";
         var message = new StackPanel
         {
-            Spacing = 3, Margin = new Thickness(10, 6), VerticalAlignment = VerticalAlignment.Center,
+            Spacing = Space.Xs, Margin = new Thickness(Space.M, Space.S), VerticalAlignment = VerticalAlignment.Center,
             Children = { prompt, _live, _hint }
         };
         _field = new Grid { Width = large ? 380 : double.NaN, MaxWidth = 380, MinHeight = 80, Children = { dashed, message } };
         _change = SetupVisuals.Button("ChangeShortcut", ToggleRecording, name: "ChangeShortcut", symbol: Symbol.Keyboard);
         _change.HorizontalAlignment = HorizontalAlignment.Center;
-        _savedStatus = SetupVisuals.Horizontal(5, PanelVisuals.Glyph(Symbol.Checkmark, 14, "SuccessBrush"),
-            SetupVisuals.Text(Strings.Get("ShortcutSaved"), 12, "SuccessBrush"));
+        _savedStatus = SetupVisuals.Horizontal(Space.S, PanelVisuals.Glyph(Symbol.Checkmark, IconSize.Inline, "SuccessBrush"),
+            SetupVisuals.Text(Strings.Get("ShortcutSaved"), TextSize.Caption, "SuccessBrush"));
         _savedStatus.HorizontalAlignment = HorizontalAlignment.Center;
         _savedStatus.IsVisible = false;
         _savedTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1800) };
         _savedTimer.Tick += (_, _) => { _savedTimer.Stop(); _savedStatus.IsVisible = false; };
 
-        var display = new Grid { MinHeight = large ? 82 : 36, Children = { _caps, _field } };
+        var display = new Grid { MinHeight = large ? 82 : ControlSize.Default, Children = { _caps, _field } };
         _caps.HorizontalAlignment = large ? HorizontalAlignment.Center : HorizontalAlignment.Left;
         if (large)
             Content = new StackPanel
             {
-                Spacing = 5, HorizontalAlignment = HorizontalAlignment.Center,
+                Spacing = Space.S, HorizontalAlignment = HorizontalAlignment.Center,
                 Children = { display, _change, _savedStatus }
             };
         else
         {
-            var grid = new Grid { ColumnDefinitions = new("*,Auto"), RowDefinitions = new("Auto,Auto"), ColumnSpacing = 10 };
+            var grid = new Grid { ColumnDefinitions = new("*,Auto"), RowDefinitions = new("Auto,Auto"), ColumnSpacing = Space.L };
             SetupVisuals.Add(grid, display);
             SetupVisuals.Add(grid, _change, 1);
             SetupVisuals.Add(grid, _savedStatus, 1, 1);
@@ -123,7 +125,7 @@ internal sealed class ShortcutRecorder : UserControl
         _hint.Text = Strings.Get("RecordEscapeHint");
         _change.Content = new TextBlock { Text = Strings.Get(recording ? "Cancel" : "ChangeShortcut") };
         if (!recording)
-            _change.Content = SetupVisuals.Horizontal(7, PanelVisuals.Glyph(Symbol.Keyboard, 16),
+            _change.Content = SetupVisuals.Horizontal(Space.S, PanelVisuals.Glyph(Symbol.Keyboard, IconSize.Control),
                 new TextBlock { Text = Strings.Get("ChangeShortcut") });
         Avalonia.Automation.AutomationProperties.SetName(_change, Strings.Get(recording ? "Cancel" : "ChangeShortcut"));
         _live.Children.Clear();
@@ -198,7 +200,7 @@ internal sealed class ShortcutRecorder : UserControl
 
     public static Control CompactKeycaps(string gesture, string platform)
     {
-        var strip = SetupVisuals.Horizontal(4);
+        var strip = SetupVisuals.Horizontal(Space.Xs);
         strip.FlowDirection = FlowDirection.LeftToRight;
         foreach (var label in GestureLabels(gesture, platform))
             strip.Children.Add(Cap(label, false));
@@ -224,18 +226,19 @@ internal sealed class ShortcutRecorder : UserControl
 
     private static Border Cap(string value, bool large)
     {
-        var label = SetupVisuals.Text(value, large ? 22 : 12, strong: true);
+        var label = SetupVisuals.Text(value, large ? TextSize.Keycap : TextSize.Caption, strong: true);
         label.HorizontalAlignment = HorizontalAlignment.Center;
         if (value is "⌃" or "⌥" or "⇧" or "⌘")
         {
             label.FontFamily = ModifierSymbols;
             TextOptions.SetTextRenderingMode(label, TextRenderingMode.Antialias);
         }
-        var cap = SetupVisuals.Surface(label, large ? 12 : 5);
+        var cap = SetupVisuals.Surface(label, large ? Radius.Surface : Radius.Small);
         cap.Height = large ? 60 : 24;
         cap.MinWidth = large ? 56 : 24;
-        cap.Padding = large ? new Thickness(12, 0) : new Thickness(5, 0);
-        cap.BorderThickness = new Thickness(1, 1, 1, large ? 4 : 2);
+        cap.Padding = new Thickness(large ? Space.L : Space.Xs, 0);
+        // The thicker bottom edge is the side of the key.
+        cap.BorderThickness = new Thickness(Stroke.Hairline, Stroke.Hairline, Stroke.Hairline, large ? 4 : 2);
         return cap;
     }
 

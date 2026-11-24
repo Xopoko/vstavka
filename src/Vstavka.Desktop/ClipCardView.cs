@@ -15,10 +15,10 @@ namespace Vstavka.Desktop;
 internal sealed class ClipCardView : UserControl
 {
     private readonly HistoryStore _store;
-    private readonly Image _sourceImage = new() { Width = 16, Height = 16 };
-    private readonly SymbolIcon _sourceFallback = PanelVisuals.Glyph(Symbol.AppGeneric, 15, "MutedBrush");
+    private readonly Image _sourceImage = new() { Width = IconSize.Control, Height = IconSize.Control };
+    private readonly SymbolIcon _sourceFallback = PanelVisuals.Glyph(Symbol.AppGeneric, IconSize.Control, "MutedBrush");
     private readonly Image _previewImage = new() { Stretch = Stretch.Uniform };
-    private readonly TextBlock _imageFallback = PanelVisuals.Label(Strings.Get("ImagePreview"), 12, "MutedBrush");
+    private readonly TextBlock _imageFallback = PanelVisuals.Label(Strings.Get("ImagePreview"), TextSize.Caption, "MutedBrush");
     private Bitmap? _sourceBitmap;
     private Bitmap? _previewBitmap;
 
@@ -37,15 +37,15 @@ internal sealed class ClipCardView : UserControl
             ClipKind.Files => Symbol.Folder,
             _ => Symbol.TextAlignLeft
         };
-        var typeLabel = PanelVisuals.Label(item.TypeLabel, 12, "MutedBrush");
+        var typeLabel = PanelVisuals.Label(item.TypeLabel, TextSize.Caption, "MutedBrush");
         typeLabel.FontWeight = FontWeight.SemiBold;
         var pinLabel = Strings.Get(item.IsPinned ? "Unpin" : "Pin");
         var pin = PanelVisuals.IconButton(Symbol.Pin, pinLabel, togglePin);
-        pin.Content = PanelVisuals.Glyph(Symbol.Pin, 15, item.IsPinned ? "AccentBrush" : null, item.IsPinned);
+        pin.Content = PanelVisuals.Glyph(Symbol.Pin, IconSize.Control, item.IsPinned ? "AccentBrush" : null, item.IsPinned);
         pin.HorizontalAlignment = HorizontalAlignment.Right;
 
-        var header = new Grid { ColumnDefinitions = new("21,*,36"), Margin = new Thickness(13, 0, 3, 0) };
-        var glyph = PanelVisuals.Glyph(typeIcon, 14, item.Kind + "TypeBrush");
+        var header = new Grid { ColumnDefinitions = new("20,*,36"), Margin = new Thickness(Space.L, 0, Space.Xs, 0) };
+        var glyph = PanelVisuals.Glyph(typeIcon, IconSize.Inline, item.Kind + "TypeBrush");
         glyph.HorizontalAlignment = HorizontalAlignment.Left;
         header.Children.Add(glyph);
         AddColumn(header, typeLabel, 1);
@@ -63,16 +63,16 @@ internal sealed class ClipCardView : UserControl
 
     private Control CreateBody()
     {
-        var margin = new Thickness(13, 9, 13, 7);
+        var margin = new Thickness(Space.L, Space.M);
         switch (Item.Kind)
         {
             case ClipKind.Link:
-                var title = PanelVisuals.Label(Item.Title, 18);
+                var title = PanelVisuals.Label(Item.Title, TextSize.Subtitle);
                 title.FontWeight = FontWeight.SemiBold;
                 title.FlowDirection = FlowDirection.LeftToRight;
                 return new StackPanel
                 {
-                    Margin = margin, Spacing = 7, ClipToBounds = true,
+                    Margin = margin, Spacing = Space.M, ClipToBounds = true,
                     Children = { title, PreviewText(Item.Preview, 4, FlowDirection.LeftToRight, "MutedBrush") }
                 };
             case ClipKind.Image:
@@ -80,13 +80,13 @@ internal sealed class ClipCardView : UserControl
                 AutomationProperties.SetName(_previewImage, Strings.Get("ImagePreview"));
                 var image = new Border
                 {
-                    Margin = new Thickness(8, 5, 8, 7), CornerRadius = new CornerRadius(7), ClipToBounds = true,
+                    Margin = new Thickness(Space.M, Space.Xs, Space.M, Space.M), CornerRadius = Radius.Control, ClipToBounds = true,
                     Child = new Grid { Children = { _previewImage, _imageFallback } }
                 };
                 image.Bind(Border.BackgroundProperty, image.GetResourceObservable("MediaBrush"));
                 return image;
             case ClipKind.Color:
-                var swatch = new Border { CornerRadius = new CornerRadius(7), BorderThickness = new Thickness(1) };
+                var swatch = new Border { CornerRadius = Radius.Control, BorderThickness = new Thickness(Stroke.Hairline) };
                 var hex = Item.Text.Trim();
                 if (Color.TryParse(hex, out var color))
                     swatch.Background = new SolidColorBrush(color);
@@ -96,14 +96,19 @@ internal sealed class ClipCardView : UserControl
                 var value = PanelVisuals.Label(hex);
                 value.FontFamily = FontFamily.Parse("Cascadia Mono, Menlo, DejaVu Sans Mono, monospace");
                 value.FlowDirection = FlowDirection.LeftToRight;
+                // The value lines up with the text of the other cards, not with the swatch above it.
+                value.Margin = new Thickness(Space.Xs, 0);
                 Grid.SetRow(value, 1);
-                return new Grid { Margin = new Thickness(10, 5, 10, 7), RowDefinitions = new("*,29"), Children = { swatch, value } };
+                return new Grid
+                {
+                    Margin = new Thickness(Space.M, Space.Xs, Space.M, Space.M), RowDefinitions = new("*,28"), Children = { swatch, value }
+                };
             case ClipKind.Files:
-                var names = new StackPanel { Margin = margin, Spacing = 5, ClipToBounds = true };
+                var names = new StackPanel { Margin = margin, Spacing = Space.Xs, ClipToBounds = true };
                 foreach (var path in Item.Files.Take(5))
                 {
-                    var row = new Grid { ColumnDefinitions = new("21,*") };
-                    var fileGlyph = PanelVisuals.Glyph(Symbol.Document, 14, "MutedBrush");
+                    var row = new Grid { ColumnDefinitions = new("20,*") };
+                    var fileGlyph = PanelVisuals.Glyph(Symbol.Document, IconSize.Inline, "MutedBrush");
                     fileGlyph.HorizontalAlignment = HorizontalAlignment.Left;
                     row.Children.Add(fileGlyph);
                     var name = path.TrimEnd('/', '\\').Split(['/', '\\']).LastOrDefault();
@@ -114,7 +119,7 @@ internal sealed class ClipCardView : UserControl
                 }
 
                 if (Item.Files.Length > 5)
-                    names.Children.Add(PanelVisuals.Label(Strings.Format("FilesCount", Item.Files.Length), 12, "MutedBrush"));
+                    names.Children.Add(PanelVisuals.Label(Strings.Format("FilesCount", Item.Files.Length), TextSize.Caption, "MutedBrush"));
                 return names;
             default:
                 var text = PreviewText(Item.Preview, 5, Direction(Item.Preview), "InkBrush");
@@ -128,14 +133,14 @@ internal sealed class ClipCardView : UserControl
         var source = string.IsNullOrWhiteSpace(Item.SourceApp) ? Strings.Get("Clipboard") : Item.SourceApp;
         var captured = Item.CapturedAt.ToLocalTime();
         var time = captured.Date == DateTime.Today ? captured.ToString("t", Strings.Culture) : captured.ToString("d", Strings.Culture);
-        var details = new Grid { ColumnDefinitions = new("16,6,*,7,Auto") };
+        var details = new Grid { ColumnDefinitions = new("16,6,*,8,Auto") };
         details.Children.Add(new Grid { VerticalAlignment = VerticalAlignment.Center, Children = { _sourceFallback, _sourceImage } });
-        AddColumn(details, PanelVisuals.Label(source, 12, "MutedBrush"), 2);
-        AddColumn(details, PanelVisuals.Label(time, 12, "MutedBrush"), 4);
+        AddColumn(details, PanelVisuals.Label(source, TextSize.Caption, "MutedBrush"), 2);
+        AddColumn(details, PanelVisuals.Label(time, TextSize.Caption, "MutedBrush"), 4);
         var footer = new Border
         {
-            Margin = new Thickness(10, 0), Padding = new Thickness(2, 0),
-            BorderThickness = new Thickness(0, 1, 0, 0),
+            Margin = new Thickness(Space.M, 0), Padding = new Thickness(Space.Xs, 0),
+            BorderThickness = new Thickness(0, Stroke.Hairline, 0, 0),
             Child = details
         };
         footer.Bind(Border.BorderBrushProperty, footer.GetResourceObservable("LineBrush"));
@@ -144,10 +149,10 @@ internal sealed class ClipCardView : UserControl
 
     private static TextBlock PreviewText(string text, int maxLines, FlowDirection direction, string brush)
     {
-        var label = PanelVisuals.Label(text, 14, brush);
+        var label = PanelVisuals.Label(text, TextSize.Body, brush);
         label.VerticalAlignment = VerticalAlignment.Top;
         label.TextWrapping = TextWrapping.Wrap;
-        label.LineHeight = 20;
+        label.LineHeight = TextSize.LineHeight(TextSize.Body);
         label.MaxLines = maxLines;
         label.FlowDirection = direction;
         return label;

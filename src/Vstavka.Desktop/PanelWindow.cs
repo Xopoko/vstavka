@@ -32,7 +32,7 @@ internal sealed partial class PanelWindow : Window
     private readonly DesktopHistory _history;
     private readonly bool? _animate;
     private readonly Border _drawer;
-    private readonly StackPanel _chips = new() { Orientation = Orientation.Horizontal, Spacing = 3 };
+    private readonly StackPanel _chips = new() { Orientation = Orientation.Horizontal, Spacing = Space.Xs };
     private readonly List<(Button Button, ClipKind? Kind, bool Pinned, string? Collection)> _filters = [];
     private readonly ScrollViewer _chipScroller;
     private readonly Grid _categories;
@@ -98,11 +98,11 @@ internal sealed partial class PanelWindow : Window
         _next = PanelVisuals.IconButton(Symbol.ChevronRight, Strings.Get("NextCategories"), () => Scroll(_chipScroller, 160));
         if (FlowDirection == FlowDirection.RightToLeft)
         {
-            _previous.Content = PanelVisuals.Glyph(Symbol.ChevronRight, 17);
-            _next.Content = PanelVisuals.Glyph(Symbol.ChevronLeft, 17);
+            _previous.Content = PanelVisuals.Glyph(Symbol.ChevronRight, IconSize.Control);
+            _next.Content = PanelVisuals.Glyph(Symbol.ChevronLeft, IconSize.Control);
         }
         _previous.IsVisible = _next.IsVisible = false;
-        _categories = new Grid { ColumnDefinitions = new("Auto,*,Auto"), Margin = new Thickness(0, 0, 9, 0) };
+        _categories = new Grid { ColumnDefinitions = new("Auto,*,Auto"), Margin = new Thickness(0, 0, Space.M, 0) };
         AddColumn(_categories, _previous, 0);
         AddColumn(_categories, _chipScroller, 1);
         AddColumn(_categories, _next, 2);
@@ -113,9 +113,12 @@ internal sealed partial class PanelWindow : Window
         _search = new TextBox
         {
             Name = "SearchBox", Classes = { "panel-search" }, PlaceholderText = Strings.Get("Search"),
-            VerticalContentAlignment = VerticalAlignment.Center, FontSize = 14,
-            Margin = new Thickness(0, 0, 8, 0),
-            InnerLeftContent = new Border { Margin = new Thickness(8, 0, 0, 0), Child = PanelVisuals.Glyph(Symbol.Search, 16, "MutedBrush") }
+            VerticalContentAlignment = VerticalAlignment.Center, FontSize = TextSize.Body,
+            Margin = new Thickness(0, 0, Space.M, 0),
+            InnerLeftContent = new Border
+            {
+                Margin = new Thickness(Space.M, 0, 0, 0), Child = PanelVisuals.Glyph(Symbol.Search, IconSize.Control, "MutedBrush")
+            }
         };
         AutomationProperties.SetName(_search, Strings.Get("Search"));
         _search.TextChanged += (_, _) => ApplyFilter();
@@ -133,7 +136,7 @@ internal sealed partial class PanelWindow : Window
         var toolbar = new Grid
         {
             ColumnDefinitions = { new ColumnDefinition(GridLength.Star), _searchColumn, new ColumnDefinition(GridLength.Auto) },
-            Margin = new Thickness(18, 0, 13, 0), VerticalAlignment = VerticalAlignment.Center
+            Margin = new Thickness(Space.Xl, 0, Space.L, 0), VerticalAlignment = VerticalAlignment.Center
         };
         AddColumn(toolbar, _categories, 0);
         AddColumn(toolbar, _search, 1);
@@ -173,23 +176,23 @@ internal sealed partial class PanelWindow : Window
         _empty = new StackPanel
         {
             Name = "EmptyState", VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(12), Spacing = 6, MaxWidth = 520, IsHitTestVisible = false
+            Margin = new Thickness(Space.L), Spacing = Space.S, MaxWidth = 520, IsHitTestVisible = false
         };
-        var middle = new Grid { Margin = new Thickness(18, 0, 8, 0), Children = { _cards, _empty } };
+        var middle = new Grid { Margin = new Thickness(Space.Xl, 0, Space.M, 0), Children = { _cards, _empty } };
         Grid.SetRow(middle, 1);
 
-        _count = PanelVisuals.Label("", 12, "MutedBrush");
+        _count = PanelVisuals.Label("", TextSize.Caption, "MutedBrush");
         _count.Name = "ItemCount";
         _hints = new StackPanel
         {
-            Orientation = Orientation.Horizontal, Spacing = 14, VerticalAlignment = VerticalAlignment.Center,
+            Orientation = Orientation.Horizontal, Spacing = Space.Xl, VerticalAlignment = VerticalAlignment.Center,
             Children = { PanelVisuals.Hint("ChooseHint"), PanelVisuals.Hint("PasteHint", ClipboardOnly ? "Copy" : null) }
         };
-        _status = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 7 };
+        _status = new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = Space.S };
         var footer = new Grid
         {
             ColumnDefinitions = new("Auto,Auto,*"),
-            ColumnSpacing = 18, Margin = new Thickness(20, 0, 18, 0)
+            ColumnSpacing = Space.Xl, Margin = new Thickness(Space.Xl, 0)
         };
         AddColumn(footer, _count, 0);
         AddColumn(footer, _hints, 1);
@@ -198,11 +201,12 @@ internal sealed partial class PanelWindow : Window
 
         _drawer = new Border
         {
-            CornerRadius = new CornerRadius(23), BorderThickness = new Thickness(1), Margin = new Thickness(5),
+            CornerRadius = Radius.Panel, BorderThickness = new Thickness(Stroke.Hairline), Margin = new Thickness(Space.Xs),
             Child = new Grid { RowDefinitions = new("62,*,35"), Children = { toolbar, middle, footer } }
         };
         _drawer.Bind(Border.BackgroundProperty, _drawer.GetResourceObservable("WindowBrush"));
         _drawer.Bind(Border.BorderBrushProperty, _drawer.GetResourceObservable("LineBrush"));
+        _collectionOverlay.Bind(Panel.BackgroundProperty, _collectionOverlay.GetResourceObservable("ScrimBrush"));
         Content = new Grid { ClipToBounds = true, Children = { _drawer, _collectionOverlay } };
 
         ActualThemeVariantChanged += (_, _) => ApplyAppearance();
@@ -408,7 +412,10 @@ internal sealed partial class PanelWindow : Window
         foreach (var (label, kind, pinned) in Filters)
             AddChip(label, Strings.Get(label), kind, pinned);
         _collections = _history.Store.Collections.ToArray();
-        var divider = new Border { Width = 1, Height = 18, Margin = new Thickness(4, 0), VerticalAlignment = VerticalAlignment.Center };
+        var divider = new Border
+        {
+            Width = Stroke.Hairline, Height = Space.Xl, Margin = new Thickness(Space.Xs, 0), VerticalAlignment = VerticalAlignment.Center
+        };
         divider.Bind(Border.BackgroundProperty, divider.GetResourceObservable("LineBrush"));
         _chips.Children.Add(divider);
         foreach (var collection in _collections)
@@ -425,7 +432,7 @@ internal sealed partial class PanelWindow : Window
         var button = new Button { Name = name + "Chip", Classes = { "panel-button", "chip" } };
         button.Content = collection is null ? label : new StackPanel
         {
-            Orientation = Orientation.Horizontal, Spacing = 6,
+            Orientation = Orientation.Horizontal, Spacing = Space.S,
             Children = { PanelVisuals.Dot(collection.Color), new TextBlock { Text = label, MaxWidth = 160, TextTrimming = TextTrimming.CharacterEllipsis } }
         };
         PanelVisuals.NameButton(button, label);
@@ -541,16 +548,16 @@ internal sealed partial class PanelWindow : Window
 
     private void ShowEmpty(Symbol icon, string title, string? hint)
     {
-        var heading = PanelVisuals.Label(Strings.Get(title), 20);
+        var heading = PanelVisuals.Label(Strings.Get(title), TextSize.Subtitle);
         heading.FontWeight = FontWeight.SemiBold;
         heading.TextAlignment = TextAlignment.Center;
         heading.TextWrapping = TextWrapping.Wrap;
         _empty.Children.Clear();
-        _empty.Children.Add(PanelVisuals.Glyph(icon, 28, "MutedBrush"));
+        _empty.Children.Add(PanelVisuals.Glyph(icon, IconSize.Hero, "MutedBrush"));
         _empty.Children.Add(heading);
         if (hint is not null)
         {
-            var description = PanelVisuals.Label(Strings.Get(hint), 14, "MutedBrush");
+            var description = PanelVisuals.Label(Strings.Get(hint), TextSize.Body, "MutedBrush");
             description.TextAlignment = TextAlignment.Center;
             description.TextWrapping = TextWrapping.Wrap;
             _empty.Children.Add(description);
@@ -580,7 +587,7 @@ internal sealed partial class PanelWindow : Window
             _ => notice?.Message ?? _history.Warning ?? Strings.Get(_history.Paused ? "Paused"
                 : _platform is DemoPlatformServices ? "DemoStatus" : "LocalHistory")
         };
-        var label = PanelVisuals.Label(text, 12, "MutedBrush");
+        var label = PanelVisuals.Label(text, TextSize.Caption, "MutedBrush");
         label.Name = "PlatformStatus";
         ToolTip.SetTip(label, _history.Warning is { } storageWarning && text != storageWarning
             ? text + Environment.NewLine + storageWarning

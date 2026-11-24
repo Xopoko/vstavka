@@ -23,8 +23,10 @@ clipboard history, a `history.vstavka` file, or logs with personal paths.
 - **User-visible text** lives in `src/Vstavka.Core/Localization`. Add every new
   key to all 24 catalogs with a real translation; `Vstavka.Localization.Tests`
   checks keys, placeholders and line breaks.
-- For UI changes, check the light, dark and right-to-left renders, plus
-  keyboard focus and scaling. Run
+- **UI changes** follow [DESIGN.md](DESIGN.md): a view takes its colours,
+  sizes, distances and radii from the roles described there and writes none
+  of its own. Check the light, dark and right-to-left renders, plus keyboard
+  focus and scaling. Run
   `dotnet run --project tests/Vstavka.Desktop.Tests -- --render <folder>`.
 - **Motion** goes through `DesktopMotion`: one scale of durations, one curve
   and the few shared effects. Animate a change only when the movement explains

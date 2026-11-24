@@ -56,7 +56,7 @@ internal sealed partial class SettingsWindow : Window
         _recorder = new ShortcutRecorder(history, platform.Name, history.Shortcut,
             shortcut => _draft.PanelShortcut = shortcut, animate, large: false) { Name = "ShortcutRecorder" };
         var shortcut = Section("Shortcut", Card(_recorder));
-        var contents = new StackPanel { Spacing = 14, Margin = new Thickness(30, 19, 30, 18), Children = { appearance, shortcut } };
+        var contents = new StackPanel { Spacing = Space.Xl, Margin = new Thickness(Space.Xxxl, Space.Xl), Children = { appearance, shortcut } };
         if (platform.ClipboardSounds is { } sounds)
             contents.Children.Add(SoundSection(sounds));
         if (platform.Startup.IsSupported)
@@ -94,16 +94,16 @@ internal sealed partial class SettingsWindow : Window
         _excluded = Input("ExcludedApps", string.Join(Environment.NewLine, _draft.ExcludedApps));
         _excluded.AcceptsReturn = true;
         _excluded.TextWrapping = TextWrapping.Wrap;
-        _excluded.LineHeight = 20;
+        _excluded.LineHeight = TextSize.LineHeight(TextSize.Body);
         _excluded.MinLines = _excluded.MaxLines = 4;
         ScrollViewer.SetVerticalScrollBarVisibility(_excluded, ScrollBarVisibility.Auto);
         var excluded = new StackPanel
         {
-            Spacing = 5,
+            Spacing = Space.S,
             Children = { SetupVisuals.Text(Strings.Get("ExcludedApps"), strong: true), _excluded,
-                SetupVisuals.Text(Strings.Get("ExcludedAppsHint"), 12, "MutedBrush") }
+                SetupVisuals.Text(Strings.Get("ExcludedAppsHint"), TextSize.Caption, "MutedBrush") }
         };
-        var description = SetupVisuals.Text(Strings.Get(history.Store.IsPersistent ? "PrivacySummary" : "PrivacyMemory"), 12, "MutedBrush");
+        var description = SetupVisuals.Text(Strings.Get(history.Store.IsPersistent ? "PrivacySummary" : "PrivacyMemory"), TextSize.Caption, "MutedBrush");
         Control privacy = description;
         if (history.IsStoreBuild)
         {
@@ -112,11 +112,11 @@ internal sealed partial class SettingsWindow : Window
                 Content = Strings.Get("PrivacyPolicy"),
                 NavigateUri = new Uri("https://github.com/Xopoko/vstavka-support/blob/main/PRIVACY.md"),
                 HorizontalAlignment = HorizontalAlignment.Left,
-                Padding = new Thickness(0, 3)
+                Padding = new Thickness(0, Space.Xs)
             };
             privacy = new StackPanel { Children = { description, policy } };
         }
-        var retentionDescription = SetupVisuals.Text(Strings.Get("PinnedRetention"), 12, "MutedBrush");
+        var retentionDescription = SetupVisuals.Text(Strings.Get("PinnedRetention"), TextSize.Caption, "MutedBrush");
         var historySection = Section("History", Card(
             privacy, Field("Retention", _retention), Field("MaxItems", _limit), retentionDescription, excluded, ClearHistory()));
         contents.Children.Add(historySection);
@@ -126,17 +126,17 @@ internal sealed partial class SettingsWindow : Window
             Name = "SettingsScroll", Content = contents, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto
         };
-        _error = SetupVisuals.Text("", 12, "WarningBrush");
+        _error = SetupVisuals.Text("", TextSize.Caption, "WarningBrush");
         _error.IsVisible = false;
         var cancel = SetupVisuals.Button("Cancel", Close, "ghost", "CancelSettings");
         var save = SetupVisuals.Button("Save", Save, "primary", "SaveSettings");
-        var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = 8 };
+        var footer = new Grid { ColumnDefinitions = new("*,Auto,Auto"), ColumnSpacing = Space.M };
         SetupVisuals.Add(footer, _error);
         SetupVisuals.Add(footer, cancel, 1);
         SetupVisuals.Add(footer, save, 2);
         var root = new Grid { RowDefinitions = new("*,62") };
         SetupVisuals.Add(root, scroll);
-        SetupVisuals.Add(root, SetupVisuals.Footer(footer, new Thickness(30, 0)), row: 1);
+        SetupVisuals.Add(root, SetupVisuals.Footer(footer, new Thickness(Space.Xxxl, 0)), row: 1);
         Content = root;
 
         Opened += (_, _) =>
@@ -165,12 +165,12 @@ internal sealed partial class SettingsWindow : Window
 
     private Control ClearHistory()
     {
-        var confirmationContent = new StackPanel { Spacing = 8 };
-        var confirmation = SetupVisuals.Surface(confirmationContent, 9, "DangerSurfaceBrush", "DangerLineBrush");
+        var confirmationContent = new StackPanel { Spacing = Space.M };
+        var confirmation = SetupVisuals.Surface(confirmationContent, Radius.Control, "DangerSurfaceBrush", "DangerLineBrush");
         confirmation.Name = "ClearConfirmation";
         confirmation.IsVisible = false;
-        confirmation.Padding = new Thickness(10);
-        var status = SetupVisuals.Text("", 12, "MutedBrush");
+        confirmation.Padding = new Thickness(Space.M);
+        var status = SetupVisuals.Text("", TextSize.Caption, "MutedBrush");
         status.IsVisible = false;
         Button? clear = null;
         void DismissConfirmation()
@@ -189,8 +189,8 @@ internal sealed partial class SettingsWindow : Window
                 _history.Store.SavingBlocked ? _history.Store.LoadWarning : Strings.Get("SaveFailed");
             status.IsVisible = true;
         }, "danger-filled", "ConfirmClear");
-        confirmationContent.Children.Add(SetupVisuals.Text(Strings.Get("ClearConfirmation"), 12, "DangerBrush"));
-        confirmationContent.Children.Add(SetupVisuals.Horizontal(6, cancel, confirm));
+        confirmationContent.Children.Add(SetupVisuals.Text(Strings.Get("ClearConfirmation"), TextSize.Caption, "DangerBrush"));
+        confirmationContent.Children.Add(SetupVisuals.Horizontal(Space.M, cancel, confirm));
         clear = SetupVisuals.Button("ClearHistory", () =>
         {
             status.IsVisible = false;
@@ -200,7 +200,7 @@ internal sealed partial class SettingsWindow : Window
             confirmation.BringIntoView();
         }, "danger", "ClearHistory");
         clear.HorizontalAlignment = HorizontalAlignment.Left;
-        return new StackPanel { Spacing = 8, Children = { clear, confirmation, status } };
+        return new StackPanel { Spacing = Space.M, Children = { clear, confirmation, status } };
     }
 
     private void Save()
@@ -276,7 +276,7 @@ internal sealed partial class SettingsWindow : Window
 
     private static Grid Field(string label, Control control)
     {
-        var row = new Grid { ColumnDefinitions = new("*,210"), ColumnSpacing = 16 };
+        var row = new Grid { ColumnDefinitions = new("*,210"), ColumnSpacing = Space.Xl };
         control.HorizontalAlignment = HorizontalAlignment.Stretch;
         SetupVisuals.Add(row, SetupVisuals.Text(Strings.Get(label)));
         SetupVisuals.Add(row, control, 1);
@@ -285,16 +285,16 @@ internal sealed partial class SettingsWindow : Window
 
     private static Border Card(params Control[] children)
     {
-        var content = new StackPanel { Spacing = 7 };
+        var content = new StackPanel { Spacing = Space.M };
         foreach (var child in children)
             content.Children.Add(child);
         var result = SetupVisuals.Surface(content);
-        result.Padding = new Thickness(13, 10);
+        result.Padding = new Thickness(Space.L, Space.M);
         return result;
     }
 
     private static StackPanel Section(string label, Control body) => new()
     {
-        Spacing = 7, Children = { SetupVisuals.Text(Strings.Get(label), 18, strong: true), body }
+        Spacing = Space.M, Children = { SetupVisuals.Text(Strings.Get(label), TextSize.Subtitle, strong: true), body }
     };
 }

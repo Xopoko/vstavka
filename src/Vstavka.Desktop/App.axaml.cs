@@ -21,6 +21,9 @@ public sealed partial class App : Application
     {
         Animation.RegisterCustomAnimator<ITransform, TransformKeyFrameAnimator>();
         AvaloniaXamlLoader.Load(this);
+        // Fluent's own controls (menus, check boxes, tooltips) round their corners on the app's scale.
+        Resources["ControlCornerRadius"] = Radius.Small;
+        Resources["OverlayCornerRadius"] = Radius.Control;
     }
 
     public override void OnFrameworkInitializationCompleted()
@@ -141,8 +144,8 @@ public sealed partial class App : Application
             ShowActivated = false,
             Topmost = true,
             FlowDirection = panel.FlowDirection,
-            Position = new PixelPoint(work.Right - (int)Math.Ceiling((width + 16) * scale),
-                work.Bottom - (int)Math.Ceiling((height + 16) * scale)),
+            Position = new PixelPoint(work.Right - (int)Math.Ceiling((width + Space.Xl) * scale),
+                work.Bottom - (int)Math.Ceiling((height + Space.Xl) * scale)),
             Content = message
         };
         _feedback = feedback;

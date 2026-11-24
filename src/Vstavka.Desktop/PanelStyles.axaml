@@ -1,9 +1,10 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="using:Vstavka.Desktop">
   <Styles.Resources>
     <ControlTheme x:Key="HistoryCard" TargetType="ListBoxItem">
       <Setter Property="Width" Value="246" />
-      <Setter Property="Margin" Value="0,0,10,0" />
+      <Setter Property="Margin" Value="0,0,12,0" />
       <Setter Property="Padding" Value="2" />
       <Setter Property="VerticalContentAlignment" Value="Stretch" />
       <Setter Property="HorizontalContentAlignment" Value="Stretch" />
@@ -12,13 +13,14 @@
         <ControlTemplate>
           <Grid>
             <Border Name="CardSurface" Background="{DynamicResource SurfaceBrush}"
-                    BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="14" />
+                    BorderBrush="{DynamicResource LineBrush}" BorderThickness="{x:Static d:Stroke.Border}"
+                    CornerRadius="{x:Static d:Radius.Surface}" />
             <ContentPresenter Name="PART_ContentPresenter" Padding="{TemplateBinding Padding}"
                               VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
                               HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
                               Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" />
-            <Border Name="SelectionRing" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="2"
-                    CornerRadius="14" IsHitTestVisible="False" IsVisible="False" />
+            <Border Name="SelectionRing" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="{x:Static d:Stroke.Ring}"
+                    CornerRadius="{x:Static d:Radius.Surface}" IsHitTestVisible="False" IsVisible="False" />
           </Grid>
         </ControlTemplate>
       </Setter>
@@ -36,14 +38,14 @@
   </Styles.Resources>
 
   <Style Selector="Button.panel-button">
-    <Setter Property="MinHeight" Value="36" />
-    <Setter Property="Padding" Value="11,0" />
-    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="MinHeight" Value="{x:Static d:ControlSize.Default}" />
+    <Setter Property="Padding" Value="12,0" />
+    <Setter Property="CornerRadius" Value="{x:Static d:Radius.Control}" />
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="Foreground" Value="{DynamicResource MutedBrush}" />
     <Setter Property="BorderBrush" Value="Transparent" />
-    <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="FontSize" Value="14" />
+    <Setter Property="BorderThickness" Value="{x:Static d:Stroke.Border}" />
+    <Setter Property="FontSize" Value="{x:Static d:TextSize.Body}" />
     <Setter Property="HorizontalContentAlignment" Value="Center" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
     <Setter Property="FocusAdorner" Value="{x:Null}" />
@@ -57,17 +59,24 @@
                             HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
                             VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
                             Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" />
-          <Border Name="FocusRing" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="2"
+          <Border Name="FocusRing" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="{x:Static d:Stroke.Ring}"
                   CornerRadius="{TemplateBinding CornerRadius}" IsHitTestVisible="False" IsVisible="False" />
         </Grid>
       </ControlTemplate>
     </Setter>
   </Style>
-  <Style Selector="Button.panel-button:not(.primary):pointerover">
+  <!-- Fluent's button theme recolours this part on hover, press and disable. Here the part keeps following the
+       button, so the setters below are the whole of each variant's states. -->
+  <Style Selector="Button.panel-button:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.panel-button:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.panel-button:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{CompiledBinding $parent[Button].Background}" />
+    <Setter Property="Foreground" Value="{CompiledBinding $parent[Button].Foreground}" />
+    <Setter Property="BorderBrush" Value="{CompiledBinding $parent[Button].BorderBrush}" />
+  </Style>
+  <Style Selector="Button.panel-button:pointerover">
     <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource InkBrush}" />
   </Style>
-  <Style Selector="Button.panel-button:not(.primary):pressed">
+  <Style Selector="Button.panel-button:pressed">
     <Setter Property="Background" Value="{DynamicResource PressedBrush}" />
   </Style>
   <Style Selector="Button.panel-button:focus-visible /template/ Border#FocusRing">
@@ -77,23 +86,22 @@
     <Setter Property="Opacity" Value=".45" />
   </Style>
   <Style Selector="Button.icon-button">
-    <Setter Property="Width" Value="36" />
-    <Setter Property="Height" Value="36" />
+    <Setter Property="Width" Value="{x:Static d:ControlSize.Default}" />
+    <Setter Property="Height" Value="{x:Static d:ControlSize.Default}" />
     <Setter Property="Padding" Value="0" />
   </Style>
   <Style Selector="Button.chip">
     <Setter Property="Foreground" Value="{DynamicResource InkBrush}" />
-    <Setter Property="CornerRadius" Value="17" />
-    <Setter Property="MinHeight" Value="34" />
+    <Setter Property="CornerRadius" Value="{x:Static d:Radius.Chip}" />
   </Style>
-  <Style Selector="Button.chip.active">
+  <Style Selector="Button.chip.active, Button.chip.active:pointerover, Button.chip.active:pressed">
     <Setter Property="Background" Value="{DynamicResource SelectionBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
-  <Style Selector="Button.permission">
-    <Setter Property="MinHeight" Value="26" />
-    <Setter Property="FontSize" Value="12" />
+  <Style Selector="Button.permission, Button.permission:pointerover">
+    <Setter Property="MinHeight" Value="{x:Static d:ControlSize.Compact}" />
+    <Setter Property="FontSize" Value="{x:Static d:TextSize.Caption}" />
     <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
   </Style>
@@ -106,12 +114,16 @@
     <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource HoverLineBrush}" />
   </Style>
+  <Style Selector="Button.panel-button.secondary:pressed">
+    <Setter Property="Background" Value="{DynamicResource PressedBrush}" />
+  </Style>
   <Style Selector="Button.panel-button.setup-tinted">
     <Setter Property="Background" Value="{DynamicResource SelectedSurfaceBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
   </Style>
   <Style Selector="Button.panel-button.setup-tinted:pointerover, Button.panel-button.setup-tinted:pressed">
     <Setter Property="Background" Value="{DynamicResource SelectionBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
   </Style>
   <Style Selector="Button.panel-button.primary">
     <Setter Property="MinWidth" Value="100" />
@@ -119,7 +131,7 @@
     <Setter Property="Background" Value="{DynamicResource PrimaryBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource PrimaryInkBrush}" />
   </Style>
-  <Style Selector="Button.panel-button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.panel-button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+  <Style Selector="Button.panel-button.primary:pointerover, Button.panel-button.primary:pressed">
     <Setter Property="Background" Value="{DynamicResource PrimaryHoverBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource PrimaryInkBrush}" />
   </Style>
@@ -128,7 +140,7 @@
     <Setter Property="BorderBrush" Value="{DynamicResource DangerLineBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
   </Style>
-  <Style Selector="Button.panel-button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.panel-button.danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
+  <Style Selector="Button.panel-button.danger:pointerover, Button.panel-button.danger:pressed">
     <Setter Property="Background" Value="{DynamicResource DangerSurfaceBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
   </Style>
@@ -137,11 +149,11 @@
     <Setter Property="Background" Value="{DynamicResource DangerFillBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource OnDangerBrush}" />
   </Style>
-  <Style Selector="Button.panel-button.danger-filled:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+  <Style Selector="Button.panel-button.danger-filled:pointerover">
     <Setter Property="Background" Value="{DynamicResource DangerHoverBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource OnDangerBrush}" />
   </Style>
-  <Style Selector="Button.panel-button.danger-filled:pressed /template/ ContentPresenter#PART_ContentPresenter">
+  <Style Selector="Button.panel-button.danger-filled:pressed">
     <Setter Property="Background" Value="{DynamicResource DangerPressedBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource OnDangerBrush}" />
   </Style>
@@ -151,18 +163,18 @@
 
   <Style Selector="ToggleButton.setup-switch">
     <Setter Property="MinWidth" Value="40" />
-    <Setter Property="Height" Value="26" />
+    <Setter Property="Height" Value="{x:Static d:ControlSize.Compact}" />
     <Setter Property="Padding" Value="0" />
     <Setter Property="FocusAdorner" Value="{x:Null}" />
     <Setter Property="Template">
       <ControlTemplate>
-        <Grid Width="40" Height="26" Background="Transparent">
+        <Grid Width="40" Height="{x:Static d:ControlSize.Compact}" Background="Transparent">
           <Border Name="Track" Height="22" CornerRadius="11" Background="{DynamicResource HoverBrush}"
-                  BorderThickness="1" BorderBrush="{DynamicResource HoverLineBrush}" Padding="3">
+                  BorderThickness="{x:Static d:Stroke.Border}" BorderBrush="{DynamicResource HoverLineBrush}" Padding="3">
             <Border Name="Knob" Width="14" Height="14" CornerRadius="7"
                     HorizontalAlignment="Left" Background="{DynamicResource MutedBrush}" />
           </Border>
-          <Border Name="FocusRing" Margin="-3" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="2"
+          <Border Name="FocusRing" Margin="-3" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="{x:Static d:Stroke.Ring}"
                   CornerRadius="13" IsHitTestVisible="False" IsVisible="False" />
         </Grid>
       </ControlTemplate>
@@ -180,17 +192,18 @@
     <Setter Property="IsVisible" Value="True" />
   </Style>
   <Style Selector="TextBox.setup-input">
-    <Setter Property="Padding" Value="10,7" />
+    <Setter Property="Padding" Value="12,8" />
   </Style>
   <Style Selector="ComboBox.setup-select">
     <Setter Property="Background" Value="{DynamicResource InputBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
-    <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="BorderThickness" Value="{x:Static d:Stroke.Border}" />
+    <Setter Property="CornerRadius" Value="{x:Static d:Radius.Control}" />
     <Setter Property="HorizontalContentAlignment" Value="Left" />
     <Setter Property="FocusAdorner">
       <Template>
-        <Border BorderThickness="2" CornerRadius="8" BorderBrush="{DynamicResource AccentBrush}" />
+        <Border BorderThickness="{x:Static d:Stroke.Ring}" CornerRadius="{x:Static d:Radius.Control}"
+                BorderBrush="{DynamicResource AccentBrush}" />
       </Template>
     </Setter>
   </Style>
@@ -205,16 +218,12 @@
   </Style>
   <Style Selector="Button.panel-button.setup-step">
     <Setter Property="MinWidth" Value="24" />
-    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="MinHeight" Value="{x:Static d:ControlSize.Compact}" />
     <Setter Property="Padding" Value="0" />
-    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="CornerRadius" Value="{x:Static d:Radius.Small}" />
   </Style>
   <Style Selector="Button.panel-button.setup-step:disabled">
     <Setter Property="Opacity" Value="1" />
-  </Style>
-  <Style Selector="Button.panel-button.setup-step:disabled /template/ ContentPresenter#PART_ContentPresenter">
-    <Setter Property="Background" Value="Transparent" />
-    <Setter Property="BorderBrush" Value="Transparent" />
   </Style>
   <Style Selector="Path.setup-install-spinner">
     <Style.Animations>
@@ -231,10 +240,10 @@
     <Setter Property="CaretBrush" Value="{DynamicResource InkBrush}" />
     <Setter Property="Background" Value="{DynamicResource InputBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
-    <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="MinHeight" Value="36" />
-    <Setter Property="Padding" Value="7,0,10,0" />
-    <Setter Property="CornerRadius" Value="9" />
+    <Setter Property="BorderThickness" Value="{x:Static d:Stroke.Border}" />
+    <Setter Property="MinHeight" Value="{x:Static d:ControlSize.Default}" />
+    <Setter Property="Padding" Value="8,0,12,0" />
+    <Setter Property="CornerRadius" Value="{x:Static d:Radius.Control}" />
     <Setter Property="SelectionBrush" Value="{DynamicResource SelectionBrush}" />
     <Setter Property="FocusAdorner" Value="{x:Null}" />
   </Style>
@@ -245,11 +254,18 @@
   <Style Selector="TextBox.panel-search:focus /template/ Border#PART_BorderElement">
     <Setter Property="Background" Value="{DynamicResource InputBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource HoverLineBrush}" />
-    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="BorderThickness" Value="{x:Static d:Stroke.Border}" />
   </Style>
   <Style Selector="TextBox.panel-search:focus-visible /template/ Border#PART_BorderElement">
     <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-    <Setter Property="BorderThickness" Value="2" />
+    <Setter Property="BorderThickness" Value="{x:Static d:Stroke.Ring}" />
+  </Style>
+  <Style Selector="TextBox.panel-search:disabled">
+    <Setter Property="Opacity" Value=".45" />
+  </Style>
+  <Style Selector="TextBox.panel-search:disabled /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="{DynamicResource InputBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
   </Style>
   <Style Selector="TextBox.panel-search /template/ TextBlock#PART_Placeholder">
     <Setter Property="Opacity" Value="1" />
@@ -258,7 +274,7 @@
   <Style Selector="ListBox.cards">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
-    <Setter Property="Padding" Value="0,0,0,5" />
+    <Setter Property="Padding" Value="0,0,0,4" />
     <Setter Property="ItemContainerTheme" Value="{StaticResource HistoryCard}" />
     <Setter Property="ItemsPanel">
       <ItemsPanelTemplate><VirtualizingStackPanel Orientation="Horizontal" /></ItemsPanelTemplate>

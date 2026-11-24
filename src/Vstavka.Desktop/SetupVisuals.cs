@@ -16,13 +16,13 @@ namespace Vstavka.Desktop;
 
 internal static class SetupVisuals
 {
-    public static TextBlock Text(string text, double size = 14, string brush = "InkBrush", bool strong = false)
+    public static TextBlock Text(string text, double size = TextSize.Body, string brush = "InkBrush", bool strong = false)
     {
         var label = PanelVisuals.Label(text, size, brush);
         label.TextWrapping = TextWrapping.Wrap;
         label.TextTrimming = TextTrimming.None;
         label.FontWeight = strong ? FontWeight.SemiBold : FontWeight.Normal;
-        label.LineHeight = size switch { 12 => 16, 14 => 20, 24 => 30, 28 => 34, _ => double.NaN };
+        label.LineHeight = TextSize.LineHeight(size);
         return label;
     }
 
@@ -33,8 +33,8 @@ internal static class SetupVisuals
         if (symbol is { } icon)
             button.Content = new StackPanel
             {
-                Orientation = Orientation.Horizontal, Spacing = 7,
-                Children = { PanelVisuals.Glyph(icon, 16), new TextBlock { Text = label } }
+                Orientation = Orientation.Horizontal, Spacing = Space.S,
+                Children = { PanelVisuals.Glyph(icon, IconSize.Control), new TextBlock { Text = label } }
             };
         AutomationProperties.SetName(button, label);
         button.Click += (_, _) => action();
@@ -49,9 +49,12 @@ internal static class SetupVisuals
         return panel;
     }
 
-    public static Border Surface(Control child, double radius = 12, string background = "SurfaceBrush", string line = "LineBrush")
+    public static Border Surface(Control child, CornerRadius? radius = null, string background = "SurfaceBrush", string line = "LineBrush")
     {
-        var border = new Border { CornerRadius = new CornerRadius(radius), BorderThickness = new Thickness(1), Child = child };
+        var border = new Border
+        {
+            CornerRadius = radius ?? Radius.Surface, BorderThickness = new Thickness(Stroke.Hairline), Child = child
+        };
         border.Bind(Border.BackgroundProperty, border.GetResourceObservable(background));
         border.Bind(Border.BorderBrushProperty, border.GetResourceObservable(line));
         return border;
@@ -59,8 +62,8 @@ internal static class SetupVisuals
 
     public static Border Footer(Control controls, Thickness padding)
     {
-        var footer = Surface(controls, radius: 0, background: "WindowBrush");
-        footer.BorderThickness = new Thickness(0, 1, 0, 0);
+        var footer = Surface(controls, default(CornerRadius), "WindowBrush");
+        footer.BorderThickness = new Thickness(0, Stroke.Hairline, 0, 0);
         footer.Height = 62;
         footer.Padding = padding;
         return footer;

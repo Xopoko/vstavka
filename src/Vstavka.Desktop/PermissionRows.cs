@@ -44,7 +44,7 @@ internal sealed class PermissionRows : UserControl
         _animate = animate;
         _startup = startup;
         _signOut = signOut ?? (action => _ = history.SignOutAsync(action));
-        Content = SetupVisuals.Surface(_list, 12);
+        Content = SetupVisuals.Surface(_list);
         _poll = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _poll.Tick += (_, _) => Refresh();
         AttachedToVisualTree += (_, _) =>
@@ -108,7 +108,7 @@ internal sealed class PermissionRows : UserControl
     {
         if (_list.Children.Count > 0)
         {
-            var rule = new Border { Height = 1 };
+            var rule = new Border { Height = Stroke.Hairline };
             rule.Bind(Border.BackgroundProperty, rule.GetResourceObservable("LineBrush"));
             _list.Children.Add(rule);
         }
@@ -157,48 +157,48 @@ internal sealed class PermissionRows : UserControl
             _animate = animate;
             Name = permission.Code;
             ColumnDefinitions = new("Auto,*,Auto");
-            ColumnSpacing = 8;
-            Margin = new Thickness(12, 9);
+            ColumnSpacing = Space.M;
+            Margin = new Thickness(Space.L, Space.M);
             var known = Labels.TryGetValue(permission.Code, out var labels);
             var description = known ? Strings.Get(labels.Description)
                 : platform.Notices.FirstOrDefault(notice => notice.Code == permission.Code)?.Message;
-            var glyph = PanelVisuals.Glyph(known ? labels.Icon : Symbol.Shield, 17, "AccentBrush");
-            var icon = SetupVisuals.Surface(glyph, 8, "SelectedSurfaceBrush", "SelectedSurfaceBrush");
-            icon.Width = icon.Height = 34;
+            var glyph = PanelVisuals.Glyph(known ? labels.Icon : Symbol.Shield, IconSize.Control, "AccentBrush");
+            var icon = SetupVisuals.Surface(glyph, Radius.Control, "SelectedSurfaceBrush", "SelectedSurfaceBrush");
+            icon.Width = icon.Height = ControlSize.Default;
             icon.VerticalAlignment = VerticalAlignment.Center;
             SetupVisuals.Add(this, icon);
             _allowedKey = known ? labels.Allowed : "Allowed";
             _actionKey = known ? labels.Action : "Allow";
 
             var tag = SetupVisuals.Surface(SetupVisuals.Text(
-                Strings.Get(permission.Requirement == PermissionRequirement.Required ? "Required" : "Optional"), 12, "MutedBrush"),
-                5, "WindowBrush");
-            tag.Padding = new Thickness(5, 0);
+                Strings.Get(permission.Requirement == PermissionRequirement.Required ? "Required" : "Optional"), TextSize.Caption, "MutedBrush"),
+                Radius.Small, "WindowBrush");
+            tag.Padding = new Thickness(Space.Xs, 0);
             tag.VerticalAlignment = VerticalAlignment.Center;
-            var heading = new WrapPanel { ItemSpacing = 6, LineSpacing = 2 };
-            heading.Children.Add(SetupVisuals.Text(Title(permission), 14, strong: true));
+            var heading = new WrapPanel { ItemSpacing = Space.S, LineSpacing = Space.Xxs };
+            heading.Children.Add(SetupVisuals.Text(Title(permission), strong: true));
             heading.Children.Add(tag);
-            var details = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center, Children = { heading } };
+            var details = new StackPanel { Spacing = Space.Xxs, VerticalAlignment = VerticalAlignment.Center, Children = { heading } };
             if (permission.Code == "accessibility")
                 description = description?.Replace("⌘V", SetupVisuals.ShortcutInText("⌘V"), StringComparison.Ordinal);
             if (!string.IsNullOrWhiteSpace(description))
-                details.Children.Add(SetupVisuals.Text(description, 12, "MutedBrush"));
+                details.Children.Add(SetupVisuals.Text(description, TextSize.Caption, "MutedBrush"));
 
             _restartHint = SetupVisuals.Text(Strings.Get(permission.Code == "gnome-helper"
-                ? "GnomeRestartDescription" : "PermissionRestartDescription"), 12, "MutedBrush");
+                ? "GnomeRestartDescription" : "PermissionRestartDescription"), TextSize.Caption, "MutedBrush");
             details.Children.Add(_restartHint);
-            _installError = SetupVisuals.Text(Strings.Get("GnomeInstallFailed"), 12, "WarningBrush");
+            _installError = SetupVisuals.Text(Strings.Get("GnomeInstallFailed"), TextSize.Caption, "WarningBrush");
             details.Children.Add(_installError);
             _knob = PanelVisuals.Dot("SurfaceBrush", 10);
             _knob.HorizontalAlignment = HorizontalAlignment.Left;
-            _illustration = SetupVisuals.Surface(_knob, 8, "HoverLineBrush", "HoverLineBrush");
+            _illustration = SetupVisuals.Surface(_knob, Radius.Pill(14), "HoverLineBrush", "HoverLineBrush");
             _illustration.Width = 24;
             _illustration.Height = 14;
-            _illustration.Padding = new Thickness(1);
+            _illustration.Padding = new Thickness(Stroke.Hairline);
             _illustration.FlowDirection = FlowDirection.LeftToRight;
-            var accessibility = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 6, Margin = new Thickness(0, 2, 0, 0) };
+            var accessibility = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = Space.S, Margin = new Thickness(0, Space.Xxs, 0, 0) };
             SetupVisuals.Add(accessibility, _illustration);
-            SetupVisuals.Add(accessibility, SetupVisuals.Text(Strings.Get("AccessibilityInstruction"), 12, "MutedBrush"), 1);
+            SetupVisuals.Add(accessibility, SetupVisuals.Text(Strings.Get("AccessibilityInstruction"), TextSize.Caption, "MutedBrush"), 1);
             _accessibility = accessibility;
             details.Children.Add(accessibility);
             SetupVisuals.Add(this, details, 1);
@@ -223,12 +223,12 @@ internal sealed class PermissionRows : UserControl
             IsEnabled = !installing;
             _status = installing ? InstallingStatus() : permission.State switch
             {
-                PermissionState.Granted => SetupVisuals.Horizontal(5, PanelVisuals.Glyph(Symbol.Checkmark, 14, "SuccessBrush"),
-                    SetupVisuals.Text(Strings.Get(_allowedKey), 12, "SuccessBrush", strong: true)),
+                PermissionState.Granted => SetupVisuals.Horizontal(Space.S, PanelVisuals.Glyph(Symbol.Checkmark, IconSize.Inline, "SuccessBrush"),
+                    SetupVisuals.Text(Strings.Get(_allowedKey), TextSize.Caption, "SuccessBrush", strong: true)),
                 PermissionState.RestartRequired => RestartStatus(),
                 _ when permission.Request is not null =>
                     SetupVisuals.Button(_actionKey, () => _request(_permission), "permission", "Request-" + permission.Code),
-                _ => SetupVisuals.Text(Strings.Get("PermissionNotAvailable"), 12, "MutedBrush")
+                _ => SetupVisuals.Text(Strings.Get("PermissionNotAvailable"), TextSize.Caption, "MutedBrush")
             };
             _status.Name ??= "Status-" + permission.Code;
             _status.VerticalAlignment = VerticalAlignment.Center;
@@ -252,19 +252,19 @@ internal sealed class PermissionRows : UserControl
         {
             var spinner = new Path
             {
-                Name = "GnomeInstallSpinner", Width = 14, Height = 14, StrokeThickness = 1.75,
+                Name = "GnomeInstallSpinner", Width = IconSize.Inline, Height = IconSize.Inline, StrokeThickness = 1.75,
                 Data = Geometry.Parse("M7,1 A6,6 0 1 1 1,7"), FlowDirection = FlowDirection.LeftToRight
             };
             spinner.Bind(Shape.StrokeProperty, spinner.GetResourceObservable("AccentBrush"));
             spinner.Classes.Set("setup-install-spinner", _animate ?? DesktopMotion.Enabled);
-            return SetupVisuals.Horizontal(6, spinner, SetupVisuals.Text(Strings.Get("InstallingGnomeHelper"), 12, "MutedBrush"));
+            return SetupVisuals.Horizontal(Space.S, spinner, SetupVisuals.Text(Strings.Get("InstallingGnomeHelper"), TextSize.Caption, "MutedBrush"));
         }
 
         private Control RestartStatus()
         {
-            var label = SetupVisuals.Text(Strings.Get("SignOutToFinish"), 12, "WarningBrush", strong: true);
+            var label = SetupVisuals.Text(Strings.Get("SignOutToFinish"), TextSize.Caption, "WarningBrush", strong: true);
             label.TextAlignment = TextAlignment.End;
-            var status = new StackPanel { Spacing = 5, MaxWidth = 156, Children = { label } };
+            var status = new StackPanel { Spacing = Space.S, MaxWidth = 156, Children = { label } };
             if (_permission.Request is not null)
             {
                 var button = SetupVisuals.Button("SignOut", () => _request(_permission), "permission", "Request-" + Name);
@@ -303,22 +303,22 @@ internal sealed class StartupRow : Grid
                 knob.Transitions = [new TransformOperationsTransition
                     { Property = RenderTransformProperty, Duration = DesktopMotion.Enter, Easing = DesktopMotion.Decelerate }];
         };
-        _error = SetupVisuals.Text(Strings.Get("StartupChangeFailed"), 12, "WarningBrush");
+        _error = SetupVisuals.Text(Strings.Get("StartupChangeFailed"), TextSize.Caption, "WarningBrush");
         _error.Name = "StartupError";
         _error.IsVisible = false;
         var text = new StackPanel
         {
-            Spacing = 2, VerticalAlignment = VerticalAlignment.Center,
+            Spacing = Space.Xxs, VerticalAlignment = VerticalAlignment.Center,
             Children =
             {
-                SetupVisuals.Text(Strings.Get(titleKey), 14, strong: true),
-                SetupVisuals.Text(Strings.Get(descriptionKey), 12, "MutedBrush"),
+                SetupVisuals.Text(Strings.Get(titleKey), strong: true),
+                SetupVisuals.Text(Strings.Get(descriptionKey), TextSize.Caption, "MutedBrush"),
                 _error
             }
         };
-        Margin = new Thickness(12, 9);
+        Margin = new Thickness(Space.L, Space.M);
         ColumnDefinitions = new("*,Auto");
-        ColumnSpacing = 14;
+        ColumnSpacing = Space.Xl;
         SetupVisuals.Add(this, text);
         SetupVisuals.Add(this, _toggle, 1);
         _toggle.VerticalAlignment = VerticalAlignment.Center;

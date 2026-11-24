@@ -21,6 +21,7 @@ namespace Vstavka.Desktop;
 internal sealed class OnboardingWindow : Window
 {
     private const int LastStep = 3;
+    private const double ProgressDot = 6;
     private readonly IPlatformServices _platform;
     private readonly DesktopHistory _history;
     private readonly bool? _animate;
@@ -72,7 +73,7 @@ internal sealed class OnboardingWindow : Window
             ExtendClientAreaTitleBarHeightHint = 30;
         }
 
-        _footer = SetupVisuals.Footer(new Grid(), new Thickness(32, 0));
+        _footer = SetupVisuals.Footer(new Grid(), new Thickness(Space.Xxxl, 0));
         (_back, _next) = BuildFooter();
         var root = new Grid { RowDefinitions = new("*,62") };
         SetupVisuals.Add(root, _stage);
@@ -175,7 +176,7 @@ internal sealed class OnboardingWindow : Window
         {
             var dot = new Border
             {
-                Classes = { "setup-dot" }, Height = 6, Width = 6, CornerRadius = new CornerRadius(3),
+                Classes = { "setup-dot" }, Height = ProgressDot, Width = ProgressDot, CornerRadius = Radius.Pill(ProgressDot),
                 VerticalAlignment = VerticalAlignment.Center
             };
             if (Animated)
@@ -193,9 +194,9 @@ internal sealed class OnboardingWindow : Window
         _skip = skip;
         var next = SetupVisuals.Button("GetStarted", Next, "primary", "NextStep");
         next.IsDefault = true;
-        var contents = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
-        SetupVisuals.Add(contents, SetupVisuals.Horizontal(8, progress, back));
-        SetupVisuals.Add(contents, SetupVisuals.Horizontal(8, skip, next), 1);
+        var contents = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = Space.M };
+        SetupVisuals.Add(contents, SetupVisuals.Horizontal(Space.M, progress, back));
+        SetupVisuals.Add(contents, SetupVisuals.Horizontal(Space.M, skip, next), 1);
         _footer.Child = contents;
         return (back, next);
     }
@@ -205,7 +206,7 @@ internal sealed class OnboardingWindow : Window
         for (var index = 0; index < _dots.Length; index++)
         {
             var (button, dot) = _dots[index];
-            dot.Width = index == Step ? 18 : 6;
+            dot.Width = index == Step ? ProgressDot * 3 : ProgressDot;
             dot.Classes.Set("active", index == Step);
             dot.Classes.Set("visited", index <= _furthestStep);
             button.IsEnabled = index <= _furthestStep;
@@ -315,21 +316,21 @@ internal sealed class OnboardingWindow : Window
 
         using var stream = AssetLoader.Open(new Uri("avares://Vstavka.Desktop/Assets/Vstavka.png"));
         var logo = new Image { Source = new Bitmap(stream), Width = 56, Height = 56, HorizontalAlignment = HorizontalAlignment.Center };
-        var heading = Heading("WelcomeSetupTitle", "WelcomeSetupDescription", 24, out _, out _);
+        var heading = Heading("WelcomeSetupTitle", "WelcomeSetupDescription", TextSize.Title, out _, out _);
         heading.MaxWidth = 470;
         var intro = new StackPanel
         {
-            Spacing = 12, Margin = new Thickness(32, 66, 32, 0), VerticalAlignment = VerticalAlignment.Top,
+            Spacing = Space.L, Margin = new Thickness(Space.Xxxl, 66, Space.Xxxl, 0), VerticalAlignment = VerticalAlignment.Top,
             Children = { logo, heading }
         };
         _consentError = null;
         if (_history.ClipboardConsentRequired)
         {
-            var notice = SetupVisuals.Text(Strings.Get("WelcomePrivacy"), 12, "MutedBrush");
+            var notice = SetupVisuals.Text(Strings.Get("WelcomePrivacy"), TextSize.Caption, "MutedBrush");
             notice.HorizontalAlignment = HorizontalAlignment.Center;
             notice.TextAlignment = TextAlignment.Center;
             notice.MaxWidth = 470;
-            _consentError = SetupVisuals.Text(Strings.Get("SaveFailed"), 12, "WarningBrush");
+            _consentError = SetupVisuals.Text(Strings.Get("SaveFailed"), TextSize.Caption, "WarningBrush");
             _consentError.HorizontalAlignment = HorizontalAlignment.Center;
             _consentError.IsVisible = false;
             intro.Children.Add(notice);
@@ -341,7 +342,7 @@ internal sealed class OnboardingWindow : Window
         var result = new Grid { Children = { panel, intro } };
         var pickerContainer = new Border
         {
-            Margin = new Thickness(34, 36, 34, 0), VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(Space.Xxxl, 36, Space.Xxxl, 0), VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Right,
             Child = picker
         };
         result.Children.Add(pickerContainer);
@@ -365,7 +366,7 @@ internal sealed class OnboardingWindow : Window
             Control name = new TextBlock { Text = option.Name };
             var item = new ComboBoxItem
             {
-                Tag = option.Code, Content = globe ? SetupVisuals.Horizontal(7, PanelVisuals.Glyph(Symbol.Globe, 15, "MutedBrush"), name) : name
+                Tag = option.Code, Content = globe ? SetupVisuals.Horizontal(Space.S, PanelVisuals.Glyph(Symbol.Globe, IconSize.Control, "MutedBrush"), name) : name
             };
             picker.Items.Add(item);
             if (option.Code == language)
@@ -384,8 +385,8 @@ internal sealed class OnboardingWindow : Window
         }, _animate, large: true) { Name = "ShortcutRecorder" };
         var content = new StackPanel
         {
-            Spacing = 17, Margin = new Thickness(42, 57, 42, 0),
-            Children = { Heading("ShortcutSetupTitle", "ShortcutSetupDescription", 24, out _, out _), recorder }
+            Spacing = Space.Xl, Margin = new Thickness(42, 57, 42, 0),
+            Children = { Heading("ShortcutSetupTitle", "ShortcutSetupDescription", TextSize.Title, out _, out _), recorder }
         };
         if (Animated)
         {
@@ -420,7 +421,7 @@ internal sealed class OnboardingWindow : Window
                         break;
                     var originalThickness = cap.BorderThickness;
                     using var tint = cap.Bind(Border.BackgroundProperty, cap.GetResourceObservable("SelectionBrush"));
-                    cap.BorderThickness = new Thickness(1);
+                    cap.BorderThickness = new Thickness(Stroke.Hairline);
                     await DesktopMotion.Animate(cap, DesktopMotion.Enter, DesktopMotion.Linear, token,
                         (0, 1, "none"), (.4, 1, "translateY(3px)"), (1, 1, "none"));
                     cap.BorderThickness = originalThickness;
@@ -458,9 +459,9 @@ internal sealed class OnboardingWindow : Window
         };
         var content = new StackPanel
         {
-            Spacing = 15, Margin = new Thickness(36, 0, 36, 13),
+            Spacing = Space.Xl, Margin = new Thickness(36, 0, 36, Space.L),
             Children = { Heading("Permissions" + profile + "Title", appStoreBuild ? null : "Permissions" + profile + "Description",
-                24, out _, out _, TextAlignment.Start), rows }
+                TextSize.Title, out _, out _, TextAlignment.Start), rows }
         };
         return new ScrollViewer
         {
@@ -479,21 +480,21 @@ internal sealed class OnboardingWindow : Window
         if (!_copied)
             _practiceText = Strings.Get("PracticeSample");
         var heading = Heading(PracticeCompleted ? "PracticeComplete" : "PracticeTitle", null,
-            28, out _practiceTitle, out _, TextAlignment.Start);
+            TextSize.Display, out _practiceTitle, out _, TextAlignment.Start);
         var copyButton = SetupVisuals.Button("Copy", CopyPracticeSample, "permission", "CopyPracticeSample");
-        var sample = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 6 };
-        SetupVisuals.Add(sample, SetupVisuals.Text(_practiceText, 12));
+        var sample = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = Space.S };
+        SetupVisuals.Add(sample, SetupVisuals.Text(_practiceText, TextSize.Caption));
         SetupVisuals.Add(sample, copyButton, 1);
-        var sampleCard = SetupVisuals.Surface(sample, 8);
-        sampleCard.Padding = new Thickness(9, 5);
-        sampleCard.Margin = new Thickness(0, 6, 0, 0);
-        _practiceError = SetupVisuals.Text(_copyError ?? "", 12, "WarningBrush");
+        var sampleCard = SetupVisuals.Surface(sample, Radius.Control);
+        sampleCard.Padding = new Thickness(Space.M, Space.Xs);
+        sampleCard.Margin = new Thickness(0, Space.S, 0, 0);
+        _practiceError = SetupVisuals.Text(_copyError ?? "", TextSize.Caption, "WarningBrush");
         _practiceError.Name = "PracticeCopyError";
         _practiceError.IsVisible = _copyError is not null;
 
-        var left = new StackPanel { Spacing = 15 };
+        var left = new StackPanel { Spacing = Space.Xl };
         left.Children.Add(Checklist(0, new StackPanel { Children = { SetupVisuals.Text(Strings.Get("PracticeCopy"), strong: true), sampleCard, _practiceError } }));
-        var press = new WrapPanel { ItemSpacing = 6, LineSpacing = 4 };
+        var press = new WrapPanel { ItemSpacing = Space.S, LineSpacing = Space.Xs };
         press.Children.Add(SetupVisuals.Text(Strings.Get("PracticePress"), strong: true));
         press.Children.Add(ShortcutRecorder.CompactKeycaps(_history.Shortcut, _platform.Name));
         left.Children.Add(Checklist(1, press));
@@ -507,17 +508,17 @@ internal sealed class OnboardingWindow : Window
         AutomationProperties.SetName(_practiceBox, Strings.Get("PracticePasteHere"));
         var right = new StackPanel
         {
-            Spacing = 6,
-            Children = { SetupVisuals.Text(Strings.Get("PracticePasteHere"), 14, strong: true), _practiceBox }
+            Spacing = Space.S,
+            Children = { SetupVisuals.Text(Strings.Get("PracticePasteHere"), strong: true), _practiceBox }
         };
-        var columns = new Grid { ColumnDefinitions = new("1.26*,*"), ColumnSpacing = 24 };
+        var columns = new Grid { ColumnDefinitions = new("1.26*,*"), ColumnSpacing = Space.Xxl };
         SetupVisuals.Add(columns, left);
         SetupVisuals.Add(columns, right, 1);
         UpdatePractice(token, animate: false);
         return new ScrollViewer
         {
             Margin = new Thickness(0, 61, 0, 0), HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            Content = new StackPanel { Spacing = 26, Margin = new Thickness(36, 0, 36, 12), Children = { heading, columns } }
+            Content = new StackPanel { Spacing = Space.Xxl, Margin = new Thickness(36, 0, 36, Space.L), Children = { heading, columns } }
         };
     }
 
@@ -552,16 +553,16 @@ internal sealed class OnboardingWindow : Window
             not null => Strings.Format("PracticePermissionMissing", PermissionRows.Title(permission)),
             _ => Strings.Get("PracticeUnavailable")
         };
-        var icon = SetupVisuals.Surface(PanelVisuals.Glyph(Symbol.Info, 20, "AccentBrush"), 10,
+        var icon = SetupVisuals.Surface(PanelVisuals.Glyph(Symbol.Info, IconSize.Feature, "AccentBrush"), Radius.Control,
             "SelectedSurfaceBrush", "SelectedSurfaceBrush");
         icon.Width = icon.Height = 40;
         icon.HorizontalAlignment = HorizontalAlignment.Left;
-        var title = SetupVisuals.Text(Strings.Get("PracticeAlmostThere"), 28, strong: true);
+        var title = SetupVisuals.Text(Strings.Get("PracticeAlmostThere"), TextSize.Display, strong: true);
         AutomationProperties.SetHeadingLevel(title, 1);
-        var details = new StackPanel { Spacing = 6, Children = { title, SetupVisuals.Text(text, 14, "MutedBrush") } };
+        var details = new StackPanel { Spacing = Space.S, Children = { title, SetupVisuals.Text(text, TextSize.Body, "MutedBrush") } };
         var content = new StackPanel
         {
-            Name = "PracticeNotReady", Width = 408, MinHeight = 186, Spacing = 15, Margin = new Thickness(36, 16),
+            Name = "PracticeNotReady", Width = 408, MinHeight = 186, Spacing = Space.Xl, Margin = new Thickness(36, Space.Xl),
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
             Children = { icon, details }
         };
@@ -586,7 +587,7 @@ internal sealed class OnboardingWindow : Window
     {
         var circle = new Grid { Width = 22, Height = 22, VerticalAlignment = VerticalAlignment.Top };
         _checks[index] = circle;
-        var row = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = 9 };
+        var row = new Grid { ColumnDefinitions = new("Auto,*"), ColumnSpacing = Space.M };
         SetupVisuals.Add(row, circle);
         SetupVisuals.Add(row, control, 1);
         return row;
@@ -623,11 +624,11 @@ internal sealed class OnboardingWindow : Window
             var done = states[index];
             if (circle.Children.Count > 0 && done == (circle.Children[0].Classes.Contains("done")))
                 continue;
-            Control body = done ? PanelVisuals.Glyph(Symbol.Checkmark, 13, "PrimaryInkBrush")
-                : SetupVisuals.Text((index + 1).ToString(Strings.Culture), 12, "MutedBrush", strong: true);
+            Control body = done ? PanelVisuals.Glyph(Symbol.Checkmark, IconSize.Inline, "PrimaryInkBrush")
+                : SetupVisuals.Text((index + 1).ToString(Strings.Culture), TextSize.Caption, "MutedBrush", strong: true);
             if (body is TextBlock number)
                 number.TextAlignment = TextAlignment.Center;
-            var marker = SetupVisuals.Surface(body, 11, done ? "PrimaryBrush" : "SurfaceBrush", done ? "PrimaryBrush" : "LineBrush");
+            var marker = SetupVisuals.Surface(body, Radius.Pill(circle.Height), done ? "PrimaryBrush" : "SurfaceBrush", done ? "PrimaryBrush" : "LineBrush");
             marker.Classes.Set("done", done);
             circle.Children.Clear();
             circle.Children.Add(marker);
@@ -642,59 +643,59 @@ internal sealed class OnboardingWindow : Window
         TextAlignment alignment = TextAlignment.Center)
     {
         title = SetupVisuals.Text(Strings.Get(titleKey), size, strong: true);
-        body = SetupVisuals.Text(bodyKey is null ? "" : Strings.Get(bodyKey), 14, "MutedBrush");
+        body = SetupVisuals.Text(bodyKey is null ? "" : Strings.Get(bodyKey), TextSize.Body, "MutedBrush");
         title.TextAlignment = body.TextAlignment = alignment;
         body.IsVisible = bodyKey is not null;
-        return new StackPanel { Spacing = 8, Children = { title, body } };
+        return new StackPanel { Spacing = Space.M, Children = { title, body } };
     }
 
     private static Border MiniaturePanel()
     {
-        var chips = SetupVisuals.Horizontal(12);
+        var chips = SetupVisuals.Horizontal(Space.L);
         foreach (var key in new[] { "All", "Pinned", "Text", "Links", "Images" })
         {
-            var chip = SetupVisuals.Text(Strings.Get(key), 12, key == "All" ? "AccentBrush" : "MutedBrush", strong: key == "All");
+            var chip = SetupVisuals.Text(Strings.Get(key), TextSize.Caption, key == "All" ? "AccentBrush" : "MutedBrush", strong: key == "All");
             chip.MaxLines = 1;
             if (key == "All")
             {
-                var active = SetupVisuals.Surface(chip, 8, "SelectionBrush", "SelectionBrush");
-                active.Padding = new Thickness(7, 2);
+                var active = SetupVisuals.Surface(chip, Radius.Control, "SelectionBrush", "SelectionBrush");
+                active.Padding = new Thickness(Space.S, Space.Xxs);
                 chips.Children.Add(active);
             }
             else
                 chips.Children.Add(chip);
         }
 
-        var strip = new Grid { ColumnDefinitions = new("*,*,*,*"), ColumnSpacing = 6 };
-        var swatch = new Border { Height = 19, CornerRadius = new CornerRadius(4), Background = new SolidColorBrush(Color.Parse("#246AC5")) };
-        var hex = SetupVisuals.Text("#246AC5", 12);
+        var strip = new Grid { ColumnDefinitions = new("*,*,*,*"), ColumnSpacing = Space.S };
+        var swatch = new Border { Height = 19, CornerRadius = Radius.Small, Background = new SolidColorBrush(Color.Parse("#246AC5")) };
+        var hex = SetupVisuals.Text("#246AC5", TextSize.Caption);
         hex.FlowDirection = FlowDirection.LeftToRight;
-        var color = new StackPanel { Spacing = 4, Children = { swatch, hex } };
+        var color = new StackPanel { Spacing = Space.Xs, Children = { swatch, hex } };
         using var stream = new MemoryStream(DemoSamples.ExampleImage());
         var landscape = new Border
         {
-            CornerRadius = new CornerRadius(4), Height = 57, ClipToBounds = true,
+            CornerRadius = Radius.Small, Height = 57, ClipToBounds = true,
             Child = new Image { Source = new Bitmap(stream), Stretch = Stretch.UniformToFill }
         };
-        var link = SetupVisuals.Text("example.org", 12, "LinkTypeBrush", strong: true);
+        var link = SetupVisuals.Text("example.org", TextSize.Caption, "LinkTypeBrush", strong: true);
         link.FlowDirection = FlowDirection.LeftToRight;
-        Control[] previews = { SetupVisuals.Text(Strings.Get("WelcomeSampleText"), 12, strong: true), link, color, landscape };
+        Control[] previews = { SetupVisuals.Text(Strings.Get("WelcomeSampleText"), TextSize.Caption, strong: true), link, color, landscape };
         string[] types = [ "Text", "Link", "Color", "Image" ];
-        var ring = new Border { BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(9), IsHitTestVisible = false };
+        var ring = new Border { BorderThickness = new Thickness(Stroke.Focus), CornerRadius = Radius.Control, IsHitTestVisible = false };
         ring.Bind(Border.BorderBrushProperty, ring.GetResourceObservable("AccentBrush"));
         for (var index = 0; index < types.Length; index++)
         {
-            var label = PanelVisuals.Label(Strings.Get(types[index]), 12, "MutedBrush");
-            var card = SetupVisuals.Surface(new StackPanel { Spacing = 4, Children = { label, previews[index] } }, 9,
+            var label = PanelVisuals.Label(Strings.Get(types[index]), TextSize.Caption, "MutedBrush");
+            var card = SetupVisuals.Surface(new StackPanel { Spacing = Space.Xs, Children = { label, previews[index] } }, Radius.Control,
                 index == 0 ? "SelectedSurfaceBrush" : "SurfaceBrush");
-            card.Padding = new Thickness(8, 6);
+            card.Padding = new Thickness(Space.M, Space.S);
             var grid = new Grid { MinHeight = 94, Children = { card } };
             if (index == 0)
                 grid.Children.Add(ring);
             SetupVisuals.Add(strip, grid, index);
         }
-        var mini = SetupVisuals.Surface(new StackPanel { Spacing = 7, Children = { chips, strip } }, 14, "WindowBrush");
-        mini.Padding = new Thickness(10, 8);
+        var mini = SetupVisuals.Surface(new StackPanel { Spacing = Space.M, Children = { chips, strip } }, background: "WindowBrush");
+        mini.Padding = new Thickness(Space.L, Space.M);
         mini.IsHitTestVisible = false;
         return mini;
     }

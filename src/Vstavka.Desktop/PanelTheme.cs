@@ -6,6 +6,10 @@ using Avalonia.Styling;
 
 namespace Vstavka.Desktop;
 
+/// <summary>
+/// Publishes the app's colour roles as brushes for the current theme, accent and contrast setting. Colours are
+/// written here and nowhere else; views and styles use the keys. DESIGN.md says what each key is for.
+/// </summary>
 internal static class PanelTheme
 {
     public static void Apply(Control target, string? accentName = null)
@@ -63,6 +67,7 @@ internal static class PanelTheme
         Set("PrimaryBrush", primary);
         Set("PrimaryHoverBrush", Mix(primary, Colors.Black, .13));
         Set("PrimaryInkBrush", Colors.White);
+        Set("ScrimBrush", Color.FromArgb(128, 0, 0, 0));
         Set("HoverBrush", Mix(surface, ink, .07));
         Set("PressedBrush", Mix(surface, ink, .13));
         Set("SelectionBrush", selection);

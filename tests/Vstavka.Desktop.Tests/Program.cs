@@ -3,6 +3,7 @@ using System.IO.Compression;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Input;
@@ -15,6 +16,7 @@ using Avalonia.Skia;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using FluentIcons.Avalonia;
 using Vstavka.Core;
 using Vstavka.Core.Localization;
 using Vstavka.Desktop;
@@ -925,6 +927,111 @@ Run("Key frame animations move and scale controls", () =>
         Check(!motion.IsFaulted, "Cancelling an animation does not fault it.");
     }
     finally { window.Close(); }
+});
+
+Run("A button is drawn in the app's colours when hovered, pressed and disabled", () =>
+{
+    // Fluent's own button theme recolours the same template part; the app's states have to win over it.
+    var button = SetupVisuals.Button("Save", () => { }, "secondary");
+    var window = new Window { Width = 200, Height = 100, Content = button, RequestedThemeVariant = ThemeVariant.Light };
+    PanelTheme.Apply(window);
+    window.Show();
+    try
+    {
+        Flush(window);
+        var part = button.GetVisualDescendants().OfType<ContentPresenter>().First();
+        Color Role(string key) => ColorOf((IBrush)window.Resources[key]!);
+        var point = Center(window, button);
+        window.MouseMove(point);
+        Flush(window);
+        Check(ColorOf(part.Background) == Role("HoverBrush") && ColorOf(part.BorderBrush) == Role("HoverLineBrush"),
+            "A hovered button takes the hover roles.");
+        window.MouseDown(point, MouseButton.Left);
+        Flush(window);
+        Check(ColorOf(part.Background) == Role("PressedBrush"), "A pressed button takes the pressed role.");
+        window.MouseUp(point, MouseButton.Left);
+        window.MouseMove(new Point(1, 1));
+        button.IsEnabled = false;
+        Flush(window);
+        Check(ColorOf(part.Background) == Role("SurfaceBrush") && ColorOf(part.Foreground) == Role("InkBrush")
+            && ColorOf(part.BorderBrush) == Role("LineBrush") && button.Opacity < 1, "A disabled button keeps its colours and fades.");
+    }
+    finally { window.Close(); }
+});
+
+Run("Views take their text sizes, icons, radii and gaps from the design tokens", () =>
+{
+    double[] text = [TextSize.Caption, TextSize.Body, TextSize.Subtitle, TextSize.Keycap, TextSize.Title, TextSize.Display];
+    double[] icons = [IconSize.Inline, IconSize.Control, IconSize.Feature, IconSize.Hero];
+    double[] gaps = [0, Space.Xxs, Space.Xs, Space.S, Space.M, Space.L, Space.Xl, Space.Xxl, Space.Xxxl];
+    double[] radii = [0, Radius.Small.TopLeft, Radius.Control.TopLeft, Radius.Surface.TopLeft, Radius.Panel.TopLeft];
+    var strays = new List<string>();
+
+    void Audit(Window window)
+    {
+        Flush(window);
+        // Fluent sizes the parts of its own templates; everything the app builds itself has to be on the scales.
+        foreach (var control in window.GetVisualDescendants().OfType<Control>().Where(control => control.TemplatedParent is null))
+        {
+            (string Kind, double[] Values, double[] Allowed) check = control switch
+            {
+                SymbolIcon icon => ("icon size", [icon.FontSize], icons),
+                TextBlock label => ("text size", [label.FontSize], text),
+                StackPanel stack => ("gap", [stack.Spacing], gaps),
+                WrapPanel wrap => ("gap", [wrap.ItemSpacing, wrap.LineSpacing], gaps),
+                Grid grid => ("gap", [grid.ColumnSpacing, grid.RowSpacing], gaps),
+                Border border when !IsPill(border) => ("radius", [border.CornerRadius.TopLeft, border.CornerRadius.BottomRight], radii),
+                _ => ("", [], [])
+            };
+            strays.AddRange(check.Values.Where(value => !check.Allowed.Contains(value))
+                .Select(value => $"{window.GetType().Name}: {check.Kind} {value} on {control.GetType().Name} {control.Name}"));
+        }
+    }
+
+    static bool IsPill(Border border)
+    {
+        // A hidden border has no bounds yet, only the size it was given.
+        var height = Math.Min(double.IsNaN(border.Width) ? border.Bounds.Width : border.Width,
+            double.IsNaN(border.Height) ? border.Bounds.Height : border.Height);
+        return height > 0 && Math.Abs(border.CornerRadius.TopLeft - height / 2) <= .5;
+    }
+
+    using var demo = new SetupDemo("macOS") { ClipboardSounds = new ClipboardSoundsDouble() };
+    demo.DemoPermissions.AddRange(MacPermissions());
+    var history = CreateHistory(demo, seed: true);
+    var panel = OpenPanel(demo, history);
+    var guide = new OnboardingWindow(demo, history, animate: false);
+    var settings = new SettingsWindow(demo, history, animate: false);
+    try
+    {
+        Audit(panel);
+        Click(panel, Find<Button>(panel, "NewCollectionButton"));
+        Audit(panel);
+        Press(panel, Key.Escape, PhysicalKey.Escape);
+        Find<TextBox>(panel, "SearchBox").Text = "no matching content";
+        Audit(panel);
+
+        guide.Show();
+        for (var step = 0; step <= 3; step++)
+        {
+            Advance(guide, step);
+            Audit(guide);
+        }
+        Click(guide, Find<Button>(guide, "CopyPracticeSample"));
+        Audit(guide);
+
+        settings.Show();
+        Audit(settings);
+        Click(settings, Find<Button>(settings, "ChangeShortcut"));
+        Audit(settings);
+        Check(strays.Count == 0, string.Join(Environment.NewLine, strays.Distinct()));
+    }
+    finally
+    {
+        settings.Close();
+        guide.Close();
+        panel.Close();
+    }
 });
 
 if (args.Length == 2)
