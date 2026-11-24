@@ -4,8 +4,30 @@ import System from 'system';
 
 const BUS = 'io.github.xopoko.Vstavka.Shell1';
 const PATH = '/io/github/xopoko/Vstavka/Shell';
-const connection = Gio.DBus.session;
 const mode = ARGV[0];
+
+if (mode === 'snap-denied') {
+    let peer;
+    try {
+        const address = 'unix:path=' + Gio.dbus_address_escape_value(ARGV[1]);
+        peer = Gio.DBusConnection.new_for_address_sync(address, Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT,
+            null, null);
+        peer.call_sync(null, PATH, BUS, 'SubscribeClipboard', null, null, Gio.DBusCallFlags.NONE, 2000, null);
+    } catch (error) {
+        const domain = Gio.io_error_quark();
+        // GLib may keep a declined GJS connection alive until its wrapper is collected.
+        const declined = error.matches(domain, Gio.IOErrorEnum.CLOSED) ||
+            error.matches(domain, Gio.IOErrorEnum.BROKEN_PIPE) ||
+            (peer && error.matches(domain, Gio.IOErrorEnum.TIMED_OUT));
+        if (!declined)
+            throw error;
+        print('PASS the private socket gives an unconfined peer no clipboard subscription');
+        System.exit(0);
+    }
+    throw new Error('The unconfined peer subscribed to the Snap clipboard');
+}
+
+const connection = Gio.DBus.session;
 
 function call(method, signature = null, args = []) {
     return connection.call_sync(BUS, PATH, BUS, method, signature ? new GLib.Variant(signature, args) : null,

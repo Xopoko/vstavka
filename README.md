@@ -49,6 +49,9 @@ The Ubuntu source build uses a bundled GNOME helper compatible with GNOME 46–5
 
 ### Snap on GNOME Wayland
 
+Vstavka 1.1.0 is available from the Snap Store's candidate channel while the
+companion is in GNOME review. Install it with `sudo snap install vstavka --candidate`.
+
 In Vstavka 1.1.0, open **GNOME Extensions** from the first-run guide or
 **Settings → Permissions** and enable [Vstavka Clipboard for Snap](https://extensions.gnome.org/extension/11930/vstavka-clipboard-for-snap/).
 Choose a shortcut in Vstavka. The companion supports GNOME 46 and 50, and the
