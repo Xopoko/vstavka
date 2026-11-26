@@ -98,9 +98,11 @@ internal sealed class WindowsClipboard(
     {
         try
         {
-            for (var attempt = 0; attempt < CaptureAttempts; attempt++)
+            var nextImageFormat = 0;
+            PlatformNotice? imageFailure = null;
+            await waitForCapture(30).ConfigureAwait(false);
+            for (var busyAttempts = 0; busyAttempts < CaptureAttempts;)
             {
-                await waitForCapture(attempt == 0 ? 30 : 50).ConfigureAwait(false);
                 if (!IsCurrent(sequence))
                     return;
 
@@ -109,10 +111,14 @@ internal sealed class WindowsClipboard(
                 using (var read = backend.TryOpenRead())
                 {
                     if (read is null)
+                    {
+                        if (++busyAttempts < CaptureAttempts)
+                            await waitForCapture(50).ConfigureAwait(false);
                         continue;
+                    }
                     if (!IsCurrent(sequence))
                         return;
-                    snapshot = ReadSnapshot(read, capturedAt, settingsSnapshot, out notice);
+                    snapshot = ReadSnapshot(read, capturedAt, settingsSnapshot, ref nextImageFormat, ref imageFailure, out notice);
 
                     // Rendering a delayed clipboard format can advance the sequence while we hold the lock.
                     var renderedSequence = backend.Sequence;
@@ -124,10 +130,22 @@ internal sealed class WindowsClipboard(
                         latestSequence = sequence = renderedSequence;
                     }
                 }
+                if (snapshot?.Image is { } image)
+                {
+                    if (!IsCurrent(sequence))
+                        return;
+                    // Decode outside the clipboard lock. A failed decode can resume at the next format.
+                    if (TryEncodeImage(image) is not { } png)
+                    {
+                        imageFailure ??= ReadFailed;
+                        continue;
+                    }
+                    snapshot.Item.ImageBytes = png;
+                }
                 if (notice is not null)
                     PublishNotice(sequence, notice);
                 if (snapshot is not null)
-                    EncodeAndPublish(snapshot, sequence, currentSettings);
+                    PublishCapture(snapshot, sequence, currentSettings);
                 return;
             }
             PublishNotice(sequence, ClipboardBusy);
@@ -140,7 +158,7 @@ internal sealed class WindowsClipboard(
     }
 
     private static CaptureSnapshot? ReadSnapshot(IClipboardRead read, DateTimeOffset capturedAt, AppSettings settings,
-        out PlatformNotice? notice)
+        ref int nextImageFormat, ref PlatformNotice? imageFailure, out PlatformNotice? notice)
     {
         notice = null;
         if (read.Has(ClipboardFormat.Exclude) || read.Has(ClipboardFormat.ViewerIgnore) ||
@@ -163,9 +181,9 @@ internal sealed class WindowsClipboard(
             item.Files = files;
             return new CaptureSnapshot(item, owner, foreground);
         }
-        PlatformNotice? imageFailure = null;
-        foreach (var format in ImageFormats)
+        while (nextImageFormat < ImageFormats.Length)
         {
+            var format = ImageFormats[nextImageFormat++];
             if (!read.Has(format))
                 continue;
             if (read.ReadBytes(format, MaxBinaryBuffer, out var tooLarge) is not { } bytes)
@@ -176,10 +194,14 @@ internal sealed class WindowsClipboard(
             item.Kind = ClipKind.Image;
             return new CaptureSnapshot(item, owner, foreground, new ClipboardData(format, bytes));
         }
-        if (read.ReadBitmap() is { } bitmap)
+        if (nextImageFormat == ImageFormats.Length)
         {
-            item.Kind = ClipKind.Image;
-            return new CaptureSnapshot(item, owner, foreground, new ClipboardData(ClipboardFormat.Dib, bitmap));
+            nextImageFormat++;
+            if (read.ReadBitmap() is { } bitmap)
+            {
+                item.Kind = ClipKind.Image;
+                return new CaptureSnapshot(item, owner, foreground, new ClipboardData(ClipboardFormat.Dib, bitmap));
+            }
         }
         if (!read.Has(ClipboardFormat.Text))
         {
@@ -201,24 +223,31 @@ internal sealed class WindowsClipboard(
         }
         item.Text = new string(text);
         if (string.IsNullOrWhiteSpace(item.Text))
+        {
+            notice = imageFailure;
             return null;
+        }
         item.Kind = ClipItem.DetectTextKind(item.Text);
         return new CaptureSnapshot(item, owner, foreground);
     }
 
-    private void EncodeAndPublish(CaptureSnapshot snapshot, uint sequence, AppSettings captureSettings)
+    private byte[]? TryEncodeImage(ClipboardData image)
+    {
+        try
+        {
+            return images.CapturePng(image.Format, image.Bytes);
+        }
+        catch (Exception error) when (error is ExternalException or ArgumentException or InvalidOperationException or
+            IOException or NotSupportedException or OutOfMemoryException)
+        {
+            return null;
+        }
+    }
+
+    private void PublishCapture(CaptureSnapshot snapshot, uint sequence, AppSettings captureSettings)
     {
         if (!IsCurrent(sequence))
             return;
-        if (snapshot.Image is { } image)
-        {
-            if (images.CapturePng(image.Format, image.Bytes) is not { } imagePng)
-            {
-                PublishNotice(sequence, ReadFailed);
-                return;
-            }
-            snapshot.Item.ImageBytes = imagePng;
-        }
         var source = string.IsNullOrWhiteSpace(snapshot.Owner.Name) ? null : new SourceApp(
             snapshot.Owner.Name, snapshot.Owner.Path, snapshot.Owner.Path is { } path ? icons.GetPng(path) : null);
         Post(() =>

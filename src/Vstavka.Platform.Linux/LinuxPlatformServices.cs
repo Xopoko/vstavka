@@ -112,9 +112,7 @@ public sealed class LinuxPlatformServices : IPlatformServices, IPasteService, IP
     public IHistoryProtector? HistoryProtector { get; }
 
     void IPasteService.CaptureTarget() => _desktop?.CaptureTarget();
-    async Task<PasteResult> IPasteService.PasteAsync() =>
-        _desktop is { } desktop && await desktop.PasteAsync().ConfigureAwait(false)
-            ? PasteResult.ShortcutSent : PasteResult.Manual;
+    Task<PasteResult> IPasteService.PasteAsync() => _desktop?.PasteAsync() ?? Task.FromResult(PasteResult.Manual);
 
     void IPanelWindow.Attach(nint handle, string descriptor) { }
     void IPanelWindow.Showing() => _desktop?.PreparePanel();

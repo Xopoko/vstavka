@@ -207,18 +207,23 @@ internal sealed class GnomeDesktop : ILinuxDesktop
     public void CaptureTarget() => _targetCaptured = TryCall("CaptureTarget");
     public void PreparePanel() => TryCall("PreparePanel");
 
-    public async Task<bool> PasteAsync()
+    public async Task<PasteResult> PasteAsync()
     {
         if (!_targetCaptured)
-            return false;
+            return PasteResult.Manual;
         _targetCaptured = false;
         try
         {
-            return await CallBoolean(CreateCall("Paste")).WaitAsync(Timeout).ConfigureAwait(false);
+            return await CallBoolean(CreateCall("Paste")).WaitAsync(Timeout).ConfigureAwait(false)
+                ? PasteResult.ShortcutSent : PasteResult.Manual;
+        }
+        catch (DBusErrorReplyException error) when (error.ErrorName == BusName + ".ClipboardChanged")
+        {
+            return PasteResult.ClipboardChanged;
         }
         catch (Exception error) when (IsBusFailure(error))
         {
-            return false;
+            return PasteResult.Manual;
         }
     }
 

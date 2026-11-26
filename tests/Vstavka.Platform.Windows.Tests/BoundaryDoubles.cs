@@ -130,11 +130,12 @@ internal sealed class ClipboardDouble : IWindowsClipboard, IClipboardRead
 internal sealed class ImageDouble : IWindowsClipboardImages
 {
     internal int Captures { get; private set; }
+    internal Func<ClipboardFormat, byte[], byte[]?> Encode { get; set; } = (_, bytes) => bytes;
 
-    public byte[] CapturePng(ClipboardFormat format, byte[] bytes)
+    public byte[]? CapturePng(ClipboardFormat format, byte[] bytes)
     {
         Captures++;
-        return bytes;
+        return Encode(format, bytes);
     }
 
     public byte[] CreateDibV5(byte[] png) => png;

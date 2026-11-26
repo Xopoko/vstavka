@@ -91,11 +91,16 @@ public sealed class ClipItem
     {
         if (string.Equals(left, right, StringComparison.Ordinal))
             return true;
+        if (IsPosixPath(left) || IsPosixPath(right))
+            return SameText(left, right);
         // The ASCII comparison avoids allocating uppercase copies of common paths.
         if (Ascii.IsValid(left) && Ascii.IsValid(right))
             return string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
         return SameText(left.ToUpperInvariant(), right.ToUpperInvariant());
     }
+
+    // macOS and Linux capture absolute POSIX paths. A double slash can denote a Windows UNC path.
+    private static bool IsPosixPath(string path) => path.StartsWith('/') && !path.StartsWith("//", StringComparison.Ordinal);
 
     private static bool SameText(string left, string right)
     {
@@ -140,6 +145,11 @@ public sealed class ClipItem
                 case ClipKind.Files:
                     foreach (var path in item.Files)
                     {
+                        if (IsPosixPath(path))
+                        {
+                            hash.Add(StorageText(path), StringComparer.Ordinal);
+                            continue;
+                        }
                         // Equivalent to hashing uppercase ASCII without allocating the uppercase paths.
                         var normalized = Ascii.IsValid(path) ? path : StorageText(path.ToUpperInvariant());
                         hash.Add(normalized, StringComparer.OrdinalIgnoreCase);

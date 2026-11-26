@@ -13,7 +13,7 @@ internal interface ILinuxDesktop : IDisposable
     bool RegisterHotkey(LinuxGesture gesture);
     void ReleaseHotkey();
     void CaptureTarget();
-    Task<bool> PasteAsync();
+    Task<PasteResult> PasteAsync();
     void PreparePanel();
 }
 

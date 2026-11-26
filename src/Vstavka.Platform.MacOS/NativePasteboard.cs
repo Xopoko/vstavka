@@ -6,7 +6,14 @@ internal sealed class NativePasteboard : IPasteboard
 {
     private static nint Board => ObjC.Get(ObjC.Class("NSPasteboard"), "generalPasteboard");
 
-    public long ChangeCount => ObjC.Get(Board, "changeCount");
+    public long ChangeCount
+    {
+        get
+        {
+            using var pool = new AutoreleasePool();
+            return ObjC.Get(Board, "changeCount");
+        }
+    }
 
     public PasteboardAccess Access => GetAccess();
 
@@ -76,14 +83,16 @@ internal sealed class NativePasteboard : IPasteboard
             : null;
     }
 
-    internal void Write(ClipItem item, bool plainText, Action<long> recordOwnWrite)
+    internal long Write(ClipItem item, bool plainText, Action<long> recordOwnWrite)
     {
         var objects = !plainText && item.Kind == ClipKind.Files ? CreateFileObjects(item.Files) : CreateItemObjects(item, plainText);
         var board = Board;
         // clearContents takes ownership and returns our changeCount. A later read can see another app's copy.
-        recordOwnWrite(ObjC.Get(board, "clearContents"));
+        var count = ObjC.Get(board, "clearContents");
+        recordOwnWrite(count);
         if (ObjC.Bool(board, ObjC.Sel("writeObjects:"), objects) == 0)
             throw new InvalidOperationException("AppKit could not write the clipboard item.");
+        return count;
     }
 
     private static nint CreateFileObjects(string[] paths)
@@ -148,10 +157,13 @@ internal sealed class NativePasteboard : IPasteboard
 
 internal sealed class MacClipboardWriter(NativePasteboard board, ClipboardPoll poll) : IClipboardWriter
 {
+    internal long? LastWrittenCount { get; private set; }
+
     public void Write(ClipItem item, bool plainText)
     {
         ArgumentNullException.ThrowIfNull(item);
+        LastWrittenCount = null;
         using var pool = new AutoreleasePool();
-        board.Write(item, plainText, poll.RecordOwnWrite);
+        LastWrittenCount = board.Write(item, plainText, poll.RecordOwnWrite);
     }
 }

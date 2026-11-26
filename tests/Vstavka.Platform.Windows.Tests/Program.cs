@@ -125,12 +125,22 @@ internal static class Program
         ui.Drain();
         Check(captures[^1].Item is { Kind: ClipKind.Files } && captures[^1].Item.Files.SequenceEqual(native.Files) &&
             images.Captures == 0 && notices.Count == 0, "A file drop takes precedence even when its alternate text is oversized.");
+        images.Encode = (format, bytes) => format == ClipboardFormat.Png ? null : bytes;
         native.NewText("fallback text");
+        native.Data[ClipboardFormat.Png] = [21];
         native.Data[ClipboardFormat.DibV5] = [37];
         messages.Update();
         ui.Drain();
         Check(captures[^1].Item is { Kind: ClipKind.Image } && captures[^1].Item.ImageBytes!.SequenceEqual(new byte[] { 37 }) &&
-            images.Captures == 1, "DIB images are converted to PNG before capture.");
+            images.Captures == 2 && notices.Count == 0, "A valid DIB is captured when the preferred PNG cannot be decoded.");
+
+        images.Encode = (_, _) => throw new ArgumentException("Cannot decode this image.");
+        native.NewText("fallback text");
+        native.Data[ClipboardFormat.Png] = [21];
+        messages.Update();
+        ui.Drain();
+        Check(captures[^1].Item is { Kind: ClipKind.Text, Text: "fallback text" } && notices.Count == 0,
+            "Text is captured when image conversion fails.");
 
         native.NewText(new string('a', HistoryStore.MaxTextLength + 1));
         messages.Update();
@@ -140,8 +150,21 @@ internal static class Program
         native.Files = null;
         messages.Update();
         ui.Drain();
-        Check(captures.Count == 3 && notices.SequenceEqual(["clipboard-item-too-large", "clipboard-read-failed"]),
+        Check(captures.Count == 4 && notices.SequenceEqual(["clipboard-item-too-large", "clipboard-read-failed"]),
             "Oversized text and unreadable file drops report why they could not be captured.");
+
+        images.Encode = (_, _) =>
+        {
+            native.NewText("newer copy");
+            messages.Update();
+            return null;
+        };
+        native.NewText("stale fallback text");
+        native.Data[ClipboardFormat.Png] = [21];
+        messages.Update();
+        ui.Drain();
+        Check(captures.Count == 5 && captures[^1].Item.Text == "newer copy" && notices.Count == 2,
+            "Decoding a replaced image does not capture its stale fallback or duplicate the replacement.");
     }
 
     private static void ClipboardRetryAndSuppression()

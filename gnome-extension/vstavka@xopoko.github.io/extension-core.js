@@ -49,6 +49,7 @@ export class VstavkaExtension extends Extension {
         this.transport = null;
         this.clipboardSender = null;
         this.clipboardActive = false;
+        this.clipboardWrite = null;
         this.releaseHotkey();
         if (this.hotkeySignal)
             global.display.disconnect(this.hotkeySignal);
@@ -88,6 +89,8 @@ export class VstavkaExtension extends Extension {
     }
 
     revoke(sender) {
+        if (this.clipboardWrite?.sender === sender)
+            this.clipboardWrite = null;
         if (this.clipboardSender === sender) {
             this.clipboardSender = null;
             this.clipboardActive = false;
@@ -130,10 +133,13 @@ export class VstavkaExtension extends Extension {
     }
 
     async SetClipboardAsync([mime, data], invocation) {
-        if (!await this.authorizedSender(invocation))
+        const sender = await this.authorizedSender(invocation);
+        if (!sender)
             return;
         try {
             const success = this.clipboard.write(mime, data);
+            if (success)
+                this.clipboardWrite = {sender, revision: this.clipboard.revision};
             invocation.return_value(new GLib.Variant('(b)', [success]));
         } catch (error) {
             invocation.return_dbus_error(BUS + '.ClipboardWriteFailed', error.message);
@@ -196,8 +202,15 @@ export class VstavkaExtension extends Extension {
         if (!sender)
             return;
         try {
+            const write = this.clipboardWrite;
+            const wroteClipboard = write?.sender === sender;
+            const clipboardChanged = () => wroteClipboard && write.revision !== this.clipboard?.revision;
             const success = await this.windows.paste(() => this.sessionAvailable() &&
-                this.isAllowed(sender));
+                this.isAllowed(sender) && wroteClipboard && !clipboardChanged());
+            if (!success && this.sessionAvailable() && clipboardChanged()) {
+                invocation.return_dbus_error(BUS + '.ClipboardChanged', 'The clipboard changed before pasting.');
+                return;
+            }
             invocation.return_value(new GLib.Variant('(b)', [success]));
         } catch (error) {
             invocation.return_dbus_error(BUS + '.PasteFailed', error.message);

@@ -11,6 +11,7 @@ const XML = `<node><interface name="${BUS}">
     <method name="Focus"><arg type="s" direction="in"/></method>
     <method name="Shortcut"><arg type="b" direction="in"/></method>
     <method name="CopyKey"/>
+    <method name="Shift"><arg type="b" direction="in"/></method>
     <method name="InitInput"/>
     <method name="Ready"><arg type="b" direction="out"/></method>
 </interface></node>`;
@@ -71,6 +72,11 @@ export default class TestProbe extends Extension {
 
     CopyKey() {
         this.sendKeys([Clutter.KEY_F6]);
+    }
+
+    Shift(pressed) {
+        this.keyboard.notify_keyval(GLib.get_monotonic_time(), Clutter.KEY_Shift_L,
+            pressed ? Clutter.KeyState.PRESSED : Clutter.KeyState.RELEASED);
     }
 
     sendKeys(keys) {

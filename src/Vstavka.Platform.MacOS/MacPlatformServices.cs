@@ -6,7 +6,7 @@ namespace Vstavka.Platform.MacOS;
 public sealed class MacPlatformServices : IPlatformServices
 {
     private readonly NativePasteboard board = new();
-    private readonly MacPasteService paste = new();
+    private readonly MacPasteService paste;
     private readonly Lazy<IHistoryProtector?> historyProtector = new(CreateHistoryProtector);
 
     public static bool IsSupported => OperatingSystem.IsMacOS();
@@ -24,7 +24,9 @@ public sealed class MacPlatformServices : IPlatformServices
 
         var poll = new ClipboardPoll(board, RunningApps.GetSource);
         Clipboard = new MacClipboardMonitor(poll);
-        ClipboardWriter = new MacClipboardWriter(board, poll);
+        var writer = new MacClipboardWriter(board, poll);
+        ClipboardWriter = writer;
+        paste = new MacPasteService(new AppKitPaste(), () => board.ChangeCount, () => writer.LastWrittenCount);
         Hotkey = new MacGlobalHotkey(CarbonHotkey.TryRegister);
     }
 

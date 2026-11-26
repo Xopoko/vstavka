@@ -186,18 +186,18 @@ internal sealed partial class X11Desktop : ILinuxDesktop
     });
     public void PreparePanel() { }
 
-    public Task<bool> PasteAsync() => Enqueue(() =>
+    public Task<PasteResult> PasteAsync() => Enqueue(() =>
     {
         var (target, isTerminal) = _pasteTarget;
         _pasteTarget = default;
         if (!_hasXTest || _control == 0 || _v == 0 || target <= 1 || target == _root || target == _window ||
             (isTerminal && _shift == 0))
-            return false;
+            return PasteResult.Manual;
         XGetInputFocus(_display, out var focus, out _);
         if (focus != target &&
             (!Checked(xcb_set_input_focus_checked(_xcb, 2, (uint)target, 0)) ||
              XGetInputFocus(_display, out focus, out _) == 0 || focus != target))
-            return false;
+            return PasteResult.Manual;
         var success = XTestFakeKeyEvent(_display, _control, 1, 0) != 0;
         if (isTerminal)
             success &= XTestFakeKeyEvent(_display, _shift, 1, 0) != 0;
@@ -207,7 +207,7 @@ internal sealed partial class X11Desktop : ILinuxDesktop
             success &= XTestFakeKeyEvent(_display, _shift, 0, 0) != 0;
         success &= XTestFakeKeyEvent(_display, _control, 0, 0) != 0;
         XFlush(_display);
-        return success;
+        return success ? PasteResult.ShortcutSent : PasteResult.Manual;
     });
 
     private void Run()

@@ -343,6 +343,26 @@ try
         catch (InvalidDataException) { }
     });
 
+    Run("File entries preserve distinct path casing on Unix and deduplicate Windows paths", () =>
+    {
+        var directory = Path.Combine(testRoot, "file-path-case");
+        var store = NewStore(directory);
+        Check(store.Add(FileClip("/home/synthetic/Report.txt")) && store.Add(FileClip("/home/synthetic/report.txt")),
+            "Unix paths with different casing can be different files.");
+        Check(!store.Add(FileClip("/home/synthetic/Report.txt")) && store.LastRejectionReason is null,
+            "The same Unix path is still recognized as a duplicate.");
+        foreach (var path in new[] { @"C:\Synthetic\Report.txt", @"\\Server\Share\Report.txt", "//Server/Share/Report.txt" })
+            Check(store.Add(FileClip(path)) && !store.Add(FileClip(path.ToLowerInvariant())),
+                "Windows paths continue to match case-insensitively.");
+        store.Save();
+        var restored = NewStore(directory);
+        restored.Load();
+        Check(restored.LoadWarning is null && restored.Items.Count == 5,
+            "Case-distinct Unix paths survive encrypted save and reload.");
+
+        static ClipItem FileClip(string path) => new() { Kind = ClipKind.Files, Files = [path] };
+    });
+
     Run("Titles retain newline and whitespace behavior for large clipboard text", () =>
     {
         var samples = new[] { "", "\r\n", "\r\nHello\nWorld", " \nSecond", "\t\r\nSecond", "\u2003Title\u2003\nSecond", new string('x', 80), new string('x', 81), "First\rSecond\nThird", "\n\r\n" + new string('x', 100) + string.Concat(Enumerable.Repeat("\nSynthetic continuation", 10_000)) };

@@ -14,6 +14,7 @@ const clipboardEvents = [];
 let shortcutCount = 0;
 const bus = Gio.DBus.session;
 const encoder = new TextEncoder();
+Gio._promisify(Gio.DBusConnection.prototype, 'call', 'call_finish');
 
 function delay(ms) {
     return new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
@@ -48,6 +49,20 @@ function call(service, method, signature = null, args = []) {
 
 function windowState(title) {
     return JSON.parse(call(PROBE, 'Window', '(s)', [title]));
+}
+
+async function pasteHoldingShift(whileHeld) {
+    call(PROBE, 'Shift', '(b)', [true]);
+    let pending;
+    try {
+        pending = bus.call(SHELL, PATH + 'Shell', SHELL, 'Paste', null, null,
+            Gio.DBusCallFlags.NONE, 3000, null).then(result => result.deepUnpack()[0]);
+        await until('editor refocused while Shift is held', () => windowState(EDITOR_TITLE)?.focused);
+        await whileHeld(pending);
+    } finally {
+        call(PROBE, 'Shift', '(b)', [false]);
+    }
+    return pending;
 }
 
 function startPeer(executableVariable, mode) {
@@ -172,9 +187,40 @@ async function test(editor, entry) {
     check(actual === value, 'GTK reads clipboard written by extension');
     check(clipboardEvents.length === 0, 'extension clipboard write does not echo');
 
-    check(call(SHELL, 'Paste'), 'Paste accepted with the panel focused');
+    const editorKeys = new Gtk.EventControllerKey({propagation_phase: Gtk.PropagationPhase.CAPTURE});
+    let pasteModifiers;
+    editorKeys.connect('key-pressed', (_controller, keyval, _keycode, state) => {
+        if (Gdk.keyval_to_lower(keyval) === Gdk.KEY_v)
+            pasteModifiers = state;
+        return false;
+    });
+    editor.add_controller(editorKeys);
+    const sent = await pasteHoldingShift(async pending => {
+        const completed = await Promise.race([pending.then(() => true), delay(80).then(() => false)]);
+        check(!completed, 'Paste remains pending while Shift is held');
+    });
+    check(sent, 'Paste accepted when Shift is released');
     await until('pasted editor entry', () => entry.text === value);
-    check(windowState(EDITOR_TITLE).focused, 'Paste refocused GTK editor and inserted expected text');
+    const editorModifiers = Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK;
+    check((pasteModifiers & editorModifiers) === Gdk.ModifierType.CONTROL_MASK,
+        'Paste refocused the editor and sent Ctrl+V');
+
+    pasteModifiers = undefined;
+    call(SHELL, 'CaptureTarget');
+    call(PROBE, 'Focus', '(s)', ['Vstavka']);
+    await until('panel focused before clipboard replacement test', () => windowState('Vstavka')?.focused);
+    const replacement = 'New clipboard contents from the editor';
+    const pasteError = await pasteHoldingShift(async () => {
+        offer = Gdk.ContentProvider.new_for_bytes(TEXT, new GLib.Bytes(encoder.encode(replacement)));
+        call(PROBE, 'CopyKey');
+        await until('extension observed the clipboard replacement', () =>
+            clipboardEvents.some(([, bytes]) => new TextDecoder().decode(bytes) === replacement));
+    }).then(() => null, error => {
+        if (Gio.DBusError.get_remote_error(error) !== SHELL + '.ClipboardChanged')
+            throw error;
+        return error;
+    });
+    check(pasteError && pasteModifiers === undefined, 'Paste refused after clipboard replacement');
 
     const terminalApp = new Gtk.Application({application_id: 'io.github.xopoko.VstavkaTestTerminal'});
     terminalApp.register(null);
@@ -199,6 +245,7 @@ async function test(editor, entry) {
     call(SHELL, 'CaptureTarget');
     call(PROBE, 'Focus', '(s)', ['Vstavka']);
     await until('panel focused for terminal paste', () => windowState('Vstavka')?.focused);
+    check(call(SHELL, 'SetClipboard', '(say)', [TEXT, encoder.encode(value)]), 'SetClipboard accepted terminal text');
     check(call(SHELL, 'Paste'), 'Paste accepted for the captured terminal');
     await until('terminal received Ctrl+Shift+V', () => terminalPasted);
     check(windowState(TERMINAL_TITLE).focused, 'Paste refocused the terminal and sent Ctrl+Shift+V');

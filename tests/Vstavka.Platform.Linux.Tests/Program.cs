@@ -418,7 +418,7 @@ sealed class FakeDesktop : ILinuxDesktop
     }
     public void ReleaseHotkey() => Accelerator = null;
     public void CaptureTarget() { }
-    public Task<bool> PasteAsync() => Task.FromResult(true);
+    public Task<PasteResult> PasteAsync() => Task.FromResult(PasteResult.ShortcutSent);
     public void PreparePanel() { }
     public void Dispose() { }
 }

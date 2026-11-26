@@ -23,10 +23,12 @@ export class Clipboard {
         this.clipboard = St.Clipboard.get_default();
         this.theme = St.IconTheme.new();
         this.writing = false;
+        this.revision = 0;
         this.transfer = null;
         this.signal = this.selection.connect('owner-changed', (_selection, type, owner) => {
             if (type !== CLIPBOARD)
                 return;
+            this.revision++;
             this.transfer?.cancel();
             // Mutter may restore a clipboard selection without the original
             // privacy formats after its client disconnects.

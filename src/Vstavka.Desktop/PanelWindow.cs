@@ -704,7 +704,7 @@ internal sealed partial class PanelWindow : Window
             case Key.Enter when focused is not Button && selected is not null:
                 _ = PasteAsync(selected, plain);
                 break;
-            case Key.Delete or Key.Back when (e.Key == Key.Delete || OperatingSystem.IsMacOS()) && !searchFocused && selected is not null:
+            case Key.Delete or Key.Back when (e.Key == Key.Delete || OperatingSystem.IsMacOS()) && _cards.IsKeyboardFocusWithin && selected is not null:
                 Delete(selected);
                 break;
             default:

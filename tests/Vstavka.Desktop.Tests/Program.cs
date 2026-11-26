@@ -99,13 +99,22 @@ Run("Keyboard selection, Enter fallback, quick paste, and Escape", () =>
     finally { panel.Close(); }
 });
 
-Run("Deleting a card selects the one that takes its place", () =>
+Run("Delete acts on the focused card row and keeps its selection", () =>
 {
     using var demo = new DemoPlatformServices();
     var panel = OpenPanel(demo, CreateHistory(demo, seed: true));
     try
     {
         var cards = Find<ListBox>(panel, "Cards");
+        var count = cards.Items.Count;
+        var first = (ListBoxItem)cards.ContainerFromIndex(0)!;
+        Check(Find<Button>(panel, "AllChip").Focus(NavigationMethod.Tab), "Focus moves to the filter row.");
+        Press(panel, Key.Delete, PhysicalKey.Delete);
+        if (OperatingSystem.IsMacOS())
+            Press(panel, Key.Back, PhysicalKey.Backspace);
+        Check(cards.Items.Count == count, "Delete on a filter leaves the selected card intact.");
+
+        first.Focus(NavigationMethod.Tab);
         Press(panel, Key.Right, PhysicalKey.ArrowRight);
         var next = cards.Items[2];
         Press(panel, Key.Delete, PhysicalKey.Delete);

@@ -5,6 +5,10 @@ import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 const APP_ID = 'io.github.xopoko.vstavka';
+const BLOCKING_MODIFIERS = Clutter.ModifierType.SHIFT_MASK | Clutter.ModifierType.CONTROL_MASK |
+    Clutter.ModifierType.MOD1_MASK | Clutter.ModifierType.MOD4_MASK | Clutter.ModifierType.MOD5_MASK |
+    Clutter.ModifierType.SUPER_MASK | Clutter.ModifierType.META_MASK;
+const modifiersHeld = () => (global.get_pointer()[2] & BLOCKING_MODIFIERS) !== 0;
 const isApp = window => {
     if (!window)
         return false;
@@ -126,9 +130,9 @@ export class Windows {
             return false;
 
         target.activate(global.get_current_time());
-        const focused = await this.waitForFocus(target);
-        if (this.disposed || !focused || !allowed() || global.display.focus_window !== target ||
-            Main.actionMode !== Shell.ActionMode.NORMAL)
+        const ready = await this.waitForPaste(target);
+        if (this.disposed || !ready || !allowed() || global.display.focus_window !== target ||
+            Main.actionMode !== Shell.ActionMode.NORMAL || modifiersHeld())
             return false;
 
         this.keyboard ??= Clutter.get_default_backend().get_default_seat()
@@ -148,26 +152,29 @@ export class Windows {
         return true;
     }
 
-    waitForFocus(target) {
-        if (global.display.focus_window === target)
+    waitForPaste(target) {
+        let reachedTarget = global.display.focus_window === target;
+        if (reachedTarget && !modifiersHeld())
             return Promise.resolve(true);
+        // Shift+Enter can close the panel while Shift is still held.
+        const started = GLib.get_monotonic_time();
         return new Promise(resolve => {
-            let timeout;
-            let signal;
+            const timeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 20, () => {
+                const focused = global.display.focus_window === target;
+                const elapsed = GLib.get_monotonic_time() - started;
+                const ready = focused && !modifiersHeld();
+                if (ready || elapsed >= 750_000 || (!focused && (reachedTarget || elapsed >= 300_000))) {
+                    this.pasteWait(ready);
+                    return GLib.SOURCE_REMOVE;
+                }
+                reachedTarget ||= focused;
+                return GLib.SOURCE_CONTINUE;
+            });
             this.pasteWait = success => {
-                global.display.disconnect(signal);
                 GLib.source_remove(timeout);
                 this.pasteWait = null;
                 resolve(success);
             };
-            signal = global.display.connect('notify::focus-window', () => {
-                if (global.display.focus_window === target)
-                    this.pasteWait(true);
-            });
-            timeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
-                this.pasteWait(false);
-                return GLib.SOURCE_REMOVE;
-            });
         });
     }
 }

@@ -153,6 +153,41 @@ Run("Manual paste requires only clipboard permission", () =>
     Check(clipboardRequested, "The clipboard request remains available.");
 });
 
+Run("Paste skips a clipboard item superseded before the shortcut", () =>
+{
+    var native = new FakeMacPaste();
+    long changeCount = 1;
+    long? writtenCount = changeCount;
+    var wait = Task.CompletedTask;
+    using var paste = new MacPasteService(native, () => changeCount, () => writtenCount, _ => wait);
+    paste.CaptureTarget();
+    Check(paste.PasteAsync().GetAwaiter().GetResult() == PasteResult.ShortcutSent && native.Posts == 1,
+        "An unchanged clipboard item is pasted after the target is activated.");
+
+    var resume = new TaskCompletionSource();
+    wait = resume.Task;
+    paste.CaptureTarget();
+    var pendingPaste = paste.PasteAsync();
+    changeCount++;
+    resume.SetResult();
+    Check(pendingPaste.GetAwaiter().GetResult() == PasteResult.ClipboardChanged && native.Posts == 1,
+        "A copy arriving while Vstavka waits for focus cancels the shortcut.");
+
+    paste.CaptureTarget();
+    Check(paste.PasteAsync().GetAwaiter().GetResult() == PasteResult.ClipboardChanged && native.Posts == 1,
+        "A copy arriving before paste starts also cancels the shortcut.");
+
+    writtenCount = changeCount;
+    resume = new TaskCompletionSource();
+    wait = resume.Task;
+    paste.CaptureTarget();
+    pendingPaste = paste.PasteAsync();
+    writtenCount = ++changeCount;
+    resume.SetResult();
+    Check(pendingPaste.GetAwaiter().GetResult() == PasteResult.ClipboardChanged && native.Posts == 1,
+        "A later Vstavka write is not pasted by the earlier selection.");
+});
+
 Run("Start at login reflects system status and errors", () =>
 {
     nint service = 0;
@@ -321,6 +356,22 @@ sealed class FakeRegistration(Action callback) : IDisposable
     public Action Callback { get; } = callback;
     public bool Disposed { get; private set; }
     public void Dispose() => Disposed = true;
+}
+
+sealed class FakeMacPaste : IMacPaste
+{
+    public int Posts { get; private set; }
+    public bool CanPostPaste => true;
+    public nint CaptureTarget() => 42;
+    public void ReleaseTarget(nint app) { }
+    public bool TryActivate(nint app) => true;
+    public bool IsTerminated(nint app) => false;
+    public bool IsFrontmost(nint app) => true;
+    public bool PostPaste()
+    {
+        Posts++;
+        return true;
+    }
 }
 
 sealed class QueuedContext : SynchronizationContext

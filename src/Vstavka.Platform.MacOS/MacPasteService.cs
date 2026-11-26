@@ -2,88 +2,99 @@ using System.Runtime.InteropServices;
 
 namespace Vstavka.Platform.MacOS;
 
-internal sealed class MacPasteService : IPasteService, IDisposable
+internal interface IMacPaste
 {
-    private const int IgnoreOtherApps = 1 << 1;
+    nint CaptureTarget();
+    void ReleaseTarget(nint app);
+    bool TryActivate(nint app);
+    bool IsTerminated(nint app);
+    bool IsFrontmost(nint app);
+    bool CanPostPaste { get; }
+    bool PostPaste();
+}
+
+internal sealed class MacPasteService(IMacPaste native, Func<long> changeCount, Func<long?> writtenCount,
+    Func<int, Task>? delay = null) : IPasteService, IDisposable
+{
+    private readonly Func<int, Task> wait = delay ?? (milliseconds => Task.Delay(milliseconds));
     private nint target;
-#if !VSTAVKA_MAC_APP_STORE
     private int targetGeneration;
-#endif
     private bool disposed;
 
     public void CaptureTarget()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        using var pool = new AutoreleasePool();
-        var app = RunningApps.Frontmost;
-        if (app != 0 && !RunningApps.IsCurrentProcess(app))
-            ObjC.Retain(app);
-        else
-            app = 0;
-        ObjC.Release(target);
+        var app = native.CaptureTarget();
+        native.ReleaseTarget(target);
         target = app;
-#if !VSTAVKA_MAC_APP_STORE
         targetGeneration++;
-#endif
     }
 
-    public Task<PasteResult> PasteAsync()
+    public async Task<PasteResult> PasteAsync()
     {
+        var count = writtenCount();
+        bool ClipboardUnchanged() => count.HasValue && writtenCount() == count && changeCount() == count;
+        PasteResult Failure() => ClipboardUnchanged() ? PasteResult.Manual : PasteResult.ClipboardChanged;
+
         if (disposed || target == 0)
-            return Task.FromResult(PasteResult.Manual);
+            return Failure();
 
         var app = target;
         target = 0;
+        var generation = ++targetGeneration;
         try
         {
-            using var pool = new AutoreleasePool();
-            if (ObjC.Is(app, "isTerminated"))
-                return Task.FromResult(PasteResult.Manual);
-            Activate(app);
-
-#if !VSTAVKA_MAC_APP_STORE
-            if (MacPermissions.System.AccessibilityState == PermissionState.Granted)
-                return PostPasteWhenActiveAsync(app, ++targetGeneration);
-#endif
-            return Task.FromResult(PasteResult.Manual);
-        }
-        finally
-        {
-            ObjC.Release(app);
-        }
-    }
-
-#if !VSTAVKA_MAC_APP_STORE
-    private async Task<PasteResult> PostPasteWhenActiveAsync(nint app, int generation)
-    {
-        ObjC.Retain(app);
-        try
-        {
+            if (!ClipboardUnchanged())
+                return PasteResult.ClipboardChanged;
+            if (!native.TryActivate(app) || !native.CanPostPaste)
+                return Failure();
             for (var i = 0; i < 10; i++)
             {
                 // Resume on the UI context so AppKit can process the activation between checks.
-                await Task.Delay(50);
-                if (generation != targetGeneration)
-                    return PasteResult.Manual;
-                using var pool = new AutoreleasePool();
-                if (ObjC.Is(app, "isTerminated"))
-                    return PasteResult.Manual;
-                if (RunningApps.ProcessId(app) == RunningApps.ProcessId(RunningApps.Frontmost))
-                    return MacPermissions.System.AccessibilityState == PermissionState.Granted && Accessibility.PostPaste()
-                        ? PasteResult.ShortcutSent
-                        : PasteResult.Manual;
+                await wait(50);
+                if (generation != targetGeneration || native.IsTerminated(app))
+                    return Failure();
+                if (native.IsFrontmost(app))
+                    return native.CanPostPaste && ClipboardUnchanged() && native.PostPaste()
+                        ? PasteResult.ShortcutSent : Failure();
+                if (!ClipboardUnchanged())
+                    return PasteResult.ClipboardChanged;
             }
-            return PasteResult.Manual;
+            return Failure();
         }
         finally
         {
-            ObjC.Release(app);
+            native.ReleaseTarget(app);
         }
     }
-#endif
 
-    private static void Activate(nint app)
+    public void Dispose()
     {
+        disposed = true;
+        targetGeneration++;
+        native.ReleaseTarget(target);
+        target = 0;
+    }
+}
+
+internal sealed class AppKitPaste : IMacPaste
+{
+    private const int IgnoreOtherApps = 1 << 1;
+
+    public nint CaptureTarget()
+    {
+        using var pool = new AutoreleasePool();
+        var app = RunningApps.Frontmost;
+        return app != 0 && !RunningApps.IsCurrentProcess(app) ? ObjC.Retain(app) : 0;
+    }
+
+    public void ReleaseTarget(nint app) => ObjC.Release(app);
+
+    public bool TryActivate(nint app)
+    {
+        using var pool = new AutoreleasePool();
+        if (IsTerminated(app))
+            return false;
         var current = RunningApps.CurrentApp;
         if (ObjC.Responds(current, "yieldActivationToApplication:"))
         {
@@ -94,17 +105,24 @@ internal sealed class MacPasteService : IPasteService, IDisposable
         {
             ObjC.Bool(app, ObjC.Sel("activateWithOptions:"), IgnoreOtherApps);
         }
+        return true;
     }
 
-    public void Dispose()
+    public bool IsTerminated(nint app) => ObjC.Is(app, "isTerminated");
+
+    public bool IsFrontmost(nint app)
     {
-        disposed = true;
-#if !VSTAVKA_MAC_APP_STORE
-        targetGeneration++;
-#endif
-        ObjC.Release(target);
-        target = 0;
+        using var pool = new AutoreleasePool();
+        return RunningApps.ProcessId(app) == RunningApps.ProcessId(RunningApps.Frontmost);
     }
+
+#if VSTAVKA_MAC_APP_STORE
+    public bool CanPostPaste => false;
+    public bool PostPaste() => false;
+#else
+    public bool CanPostPaste => MacPermissions.System.AccessibilityState == PermissionState.Granted;
+    public bool PostPaste() => Accessibility.PostPaste();
+#endif
 }
 
 #if !VSTAVKA_MAC_APP_STORE
